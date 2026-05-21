@@ -800,12 +800,6 @@ async def main(page: ft.Page):
                 state["update_dismissed"] = True
                 render()
 
-            def open_download(e):
-                try:
-                    page.launch_url(info["url"])
-                except Exception:
-                    pass
-
             rows.append(ft.Container(
                 content=ft.Row([
                     ft.Icon(ft.Icons.NEW_RELEASES, color=_c("yellow"), size=20),
@@ -813,7 +807,11 @@ async def main(page: ft.Page):
                         _txt(f"{t('update_available')}: v{info['version']}",
                              size=13, color=_c("yellow")),
                     ], expand=True, spacing=2),
-                    _btn(t("download"), open_download, color=_c("green")),
+                    ft.ElevatedButton(
+                        text=t("download"), url=info["url"],
+                        color="#ffffff", bgcolor=_c("green"),
+                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                    ),
                     ft.IconButton(ft.Icons.CLOSE, on_click=dismiss_update,
                                   icon_color=_c("sub"), icon_size=16),
                 ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -1245,11 +1243,9 @@ async def main(page: ft.Page):
             prefs["region"]     = state["region"]
             _save_prefs(prefs)
             try:
-                page.snack_bar       = ft.SnackBar(
+                page.show_dialog(ft.SnackBar(
                     content=ft.Text(t("save_settings")), bgcolor=_c("green")
-                )
-                page.snack_bar.open  = True
-                page.update()
+                ))
             except Exception:
                 pass
 
@@ -1349,4 +1345,4 @@ async def main(page: ft.Page):
     page.run_task(_task_check_update)
 
 
-ft.app(main)
+ft.run(main)
