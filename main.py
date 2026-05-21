@@ -109,7 +109,7 @@ _DARK = {
     "card":    "#0e0e2e",
     "border":  "#1e1e5a",
     "text":    "#e8e8ff",
-    "sub":     "#8888bb",
+    "sub":     "#b8b8e8",
     "orange":  "#ff6d00",
     "cyan":    "#00e5ff",
     "yellow":  "#ffd700",
@@ -128,7 +128,7 @@ _LIGHT = {
     "card":    "#ffffff",
     "border":  "#d0d0e8",
     "text":    "#111133",
-    "sub":     "#555577",
+    "sub":     "#3a3a6a",
     "orange":  "#d94f00",
     "cyan":    "#006fa3",
     "yellow":  "#9a7400",
@@ -715,6 +715,9 @@ def _sync_epic_token():
     except Exception:
         return None
 
+_STW_THEATERS = {"theater00", "theater01", "theater02", "theater03",
+                  "stonewood", "plankerton", "canny", "twine"}
+
 def _sync_fetch_alerts(region: str) -> list:
     token = _sync_epic_token()
     if not token:
@@ -730,13 +733,18 @@ def _sync_fetch_alerts(region: str) -> list:
         missions = r.json().get("missions", [])
         alerts = []
         for m in missions:
-            theater = m.get("theaterId", "").upper()
-            if region.upper() not in theater:
+            theater = m.get("theaterId", "")
+            theater_l = theater.lower()
+            # Skip BR (Athena) missions — only show STW missions
+            if "athena" in theater_l:
                 continue
-            for alert in m.get("missionAlert", {}).get("availableAlerts", []):
+            # Only process missions that have an alert with rewards
+            mission_alert = m.get("missionAlert") or {}
+            for alert in mission_alert.get("availableAlerts", []):
                 rewards = []
                 has_vbucks = False
-                for rw in alert.get("missionAlertRewards", {}).get("items", []):
+                items = (alert.get("missionAlertRewards") or {}).get("items", [])
+                for rw in items:
                     typ = rw.get("itemType", "")
                     qty = rw.get("quantity", 0)
                     is_vb = _VBUCKS_TYPE in typ
@@ -744,10 +752,17 @@ def _sync_fetch_alerts(region: str) -> list:
                         has_vbucks = True
                     rewards.append({"type": typ, "quantity": qty, "vbucks": is_vb})
                 if rewards:
-                    mtype = (m.get("missionType") or {}).get("missionType", "Mission")
+                    mtype = ((m.get("missionType") or {})
+                             .get("missionType", "Mission"))
+                    # Zone label: map theater ID to readable name
+                    zone_map = {
+                        "theater00": "Stonewood", "theater01": "Plankerton",
+                        "theater02": "Canny Valley", "theater03": "Twine Peaks",
+                    }
+                    zone = zone_map.get(theater_l, theater or "STW")
                     alerts.append({
                         "name":    mtype,
-                        "zone":    m.get("theaterId", ""),
+                        "zone":    zone,
                         "rewards": rewards,
                         "vbucks":  has_vbucks,
                     })
@@ -881,6 +896,7 @@ async def main(page: ft.Page):
         "update_dismissed": False,
         "builds_tab":       "meta",
         "builds_cls":       "all",
+        "meta_imgs":        {},
         "hero_search_results":  [],
         "hero_search_loading":  False,
         "hero_search_query":    "",
@@ -959,9 +975,13 @@ async def main(page: ft.Page):
 
     def _footer():
         return ft.Container(
-            content=ft.Text(COPYRIGHT, size=10, color=_c("footer"),
-                            text_align=ft.TextAlign.CENTER),
-            padding=_pad_sym(vertical=8),
+            content=ft.Text(
+                COPYRIGHT, size=11,
+                color=_c("footer"),
+                weight=ft.FontWeight.W_600,
+                text_align=ft.TextAlign.CENTER,
+            ),
+            padding=_pad_sym(vertical=10),
             alignment=_ALIGN_CENTER,
         )
 
@@ -1140,6 +1160,19 @@ async def main(page: ft.Page):
         results = await asyncio.to_thread(_sync_search_heroes, query)
         state["hero_search_results"] = results
         state["hero_search_loading"] = False
+        render()
+
+    async def _task_load_meta_imgs():
+        # Collect unique hero names from all meta builds
+        names = list({b["hero"] for builds in BUILDS.values() for b in builds})
+        for name in names:
+            if name in state["meta_imgs"]:
+                continue
+            results = await asyncio.to_thread(_sync_search_heroes, name)
+            if results:
+                state["meta_imgs"][name] = results[0].get("image", "")
+            else:
+                state["meta_imgs"][name] = ""
         render()
 
     async def _auto_refresh_loop():
@@ -1380,19 +1413,24 @@ async def main(page: ft.Page):
                 support = b[f"support_{lang}"]
                 weapons = b[f"weapons_{lang}"]
                 tags    = b.get("tags", [])
+                hero_img_url = state["meta_imgs"].get(b["hero"], "")
                 rows.append(_card(
                     ft.Row([
-                        ft.Container(
-                            content=ft.Text(cls_name[0], size=20,
-                                           weight=ft.FontWeight.BOLD,
-                                           color="#ffffff"),
-                            bgcolor=cls_colors.get(cls_name, _c("orange")),
-                            width=44, height=44, border_radius=22,
-                            alignment=_ALIGN_CENTER,
-                        ),
+                        _hero_img(hero_img_url, size=56),
                         ft.Column([
                             _hdr(b["name"], size=14),
-                            _sub(b["hero"], size=12),
+                            ft.Row([
+                                ft.Container(
+                                    content=ft.Text(cls_name[0], size=9,
+                                                   weight=ft.FontWeight.BOLD,
+                                                   color="#ffffff"),
+                                    bgcolor=cls_colors.get(cls_name, _c("orange")),
+                                    width=18, height=18, border_radius=9,
+                                    alignment=_ALIGN_CENTER,
+                                ),
+                                _sub(b["hero"], size=12),
+                            ], spacing=4,
+                               vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         ], expand=True, spacing=2),
                     ], spacing=10,
                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -1416,7 +1454,7 @@ async def main(page: ft.Page):
                          ) for sk in b["skills"]],
                         wrap=True, spacing=4,
                     ),
-                    _txt(desc, size=12, color=_c("sub")),
+                    _txt(desc, size=12),
                     ft.Row([
                         ft.Icon(ft.Icons.STAR, size=12, color=_c("yellow")),
                         _txt(purpose, size=11, color=_c("yellow")),
@@ -2024,6 +2062,7 @@ async def main(page: ft.Page):
     page.run_task(_task_load_alerts)
     page.run_task(_task_load_news)
     page.run_task(_task_check_update)
+    page.run_task(_task_load_meta_imgs)
     page.run_task(_auto_refresh_loop)
 
 
