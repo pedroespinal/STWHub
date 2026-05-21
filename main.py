@@ -814,6 +814,14 @@ def _sync_search_heroes(query: str) -> list:
     except Exception:
         return []
 
+def _newer_version(remote: str, local: str) -> bool:
+    try:
+        r = tuple(int(x) for x in remote.split("."))
+        l = tuple(int(x) for x in local.split("."))
+        return r > l
+    except Exception:
+        return remote != local
+
 def _sync_check_update():
     if not _REQ_OK:
         return None
@@ -824,7 +832,7 @@ def _sync_check_update():
             return None
         data   = r.json()
         latest = data.get("tag_name", "").lstrip("v")
-        if latest and latest != APP_VERSION:
+        if latest and _newer_version(latest, APP_VERSION):
             return {"version": latest, "url": GITHUB_RELEASES,
                     "notes": data.get("body", "")[:200]}
         return None
@@ -1239,7 +1247,7 @@ async def main(page: ft.Page):
                 value=state["region"],
                 options=[ft.dropdown.Option(r) for r in _REGIONS],
                 on_select=on_region,
-                width=90, text_size=13,
+                width=115, text_size=13,
                 border_color=_c("border"), color=_c("text"),
             ),
             _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
