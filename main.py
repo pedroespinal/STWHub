@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-STW Hub v1.1.1 — Fortnite: Save The World Hub
+STW Hub v1.2.0 — Fortnite: Save The World Hub
 Creado por: Pedro Espinal  Todos los derechos reservados (c) 2026
+Rewrite: async/await model — no threading locks, no black screen on Android.
 """
 
 import flet as ft
+import asyncio
 import json
 import os
 import hashlib
-import threading
 import sqlite3
 import base64
 from datetime import date, datetime, timedelta, timezone
@@ -23,13 +24,13 @@ except ImportError:
 
 # ── App constants ─────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.2.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
 COPYRIGHT   = f"Creado por: {APP_AUTHOR}   .   {APP_RIGHTS}   ©{APP_YEAR}"
 
-# FIX #3 — DATA_DIR writable on Android (checks FLET_APP_STORAGE_DATA first)
+# ── DATA_DIR — writable on Android ────────────────────────────────────────────
 def _resolve_data_dir() -> Path:
     for key in ("FLET_APP_STORAGE_DATA", "FLET_APP_DIR", "APPDATA"):
         val = os.environ.get(key)
@@ -61,7 +62,7 @@ GITHUB_REPO     = "pedroespinal/STWHub"
 GITHUB_API      = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RELEASES = f"https://github.com/{GITHUB_REPO}/releases/latest"
 
-# ── Authorship fingerprint ────────────────────────────────────────────────────
+# ── Genesis seal ──────────────────────────────────────────────────────────────
 _GENESIS_COMMIT = "stwhub-genesis-20260521"
 _GENESIS_DATE   = "2026-05-21T00:00:00"
 _GENESIS_AUTHOR = "Pedro Espinal"
@@ -82,7 +83,7 @@ _NEWS_URL           = "https://fortnite-api.com/v2/news/stw"
 _VBUCKS_TYPE = "AccountResource:currency_mtxswap"
 _REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
 
-# ── Meta builds data ─────────────────────────────────────────────────────────
+# ── Meta builds data ──────────────────────────────────────────────────────────
 BUILDS = {
     "Constructor": [
         {
@@ -277,7 +278,7 @@ T = {
         "genesis_invalid": "FIRMA INVALIDA",
         "created_by": "Creado por", "rights": "Todos los derechos reservados",
         "region_lbl": "Region de alertas",
-        "notif_hour": "Hora de notificacion diaria (0-23h)",
+        "notif_hour": "Hora notificacion (0-23h)",
         "save_settings": "Guardado",
         "check_update": "Buscar actualizacion",
         "update_available": "Nueva version disponible",
@@ -302,6 +303,7 @@ T = {
         "alerts_cached": "Cache offline",
         "error_api": "Error al conectar con la API.",
         "all_classes": "Todas",
+        "checking": "Verificando...",
     },
     "en": {
         "home": "Home", "builds": "Builds", "news": "News",
@@ -322,7 +324,7 @@ T = {
         "genesis_invalid": "INVALID SIGNATURE",
         "created_by": "Created by", "rights": "All rights reserved",
         "region_lbl": "Alert region",
-        "notif_hour": "Daily notification hour (0-23h)",
+        "notif_hour": "Notification hour (0-23h)",
         "save_settings": "Saved",
         "check_update": "Check for update",
         "update_available": "New version available",
@@ -347,6 +349,7 @@ T = {
         "alerts_cached": "Offline cache",
         "error_api": "Error connecting to the API.",
         "all_classes": "All",
+        "checking": "Checking...",
     },
 }
 
@@ -496,68 +499,11 @@ def _db_delete_build(bid: int):
     except Exception:
         pass
 
-# ── GitHub update checker ─────────────────────────────────────────────────────
-def _check_github_update():
+# ── Network helpers (blocking — run via asyncio.to_thread) ────────────────────
+def _sync_epic_token():
     if not _REQ_OK:
         return None
     try:
-        r = requests.get(GITHUB_API, timeout=6,
-                         headers={"Accept": "application/vnd.github+json"})
-        if r.status_code != 200:
-            return None
-        data = r.json()
-        latest = data.get("tag_name", "").lstrip("v")
-        if latest and latest != APP_VERSION:
-            return {"version": latest, "url": GITHUB_RELEASES,
-                    "notes": data.get("body", "")[:200]}
-        return None
-    except Exception:
-        return None
-
-# ── UTC daily reset countdown ─────────────────────────────────────────────────
-def _utc_reset_str() -> str:
-    try:
-        now = datetime.now(timezone.utc)
-        nxt = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        diff = nxt - now
-        h, rem = divmod(int(diff.total_seconds()), 3600)
-        m, s   = divmod(rem, 60)
-        return f"{h:02d}:{m:02d}:{s:02d}"
-    except Exception:
-        return "--:--:--"
-
-# ── Android background notification ───────────────────────────────────────────
-def _schedule_notification_if_android(hour: int):
-    try:
-        from jnius import autoclass
-        PythonActivity = autoclass("org.kivy.android.PythonActivity")
-        Context        = autoclass("android.content.Context")
-        AlarmManager   = autoclass("android.app.AlarmManager")
-        Intent         = autoclass("android.content.Intent")
-        PendingIntent  = autoclass("android.app.PendingIntent")
-        Calendar       = autoclass("java.util.Calendar")
-        ctx = PythonActivity.mActivity
-        am  = ctx.getSystemService(Context.ALARM_SERVICE)
-        intent = Intent(ctx, PythonActivity)
-        intent.setAction("com.pedroespinal.stwhub.DAILY_ALERT")
-        pi = PendingIntent.getBroadcast(ctx, 0, intent,
-                                        PendingIntent.FLAG_UPDATE_CURRENT | 0x02000000)
-        cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, hour)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        if cal.getTimeInMillis() < Calendar.getInstance().getTimeInMillis():
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi)
-    except Exception:
-        pass
-
-# ── Epic Games API helpers ────────────────────────────────────────────────────
-def _epic_token():
-    if not _REQ_OK:
-        return None
-    try:
-        # FIX #9 — base64 now imported at top
         creds = base64.b64encode(
             f"{_EPIC_CLIENT_ID}:{_EPIC_CLIENT_SECRET}".encode()
         ).decode()
@@ -572,8 +518,8 @@ def _epic_token():
     except Exception:
         return None
 
-def _fetch_alerts(region: str) -> list:
-    token = _epic_token()
+def _sync_fetch_alerts(region: str) -> list:
+    token = _sync_epic_token()
     if not token:
         return []
     try:
@@ -584,12 +530,10 @@ def _fetch_alerts(region: str) -> list:
         )
         if r.status_code != 200:
             return []
-        # FIX #8 — parse once
         data     = r.json()
         missions = data.get("missions", [])
         alerts   = []
         for m in missions:
-            # FIX #7 — region filter now actually works
             theater = m.get("theaterId", "").upper()
             if region.upper() not in theater:
                 continue
@@ -611,7 +555,7 @@ def _fetch_alerts(region: str) -> list:
     except Exception:
         return []
 
-def _fetch_news() -> list:
+def _sync_fetch_news() -> list:
     if not _REQ_OK:
         return []
     try:
@@ -623,10 +567,39 @@ def _fetch_news() -> list:
     except Exception:
         return []
 
+def _sync_check_update():
+    if not _REQ_OK:
+        return None
+    try:
+        r = requests.get(GITHUB_API, timeout=6,
+                         headers={"Accept": "application/vnd.github+json"})
+        if r.status_code != 200:
+            return None
+        data   = r.json()
+        latest = data.get("tag_name", "").lstrip("v")
+        if latest and latest != APP_VERSION:
+            return {"version": latest, "url": GITHUB_RELEASES,
+                    "notes": data.get("body", "")[:200]}
+        return None
+    except Exception:
+        return None
+
+# ── UTC countdown ─────────────────────────────────────────────────────────────
+def _utc_reset_str() -> str:
+    try:
+        now = datetime.now(timezone.utc)
+        nxt = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        diff = nxt - now
+        h, rem = divmod(int(diff.total_seconds()), 3600)
+        m, s   = divmod(rem, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    except Exception:
+        return "--:--:--"
+
 # ═════════════════════════════════════════════════════════════════════════════
-# MAIN
+# MAIN — async model: no threading locks, safe on Android
 # ═════════════════════════════════════════════════════════════════════════════
-def main(page: ft.Page):
+async def main(page: ft.Page):
     _init_db()
 
     prefs = _load_prefs()
@@ -659,15 +632,11 @@ def main(page: ft.Page):
     page.title   = f"{APP_NAME} v{APP_VERSION}"
     page.bgcolor = _c("bg")
     page.padding = 0
-    # FIX #2 — window size only on desktop, safe try/except
     try:
         page.window.width  = 400
         page.window.height = 800
     except Exception:
         pass
-
-    # FIX #4 — render lock prevents concurrent UI corruption from threads
-    _lock = threading.Lock()
 
     # ── UI helpers ────────────────────────────────────────────────────────────
     def _card(*children, padding=12, margin=4):
@@ -698,11 +667,13 @@ def main(page: ft.Page):
             ),
         )
 
-    def _chip(label, active: bool, on_click):
+    def _chip(label, active: bool, on_select):
         return ft.Chip(
             label=ft.Text(label, size=12),
-            selected=active, on_select=on_click,
-            selected_color=_c("orange"), check_color="#ffffff",
+            selected=active,
+            on_select=on_select,
+            selected_color=_c("orange"),
+            check_color="#ffffff",
         )
 
     def _hdr(text, size=18, color=None):
@@ -737,7 +708,6 @@ def main(page: ft.Page):
         render()
 
     def _nav_bar():
-        # FIX #5 — only use icon names confirmed safe in Flet 0.85
         cur = TAB_ORDER.index(state["screen"]) if state["screen"] in TAB_ORDER else 0
 
         def on_nav(e):
@@ -745,11 +715,11 @@ def main(page: ft.Page):
 
         return ft.NavigationBar(
             destinations=[
-                ft.NavigationBarDestination(icon=ft.Icons.HOME,        label=t("home")),
-                ft.NavigationBarDestination(icon=ft.Icons.HANDYMAN,    label=t("builds")),
-                ft.NavigationBarDestination(icon=ft.Icons.ARTICLE,     label=t("news")),
-                ft.NavigationBarDestination(icon=ft.Icons.MENU_BOOK,   label=t("guide")),
-                ft.NavigationBarDestination(icon=ft.Icons.SETTINGS,    label=t("settings")),
+                ft.NavigationBarDestination(icon=ft.Icons.HOME,      label=t("home")),
+                ft.NavigationBarDestination(icon=ft.Icons.HANDYMAN,  label=t("builds")),
+                ft.NavigationBarDestination(icon=ft.Icons.ARTICLE,   label=t("news")),
+                ft.NavigationBarDestination(icon=ft.Icons.MENU_BOOK, label=t("guide")),
+                ft.NavigationBarDestination(icon=ft.Icons.SETTINGS,  label=t("settings")),
             ],
             selected_index=cur,
             on_change=on_nav,
@@ -784,12 +754,12 @@ def main(page: ft.Page):
             ],
         )
 
-    # ── Alert/News loading ────────────────────────────────────────────────────
-    def _load_alerts():
+    # ── Async background tasks — safe on Android ──────────────────────────────
+    async def _task_load_alerts():
         state["loading"]     = True
         state["using_cache"] = False
         render()
-        alerts = _fetch_alerts(state["region"])
+        alerts = await asyncio.to_thread(_sync_fetch_alerts, state["region"])
         if alerts:
             state["alerts"]       = alerts
             state["last_refresh"] = datetime.now().strftime("%H:%M")
@@ -804,15 +774,15 @@ def main(page: ft.Page):
         state["loading"] = False
         render()
 
-    def _load_news():
+    async def _task_load_news():
         state["news_loading"] = True
         render()
-        state["news"]         = _fetch_news()
+        state["news"]         = await asyncio.to_thread(_sync_fetch_news)
         state["news_loading"] = False
         render()
 
-    def _bg_check_update():
-        info = _check_github_update()
+    async def _task_check_update():
+        info = await asyncio.to_thread(_sync_check_update)
         if info:
             state["update_info"]      = info
             state["update_dismissed"] = False
@@ -854,7 +824,7 @@ def main(page: ft.Page):
             ))
 
         def do_refresh(e):
-            threading.Thread(target=_load_alerts, daemon=True).start()
+            page.run_task(_task_load_alerts)
 
         def toggle_vbucks(e):
             state["vbucks_only"] = not state["vbucks_only"]
@@ -867,10 +837,10 @@ def main(page: ft.Page):
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
 
         def on_region(e):
-            state["region"]   = e.control.value
-            prefs["region"]   = state["region"]
+            state["region"] = e.control.value
+            prefs["region"] = state["region"]
             _save_prefs(prefs)
-            threading.Thread(target=_load_alerts, daemon=True).start()
+            page.run_task(_task_load_alerts)
 
         rows.append(ft.Row([
             _toggle_btn(t("vbucks_only"), vbucks_active, toggle_vbucks),
@@ -939,8 +909,8 @@ def main(page: ft.Page):
             return _h
 
         rows.append(ft.Row([
-            _toggle_btn(t("meta_builds"), state["builds_tab"] == "meta", set_btab("meta")),
-            _toggle_btn(t("my_builds"),   state["builds_tab"] == "my",   set_btab("my")),
+            _toggle_btn(t("meta_builds"), state["builds_tab"] == "meta",  set_btab("meta")),
+            _toggle_btn(t("my_builds"),   state["builds_tab"] == "my",    set_btab("my")),
             _toggle_btn(t("traps"),       state["builds_tab"] == "traps", set_btab("traps")),
         ], spacing=6, wrap=True))
         rows.append(_divider())
@@ -1004,7 +974,7 @@ def main(page: ft.Page):
         state["my_builds"] = builds
 
         def go_create(e):
-            state["screen"]       = "build_create"
+            state["screen"]        = "build_create"
             state["edit_build_id"] = None
             render()
 
@@ -1113,18 +1083,18 @@ def main(page: ft.Page):
             except Exception:
                 pass
 
-        name_field   = ft.TextField(
+        name_field = ft.TextField(
             label=t("build_name"), value=existing["name"] if existing else "",
             border_color=_c("border"), color=_c("text"),
             label_style=ft.TextStyle(color=_c("sub")),
         )
-        class_dd     = ft.Dropdown(
+        class_dd = ft.Dropdown(
             label=t("build_class"),
             value=existing["cls"] if existing else list(BUILDS.keys())[0],
             options=[ft.dropdown.Option(k) for k in BUILDS.keys()],
             border_color=_c("border"), color=_c("text"),
         )
-        hero_field   = ft.TextField(
+        hero_field = ft.TextField(
             label=t("build_hero"), value=existing.get("hero", "") if existing else "",
             border_color=_c("border"), color=_c("text"),
             label_style=ft.TextStyle(color=_c("sub")),
@@ -1136,7 +1106,7 @@ def main(page: ft.Page):
             border_color=_c("border"), color=_c("text"),
             label_style=ft.TextStyle(color=_c("sub")),
         )
-        desc_field   = ft.TextField(
+        desc_field = ft.TextField(
             label=t("build_desc"), value=existing.get("desc", "") if existing else "",
             multiline=True, min_lines=3,
             border_color=_c("border"), color=_c("text"),
@@ -1244,8 +1214,8 @@ def main(page: ft.Page):
         ))
 
         def on_region_change(e):
-            state["region"]  = e.control.value
-            prefs["region"]  = state["region"]
+            state["region"] = e.control.value
+            prefs["region"] = state["region"]
             _save_prefs(prefs)
 
         rows.append(_card(
@@ -1274,12 +1244,11 @@ def main(page: ft.Page):
             prefs["notif_hour"] = h
             prefs["region"]     = state["region"]
             _save_prefs(prefs)
-            _schedule_notification_if_android(h)
             try:
-                page.snack_bar = ft.SnackBar(
+                page.snack_bar       = ft.SnackBar(
                     content=ft.Text(t("save_settings")), bgcolor=_c("green")
                 )
-                page.snack_bar.open = True
+                page.snack_bar.open  = True
                 page.update()
             except Exception:
                 pass
@@ -1288,10 +1257,10 @@ def main(page: ft.Page):
 
         update_status = ft.Text("", size=13, color=_c("sub"))
 
-        def manual_check_update(e):
-            update_status.value = t("loading")
+        async def manual_check_update(e):
+            update_status.value = t("checking")
             page.update()
-            info = _check_github_update()
+            info = await asyncio.to_thread(_sync_check_update)
             if info:
                 state["update_info"]      = info
                 state["update_dismissed"] = False
@@ -1327,61 +1296,57 @@ def main(page: ft.Page):
         ))
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
-    # ── Master render ─────────────────────────────────────────────────────────
+    # ── Master render — sync, always called from event loop ───────────────────
     def render():
-        # FIX #4 — lock prevents concurrent render corruption from background threads
-        with _lock:
-            try:
-                # FIX #1 — _apply_theme inline, safe navigation_bar check
-                page.bgcolor = _c("bg")
-                if page.navigation_bar:
-                    page.navigation_bar.bgcolor = _c("surface")
+        try:
+            page.bgcolor = _c("bg")
+            if page.navigation_bar:
+                page.navigation_bar.bgcolor = _c("surface")
 
-                screen = state["screen"]
-                if screen == "home":
-                    content = _screen_home()
-                    title   = f"{APP_NAME} v{APP_VERSION}"
-                elif screen == "builds":
-                    content = _screen_builds()
-                    title   = t("builds")
-                elif screen in ("build_create", "build_edit"):
-                    content = _screen_build_form()
-                    title   = APP_NAME
-                elif screen == "news":
-                    content = _screen_news()
-                    title   = t("news_tab")
-                elif screen == "guide":
-                    content = _screen_guide()
-                    title   = t("guide_title")
-                elif screen == "settings":
-                    content = _screen_settings()
-                    title   = t("settings_title")
-                else:
-                    content = _screen_home()
-                    title   = APP_NAME
+            screen = state["screen"]
+            if screen == "home":
+                content = _screen_home()
+                title   = f"{APP_NAME} v{APP_VERSION}"
+            elif screen == "builds":
+                content = _screen_builds()
+                title   = t("builds")
+            elif screen in ("build_create", "build_edit"):
+                content = _screen_build_form()
+                title   = APP_NAME
+            elif screen == "news":
+                content = _screen_news()
+                title   = t("news_tab")
+            elif screen == "guide":
+                content = _screen_guide()
+                title   = t("guide_title")
+            elif screen == "settings":
+                content = _screen_settings()
+                title   = t("settings_title")
+            else:
+                content = _screen_home()
+                title   = APP_NAME
 
-                page.navigation_bar = _nav_bar()
-                page.appbar         = _appbar(title)
-                page.controls.clear()
-                page.add(
-                    ft.Container(
-                        content=ft.Column([content, _footer()],
-                                          spacing=0, expand=True),
-                        bgcolor=_c("bg"),
-                        padding=ft.padding.symmetric(horizontal=12, vertical=8),
-                        expand=True,
-                    )
+            page.navigation_bar = _nav_bar()
+            page.appbar         = _appbar(title)
+            page.controls.clear()
+            page.add(
+                ft.Container(
+                    content=ft.Column([content, _footer()],
+                                      spacing=0, expand=True),
+                    bgcolor=_c("bg"),
+                    padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                    expand=True,
                 )
-                page.update()
-            except Exception:
-                pass
+            )
+            page.update()
+        except Exception:
+            pass
 
     # ── Startup ───────────────────────────────────────────────────────────────
     render()
-    threading.Thread(target=_load_alerts,     daemon=True).start()
-    threading.Thread(target=_load_news,       daemon=True).start()
-    threading.Thread(target=_bg_check_update, daemon=True).start()
-    _schedule_notification_if_android(state["notif_hour"])
+    page.run_task(_task_load_alerts)
+    page.run_task(_task_load_news)
+    page.run_task(_task_check_update)
 
 
 ft.app(main)

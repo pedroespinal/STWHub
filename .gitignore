@@ -13,6 +13,10 @@ build/
 .buildozer/
 bin/
 
+# APK files — keep out of project root to avoid bundling into builds
+*.apk
+*.log
+
 # Runtime data (user-specific, not part of source)
 STWHub/
 *.db
