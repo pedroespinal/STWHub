@@ -13,6 +13,7 @@ import os
 import hashlib
 import sqlite3
 import base64
+import traceback
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -814,9 +815,36 @@ def _utc_reset_str() -> str:
 # ═════════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ═════════════════════════════════════════════════════════════════════════════════
+async def _show_fatal(page: ft.Page, err: Exception):
+    try:
+        page.bgcolor = "#07071a"
+        page.controls.clear()
+        page.add(ft.Container(
+            content=ft.Column([
+                ft.Text("⚠ FATAL STARTUP ERROR", size=15, color="#ff3355",
+                        weight=ft.FontWeight.BOLD),
+                ft.Text(str(err), size=11, color="#ff9944", selectable=True),
+                ft.Text(traceback.format_exc(), size=9, color="#aaaaaa",
+                        selectable=True),
+            ], spacing=6, scroll=ft.ScrollMode.AUTO),
+            padding=16, expand=True, bgcolor="#07071a",
+        ))
+        page.update()
+    except Exception:
+        pass
+
+
 async def main(page: ft.Page):
-    _init_db()
-    prefs = _load_prefs()
+    try:
+        _init_db()
+    except Exception as _e:
+        await _show_fatal(page, _e)
+        return
+    try:
+        prefs = _load_prefs()
+    except Exception as _e:
+        await _show_fatal(page, _e)
+        return
     if prefs.get("theme"):
         THEME[0] = prefs["theme"]
     if prefs.get("lang"):
@@ -924,7 +952,7 @@ async def main(page: ft.Page):
         if url:
             return ft.Image(
                 src=url, width=size, height=size,
-                fit=ft.ImageFit.CONTAIN, border_radius=8,
+                fit=ft.BoxFit.CONTAIN, border_radius=8,
                 error_content=ft.Container(
                     width=size, height=size, bgcolor=_c("surface"),
                     border_radius=8,
@@ -1241,7 +1269,7 @@ async def main(page: ft.Page):
                     card_children.append(ft.Container(
                         content=ft.Image(
                             src=item["image"],
-                            fit=ft.ImageFit.COVER,
+                            fit=ft.BoxFit.COVER,
                             width=9999,
                             height=170,
                             error_content=ft.Container(
@@ -1950,8 +1978,28 @@ async def main(page: ft.Page):
                 )
             )
             page.update()
-        except Exception:
-            pass
+        except Exception as _render_err:
+            _tb = traceback.format_exc()
+            try:
+                page.bgcolor = "#07071a"
+                page.appbar = None
+                page.navigation_bar = None
+                page.controls.clear()
+                page.add(ft.Container(
+                    content=ft.Column([
+                        ft.Text("⚠ RENDER ERROR", size=15, color="#ff3355",
+                                weight=ft.FontWeight.BOLD),
+                        ft.Text(f"Screen: {state.get('screen','?')}",
+                                size=11, color="#ffd700"),
+                        ft.Text(str(_render_err), size=10, color="#ff9944",
+                                selectable=True),
+                        ft.Text(_tb, size=9, color="#aaaaaa", selectable=True),
+                    ], spacing=6, scroll=ft.ScrollMode.AUTO),
+                    padding=16, expand=True, bgcolor="#07071a",
+                ))
+                page.update()
+            except Exception:
+                pass
 
     # ── Startup ────────────────────────────────────────────────────────────────
     render()
