@@ -23,7 +23,7 @@ except ImportError:
 
 # ── App constants ─────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -42,9 +42,15 @@ def _resolve_data_dir() -> Path:
                 return p
             except Exception:
                 continue
-    fallback = Path.home() / ".stwhub"
-    fallback.mkdir(parents=True, exist_ok=True)
-    return fallback
+    try:
+        fallback = Path.home() / ".stwhub"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+    except Exception:
+        import tempfile
+        t = Path(tempfile.gettempdir()) / "stwhub"
+        t.mkdir(parents=True, exist_ok=True)
+        return t
 
 DATA_DIR   = _resolve_data_dir()
 PREFS_FILE = DATA_DIR / "prefs.json"
@@ -653,8 +659,6 @@ def main(page: ft.Page):
     page.title   = f"{APP_NAME} v{APP_VERSION}"
     page.bgcolor = _c("bg")
     page.padding = 0
-    page.theme_mode = ft.ThemeMode.DARK if THEME[0] == "dark" else ft.ThemeMode.LIGHT
-
     # FIX #2 — window size only on desktop, safe try/except
     try:
         page.window.width  = 400
@@ -695,7 +699,7 @@ def main(page: ft.Page):
         )
 
     def _chip(label, active: bool, on_click):
-        return ft.FilterChip(
+        return ft.Chip(
             label=ft.Text(label, size=12),
             selected=active, on_select=on_click,
             selected_color=_c("orange"), check_color="#ffffff",
@@ -980,7 +984,7 @@ def main(page: ft.Page):
                 rows.append(_card(
                     _hdr(b["name"], size=14),
                     _sub(b["hero"], size=12),
-                    ft.Wrap(
+                    ft.Row(
                         [ft.Container(
                             content=ft.Text(sk, size=11, color=_c("text")),
                             bgcolor=_c("surface"),
@@ -988,7 +992,7 @@ def main(page: ft.Page):
                             border_radius=6,
                             padding=ft.padding.symmetric(horizontal=6, vertical=2),
                          ) for sk in b["skills"]],
-                        spacing=4, run_spacing=4,
+                        wrap=True, spacing=4, run_spacing=4,
                     ),
                     _txt(desc, size=12, color=_c("sub")),
                 ))
@@ -1047,7 +1051,7 @@ def main(page: ft.Page):
                                       icon_color=_c("red"), icon_size=18),
                     ], spacing=0),
                 ], vertical_alignment=ft.CrossAxisAlignment.START),
-                ft.Wrap(
+                ft.Row(
                     [ft.Container(
                         content=ft.Text(sk, size=11, color=_c("text")),
                         bgcolor=_c("surface"),
@@ -1055,7 +1059,7 @@ def main(page: ft.Page):
                         border_radius=6,
                         padding=ft.padding.symmetric(horizontal=6, vertical=2),
                      ) for sk in skills],
-                    spacing=4, run_spacing=4,
+                    wrap=True, spacing=4, run_spacing=4,
                 ) if skills else ft.Text(""),
                 _txt(b.get("desc", ""), size=12, color=_c("sub")) if b.get("desc") else ft.Text(""),
                 _sub(b.get("created", ""), size=10),
@@ -1271,20 +1275,14 @@ def main(page: ft.Page):
             prefs["region"]     = state["region"]
             _save_prefs(prefs)
             _schedule_notification_if_android(h)
-            # FIX #6 — correct SnackBar API for Flet 0.85
             try:
-                page.open(ft.SnackBar(
+                page.snack_bar = ft.SnackBar(
                     content=ft.Text(t("save_settings")), bgcolor=_c("green")
-                ))
+                )
+                page.snack_bar.open = True
+                page.update()
             except Exception:
-                try:
-                    page.snack_bar = ft.SnackBar(
-                        content=ft.Text(t("save_settings")), bgcolor=_c("green")
-                    )
-                    page.snack_bar.open = True
-                    page.update()
-                except Exception:
-                    pass
+                pass
 
         rows.append(_card(notif_tf, _btn(t("save_settings"), save_settings)))
 
@@ -1386,4 +1384,4 @@ def main(page: ft.Page):
     _schedule_notification_if_android(state["notif_hour"])
 
 
-ft.app(target=main)
+ft.app(main)
