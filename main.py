@@ -902,16 +902,17 @@ async def main(page: ft.Page):
 
     def _btn(label, on_click=None, color=None, width=None, icon=None, url=None):
         return ft.FilledButton(
-            text=label, icon=icon, on_click=on_click, url=url,
-            color="#ffffff", bgcolor=color or _c("orange"), width=width,
+            content=ft.Text(label, color="#ffffff"),
+            icon=icon, on_click=on_click, url=url,
+            bgcolor=color or _c("orange"), width=width,
             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
         )
 
     def _toggle_btn(label, active: bool, on_click):
         return ft.OutlinedButton(
-            text=label, on_click=on_click,
+            content=ft.Text(label, color=_c("orange") if active else _c("sub")),
+            on_click=on_click,
             style=ft.ButtonStyle(
-                color=_c("orange") if active else _c("sub"),
                 side=ft.BorderSide(2 if active else 1,
                                    _c("orange") if active else _c("border")),
                 shape=ft.RoundedRectangleBorder(radius=8),
@@ -1149,8 +1150,9 @@ async def main(page: ft.Page):
                              size=13, color=_c("yellow")),
                     ], expand=True, spacing=2),
                     ft.FilledButton(
-                        text=t("download"), url=info["url"],
-                        color="#ffffff", bgcolor=_c("green"),
+                        content=ft.Text(t("download"), color="#ffffff"),
+                        url=info["url"],
+                        bgcolor=_c("green"),
                         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
                     ),
                     ft.IconButton(ft.Icons.CLOSE, on_click=dismiss_update,
@@ -1732,9 +1734,8 @@ async def main(page: ft.Page):
                         _hero_img(img_url, size=56),
                         _txt(name, size=13, color=_c("text")),
                         ft.FilledButton(
-                            text=t("select"),
+                            content=ft.Text(t("select"), color="#ffffff"),
                             on_click=on_select(),
-                            color="#ffffff",
                             bgcolor=_c("orange"),
                             style=ft.ButtonStyle(
                                 shape=ft.RoundedRectangleBorder(radius=8)),
