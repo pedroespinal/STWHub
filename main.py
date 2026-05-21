@@ -23,6 +23,22 @@ try:
 except ImportError:
     _REQ_OK = False
 
+# ── Flet 0.85.1 Android compatibility (border/padding/margin/alignment helpers) ─
+def _border_all(width, color):
+    bs = ft.BorderSide(width, color)
+    return ft.Border(top=bs, right=bs, bottom=bs, left=bs)
+
+def _pad_sym(horizontal=0, vertical=0):
+    return ft.Padding(left=horizontal, right=horizontal, top=vertical, bottom=vertical)
+
+def _pad_only(left=0, top=0, right=0, bottom=0):
+    return ft.Padding(left=left, top=top, right=right, bottom=bottom)
+
+def _margin_b(bottom=0):
+    return ft.Margin(left=0, top=0, right=0, bottom=bottom)
+
+_ALIGN_CENTER = ft.Alignment(0, 0)
+
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
 APP_VERSION = "2.0.0"
@@ -894,7 +910,7 @@ async def main(page: ft.Page):
         return ft.Container(
             content=ft.Column(list(children), spacing=6, tight=True),
             bgcolor=_c("card"),
-            border=ft.border.all(1, border_color or _c("border")),
+            border=_border_all(1, border_color or _c("border")),
             border_radius=12,
             padding=padding,
             margin=margin,
@@ -945,8 +961,8 @@ async def main(page: ft.Page):
         return ft.Container(
             content=ft.Text(COPYRIGHT, size=10, color=_c("footer"),
                             text_align=ft.TextAlign.CENTER),
-            padding=ft.padding.symmetric(vertical=8),
-            alignment=ft.alignment.center,
+            padding=_pad_sym(vertical=8),
+            alignment=_ALIGN_CENTER,
         )
 
     def _hero_img(url: str, size=72):
@@ -959,14 +975,14 @@ async def main(page: ft.Page):
                     border_radius=8,
                     content=ft.Icon(ft.Icons.PERSON, size=size // 2,
                                     color=_c("sub")),
-                    alignment=ft.alignment.center,
+                    alignment=_ALIGN_CENTER,
                 ),
             )
         return ft.Container(
             width=size, height=size, bgcolor=_c("surface"),
             border_radius=8,
             content=ft.Icon(ft.Icons.PERSON, size=size // 2, color=_c("sub")),
-            alignment=ft.alignment.center,
+            alignment=_ALIGN_CENTER,
         )
 
     def _tag_chip(tag_key: str):
@@ -982,7 +998,7 @@ async def main(page: ft.Page):
             content=ft.Text(t(f"tag_{tag_key}"), size=10,
                             color="#ffffff" if THEME[0] == "dark" else "#000000"),
             bgcolor=color, border_radius=10,
-            padding=ft.padding.symmetric(horizontal=8, vertical=3),
+            padding=_pad_sym(horizontal=8, vertical=3),
         )
 
     # ── Navigation ─────────────────────────────────────────────────────────────
@@ -1159,9 +1175,9 @@ async def main(page: ft.Page):
                                   icon_color=_c("sub"), icon_size=16),
                 ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 bgcolor=_c("banner"),
-                border=ft.border.all(1, _c("yellow")),
+                border=_border_all(1, _c("yellow")),
                 border_radius=8, padding=8,
-                margin=ft.margin.only(bottom=4),
+                margin=_margin_b(bottom=4),
             ))
 
         def do_refresh(e):
@@ -1218,7 +1234,7 @@ async def main(page: ft.Page):
                                             color="#000000",
                                             weight=ft.FontWeight.BOLD),
                             bgcolor=_c("gold"), border_radius=8,
-                            padding=ft.padding.symmetric(horizontal=7, vertical=3),
+                            padding=_pad_sym(horizontal=7, vertical=3),
                         ))
                     else:
                         short = rw["type"].split(":")[-1][:20]
@@ -1226,8 +1242,8 @@ async def main(page: ft.Page):
                             content=ft.Text(f"{short} ×{rw['quantity']}", size=10,
                                             color=_c("sub")),
                             bgcolor=_c("surface"), border_radius=6,
-                            border=ft.border.all(1, _c("border")),
-                            padding=ft.padding.symmetric(horizontal=5, vertical=2),
+                            border=_border_all(1, _c("border")),
+                            padding=_pad_sym(horizontal=5, vertical=2),
                         ))
                 rows.append(_card(
                     ft.Row([
@@ -1278,11 +1294,12 @@ async def main(page: ft.Page):
                                 height=170, bgcolor=_c("surface"),
                                 content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED,
                                                 size=40, color=_c("sub")),
-                                alignment=ft.alignment.center,
+                                alignment=_ALIGN_CENTER,
                             ),
                         ),
-                        border_radius=ft.border_radius.only(
-                            top_left=10, top_right=10),
+                        border_radius=ft.BorderRadius(
+                            top_left=10, top_right=10,
+                            bottom_left=0, bottom_right=0),
                         clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                     ))
                 if item.get("title"):
@@ -1293,11 +1310,11 @@ async def main(page: ft.Page):
                 rows.append(ft.Container(
                     content=ft.Column(card_children, spacing=8, tight=True),
                     bgcolor=_c("card"),
-                    border=ft.border.all(1, _c("border")),
+                    border=_border_all(1, _c("border")),
                     border_radius=12,
                     clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                     margin=4,
-                    padding=ft.padding.only(bottom=10),
+                    padding=_pad_only(bottom=10),
                 ))
 
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -1371,7 +1388,7 @@ async def main(page: ft.Page):
                                            color="#ffffff"),
                             bgcolor=cls_colors.get(cls_name, _c("orange")),
                             width=44, height=44, border_radius=22,
-                            alignment=ft.alignment.center,
+                            alignment=_ALIGN_CENTER,
                         ),
                         ft.Column([
                             _hdr(b["name"], size=14),
@@ -1393,9 +1410,9 @@ async def main(page: ft.Page):
                         [ft.Container(
                             content=ft.Text(sk, size=10, color=_c("text")),
                             bgcolor=_c("surface"),
-                            border=ft.border.all(1, _c("border")),
+                            border=_border_all(1, _c("border")),
                             border_radius=6,
-                            padding=ft.padding.symmetric(horizontal=6, vertical=2),
+                            padding=_pad_sym(horizontal=6, vertical=2),
                          ) for sk in b["skills"]],
                         wrap=True, spacing=4,
                     ),
@@ -1509,9 +1526,9 @@ async def main(page: ft.Page):
                     [ft.Container(
                         content=ft.Text(sk, size=10, color=_c("text")),
                         bgcolor=_c("surface"),
-                        border=ft.border.all(1, _c("purple")),
+                        border=_border_all(1, _c("purple")),
                         border_radius=6,
-                        padding=ft.padding.symmetric(horizontal=6, vertical=2),
+                        padding=_pad_sym(horizontal=6, vertical=2),
                      ) for sk in skills],
                     wrap=True, spacing=4,
                 ) if skills else ft.Text(""),
@@ -1743,7 +1760,7 @@ async def main(page: ft.Page):
                     ], spacing=10,
                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     bgcolor=_c("card"),
-                    border=ft.border.all(1, _c("border")),
+                    border=_border_all(1, _c("border")),
                     border_radius=10,
                     padding=10, margin=4,
                 ))
@@ -1776,7 +1793,7 @@ async def main(page: ft.Page):
                 controls=[
                     ft.Container(
                         content=ft.Text(body_s, size=12, color=_c("text")),
-                        padding=ft.padding.only(left=8, right=8, bottom=10),
+                        padding=_pad_only(left=8, right=8, bottom=10),
                     )
                 ],
                 bgcolor=_c("card"),
@@ -1974,7 +1991,7 @@ async def main(page: ft.Page):
                         spacing=0, expand=True,
                     ),
                     bgcolor=_c("bg"),
-                    padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                    padding=_pad_sym(horizontal=12, vertical=8),
                     expand=True,
                 )
             )
