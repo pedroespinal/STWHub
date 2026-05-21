@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-STW Hub v1.2.0 — Fortnite: Save The World Hub
-Creado por: Pedro Espinal  Todos los derechos reservados (c) 2026
-Rewrite: async/await model — no threading locks, no black screen on Android.
+STW Hub v2.0.0 — Fortnite: Save The World Hub
+Creado por: Pedro Espinal   Todos los derechos reservados (c) 2026
+Bilingual · Dark/Light · Auto-refresh · Builds with images · Genesis-sealed
 """
 
 import flet as ft
@@ -22,31 +22,32 @@ try:
 except ImportError:
     _REQ_OK = False
 
-# ── App constants ─────────────────────────────────────────────────────────────
+# ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "1.2.0"
+APP_VERSION = "2.0.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
-COPYRIGHT   = f"Creado por: {APP_AUTHOR}   .   {APP_RIGHTS}   ©{APP_YEAR}"
+COPYRIGHT   = f"Creado por: {APP_AUTHOR}   ·   {APP_RIGHTS}   ©{APP_YEAR}"
 
-# ── DATA_DIR — writable on Android ────────────────────────────────────────────
+# ── Writable data dir ──────────────────────────────────────────────────────────
 def _resolve_data_dir() -> Path:
     for key in ("FLET_APP_STORAGE_DATA", "FLET_APP_DIR", "APPDATA"):
-        val = os.environ.get(key)
-        if val:
-            p = Path(val) / "stwhub"
+        v = os.environ.get(key)
+        if v:
+            p = Path(v) / "stwhub"
             try:
                 p.mkdir(parents=True, exist_ok=True)
-                (p / ".ok").write_text("1")
-                (p / ".ok").unlink()
+                probe = p / ".probe"
+                probe.write_text("x")
+                probe.unlink()
                 return p
             except Exception:
                 continue
     try:
-        fallback = Path.home() / ".stwhub"
-        fallback.mkdir(parents=True, exist_ok=True)
-        return fallback
+        fb = Path.home() / ".stwhub"
+        fb.mkdir(parents=True, exist_ok=True)
+        return fb
     except Exception:
         import tempfile
         t = Path(tempfile.gettempdir()) / "stwhub"
@@ -58,11 +59,22 @@ PREFS_FILE = DATA_DIR / "prefs.json"
 CACHE_FILE = DATA_DIR / "cache.json"
 DB_FILE    = DATA_DIR / "stwhub.db"
 
+# ── External endpoints ─────────────────────────────────────────────────────────
 GITHUB_REPO     = "pedroespinal/STWHub"
 GITHUB_API      = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RELEASES = f"https://github.com/{GITHUB_REPO}/releases/latest"
 
-# ── Genesis seal ──────────────────────────────────────────────────────────────
+_EPIC_CLIENT_ID     = "ec684b8c687f479fadea3cb2ad83f5c6"
+_EPIC_CLIENT_SECRET = "e1f31c211f28413186262d37a13fc84d"
+_EPIC_TOKEN_URL     = "https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token"
+_EPIC_WORLD_URL     = "https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/world/info"
+_NEWS_URL           = "https://fortnite-api.com/v2/news/stw"
+_HEROES_SEARCH_URL  = "https://fortnite-api.com/v2/cosmetics/br/search/all"
+
+_VBUCKS_TYPE = "AccountResource:currency_mtxswap"
+_REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
+
+# ── Genesis seal ───────────────────────────────────────────────────────────────
 _GENESIS_COMMIT = "stwhub-genesis-20260521"
 _GENESIS_DATE   = "2026-05-21T00:00:00"
 _GENESIS_AUTHOR = "Pedro Espinal"
@@ -70,338 +82,480 @@ _GENESIS_APP    = "STW Hub"
 _GENESIS_SEAL   = "bdeedb31e7c0e361f24a71fa9f7a14eb584d1d867bbd0f36e5b755b122166aff"
 
 def _verify_genesis() -> bool:
-    data = f"{_GENESIS_COMMIT}|{_GENESIS_DATE}|{_GENESIS_AUTHOR}|{_GENESIS_APP}"
-    return hashlib.sha256(data.encode("utf-8")).hexdigest() == _GENESIS_SEAL
+    raw = f"{_GENESIS_COMMIT}|{_GENESIS_DATE}|{_GENESIS_AUTHOR}|{_GENESIS_APP}"
+    return hashlib.sha256(raw.encode()).hexdigest() == _GENESIS_SEAL
 
-# ── Epic Games API ────────────────────────────────────────────────────────────
-_EPIC_CLIENT_ID     = "ec684b8c687f479fadea3cb2ad83f5c6"
-_EPIC_CLIENT_SECRET = "e1f31c211f28413186262d37a13fc84d"
-_EPIC_TOKEN_URL     = "https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token"
-_EPIC_WORLD_URL     = "https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/world/info"
-_NEWS_URL           = "https://fortnite-api.com/v2/news/stw"
+# ── Theme palettes ─────────────────────────────────────────────────────────────
+_DARK = {
+    "bg":      "#07071a",
+    "surface": "#0d0d2b",
+    "card":    "#0e0e2e",
+    "border":  "#1e1e5a",
+    "text":    "#e8e8ff",
+    "sub":     "#8888bb",
+    "orange":  "#ff6d00",
+    "cyan":    "#00e5ff",
+    "yellow":  "#ffd700",
+    "purple":  "#7c3aed",
+    "green":   "#00ff88",
+    "red":     "#ff3355",
+    "pink":    "#f72585",
+    "footer":  "#ff8800",
+    "banner":  "#1a0500",
+    "gold":    "#ffcc00",
+    "vbucks":  "#d0a8f0",
+}
+_LIGHT = {
+    "bg":      "#f0f0f8",
+    "surface": "#e8e8f4",
+    "card":    "#ffffff",
+    "border":  "#d0d0e8",
+    "text":    "#111133",
+    "sub":     "#555577",
+    "orange":  "#d94f00",
+    "cyan":    "#006fa3",
+    "yellow":  "#9a7400",
+    "purple":  "#5b21b6",
+    "green":   "#007733",
+    "red":     "#bb0022",
+    "pink":    "#b5006b",
+    "footer":  "#cc4400",
+    "banner":  "#fff3e0",
+    "gold":    "#b8860b",
+    "vbucks":  "#6b21a8",
+}
+THEME = ["dark"]
+LANG  = ["es"]
 
-_VBUCKS_TYPE = "AccountResource:currency_mtxswap"
-_REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
+def _c(k: str) -> str:
+    return (_DARK if THEME[0] == "dark" else _LIGHT)[k]
 
-# ── Meta builds data ──────────────────────────────────────────────────────────
+def t(k: str) -> str:
+    return T[LANG[0]].get(k, k)
+
+# ── Translations ───────────────────────────────────────────────────────────────
+T = {
+    "es": {
+        "home": "Inicio", "news": "Noticias", "builds": "Builds",
+        "guide": "Guia", "settings": "Config",
+        "daily_alerts": "Alertas Diarias",
+        "refresh": "Actualizar", "vbucks_only": "Solo V-Bucks",
+        "region": "Region", "loading": "Cargando...",
+        "no_alerts": "Sin alertas disponibles.",
+        "utc_reset": "Reset UTC en", "last_refresh": "Actualizado",
+        "alerts_cached": "Cache offline", "power": "Poder",
+        "news_title": "Noticias STW", "no_news": "Sin noticias disponibles.",
+        "meta_builds": "Meta Builds", "my_builds": "Mis Builds",
+        "heroes": "Heroes", "all_classes": "Todas",
+        "new_build": "Nuevo Build",
+        "build_name": "Nombre del build",
+        "build_class": "Clase del heroe",
+        "build_hero": "Heroe principal",
+        "build_hero_img": "URL imagen heroe (opcional)",
+        "build_weapon1": "Arma principal",
+        "build_weapon1_img": "URL imagen arma (opcional)",
+        "build_weapon2": "Arma secundaria (opcional)",
+        "build_weapon2_img": "URL imagen arma 2 (opcional)",
+        "build_skills": "Perks / Habilidades (separadas por coma)",
+        "build_desc": "Descripcion — que hace este build",
+        "build_purpose": "Para que sirve / Mejores usos",
+        "build_tags": "Etiquetas",
+        "save": "Guardar", "cancel": "Cancelar",
+        "edit": "Editar", "delete": "Eliminar",
+        "no_my_builds": "Sin builds guardados.\nPresiona + para crear uno.",
+        "search_hero": "Buscar imagen",
+        "hero_search_title": "Buscar Heroe / Personaje",
+        "hero_placeholder": "Nombre del heroe (ej: Kyle, Scorch)...",
+        "searching": "Buscando...",
+        "no_hero_results": "Sin resultados. Prueba otro nombre.",
+        "select": "Seleccionar",
+        "guide_title": "Guia Completa STW",
+        "settings_title": "Configuracion",
+        "theme": "Tema", "dark": "Oscuro", "light": "Claro",
+        "language": "Idioma", "spanish": "Espanol", "english": "English",
+        "region_lbl": "Region de alertas",
+        "notif_hour": "Hora notificacion (0-23h)",
+        "save_settings": "Configuracion guardada",
+        "check_update": "Buscar actualizacion",
+        "update_available": "Nueva version disponible",
+        "up_to_date": "App al dia",
+        "download": "Descargar", "dismiss": "Ignorar",
+        "about": "Acerca de",
+        "genesis_valid": "Firma digital valida",
+        "genesis_invalid": "FIRMA INVALIDA",
+        "created_by": "Creado por",
+        "rights": "Todos los derechos reservados",
+        "checking": "Verificando...",
+        "support_heroes": "Heroes soporte",
+        "weapons": "Armas",
+        "purpose": "Para que sirve",
+        "tags": "Etiquetas",
+        "skills": "Perks",
+        "created": "Creado",
+        "desc": "Descripcion",
+        "no_img": "Sin imagen",
+        "hero_img": "Imagen heroe",
+        "weapon_img": "Imagen arma",
+        "tag_afk": "AFK", "tag_farm": "Farm", "tag_vbucks": "V-Bucks",
+        "tag_speed": "Rapido", "tag_endgame": "Endgame",
+        "tag_beginner": "Principiante", "tag_expert": "Experto",
+        "tag_team": "Equipo", "tag_dps": "DPS",
+        "error_api": "Error al conectar con la API.",
+    },
+    "en": {
+        "home": "Home", "news": "News", "builds": "Builds",
+        "guide": "Guide", "settings": "Settings",
+        "daily_alerts": "Daily Alerts",
+        "refresh": "Refresh", "vbucks_only": "V-Bucks Only",
+        "region": "Region", "loading": "Loading...",
+        "no_alerts": "No alerts available.",
+        "utc_reset": "UTC reset in", "last_refresh": "Updated",
+        "alerts_cached": "Offline cache", "power": "Power",
+        "news_title": "STW News", "no_news": "No news available.",
+        "meta_builds": "Meta Builds", "my_builds": "My Builds",
+        "heroes": "Heroes", "all_classes": "All",
+        "new_build": "New Build",
+        "build_name": "Build name",
+        "build_class": "Hero class",
+        "build_hero": "Main hero",
+        "build_hero_img": "Hero image URL (optional)",
+        "build_weapon1": "Main weapon",
+        "build_weapon1_img": "Weapon image URL (optional)",
+        "build_weapon2": "Secondary weapon (optional)",
+        "build_weapon2_img": "Weapon 2 image URL (optional)",
+        "build_skills": "Perks / Skills (comma-separated)",
+        "build_desc": "Description — what this build does",
+        "build_purpose": "Best uses / Purpose",
+        "build_tags": "Tags",
+        "save": "Save", "cancel": "Cancel",
+        "edit": "Edit", "delete": "Delete",
+        "no_my_builds": "No saved builds.\nTap + to create one.",
+        "search_hero": "Search image",
+        "hero_search_title": "Search Hero / Character",
+        "hero_placeholder": "Hero name (eg: Kyle, Scorch)...",
+        "searching": "Searching...",
+        "no_hero_results": "No results. Try another name.",
+        "select": "Select",
+        "guide_title": "Full STW Guide",
+        "settings_title": "Settings",
+        "theme": "Theme", "dark": "Dark", "light": "Light",
+        "language": "Language", "spanish": "Espanol", "english": "English",
+        "region_lbl": "Alert region",
+        "notif_hour": "Notification hour (0-23h)",
+        "save_settings": "Settings saved",
+        "check_update": "Check for update",
+        "update_available": "New version available",
+        "up_to_date": "App is up to date",
+        "download": "Download", "dismiss": "Dismiss",
+        "about": "About",
+        "genesis_valid": "Valid digital signature",
+        "genesis_invalid": "INVALID SIGNATURE",
+        "created_by": "Created by",
+        "rights": "All rights reserved",
+        "checking": "Checking...",
+        "support_heroes": "Support heroes",
+        "weapons": "Weapons",
+        "purpose": "Best uses",
+        "tags": "Tags",
+        "skills": "Perks",
+        "created": "Created",
+        "desc": "Description",
+        "no_img": "No image",
+        "hero_img": "Hero image",
+        "weapon_img": "Weapon image",
+        "tag_afk": "AFK", "tag_farm": "Farm", "tag_vbucks": "V-Bucks",
+        "tag_speed": "Speed", "tag_endgame": "Endgame",
+        "tag_beginner": "Beginner", "tag_expert": "Expert",
+        "tag_team": "Team", "tag_dps": "DPS",
+        "error_api": "Error connecting to the API.",
+    },
+}
+
+# ── Meta Builds database ───────────────────────────────────────────────────────
 BUILDS = {
     "Constructor": [
         {
             "name": "BASE Constructor",
-            "hero": "BASE Kyle / Megabase Kyle",
+            "hero": "Megabase Kyle",
+            "support_es": "BASE Kyle · Electro-pulse Penny · Trailblaster Buzz",
+            "support_en": "BASE Kyle · Electro-pulse Penny · Trailblaster Buzz",
+            "weapons_es": "Hydraulic Shotgun · Siegebreaker",
+            "weapons_en": "Hydraulic Shotgun · Siegebreaker",
             "skills": ["B.A.S.E.", "Plasma Pulse", "Bull Rush", "Decoy"],
-            "desc_es": "Potencia estructuras con B.A.S.E. y protege con Sensuelo. Ideal para defender el objetivo.",
-            "desc_en": "Boost structures with B.A.S.E. and protect with Decoy. Ideal for defending the objective.",
+            "desc_es": "B.A.S.E. de Megabase potencia 9 estructuras adyacentes haciendolas casi indestructibles. Decoy desvia husks mientras el equipo trabaja.",
+            "desc_en": "Megabase's B.A.S.E. buffs 9 adjacent structures making them nearly indestructible. Decoy diverts husks while the team works.",
+            "purpose_es": "Defensa de objetivo · Twine Peaks · Alta dificultad",
+            "purpose_en": "Objective defense · Twine Peaks · High difficulty",
+            "tags": ["endgame", "expert"],
         },
         {
             "name": "Tank Constructor",
-            "hero": "Penny / Sentinel",
+            "hero": "Sentinel",
+            "support_es": "Penny · Steel Wool Anthony · Hotdog Stan",
+            "support_en": "Penny · Steel Wool Anthony · Hotdog Stan",
+            "weapons_es": "Ground Pounder · Typewriter",
+            "weapons_en": "Ground Pounder · Typewriter",
             "skills": ["Kinetic Overload", "Shockwave", "Bull Rush", "Plasma Pulse"],
-            "desc_es": "Alta resistencia y control de masas. Perfecto para zonas de alta densidad.",
-            "desc_en": "High durability and crowd control. Perfect for high husk density zones.",
+            "desc_es": "Maximo aguante y control de masas. Kinetic Overload genera dano electrico al bloquear, Shockwave despeja zonas al instante.",
+            "desc_en": "Maximum durability and crowd control. Kinetic Overload deals electric damage on block, Shockwave instantly clears areas.",
+            "purpose_es": "Zonas densas · Soporte de equipo · Defensa larga",
+            "purpose_en": "Dense husk zones · Team support · Long defense",
+            "tags": ["endgame", "team"],
         },
     ],
     "Ninja": [
         {
-            "name": "Melee Ninja",
-            "hero": "Dragon Scorch / Dim Mak Mari",
+            "name": "Dragon Ninja",
+            "hero": "Dragon Scorch",
+            "support_es": "Dim Mak Mari · Deadly Blade Crash · Brawler Kyle",
+            "support_en": "Dim Mak Mari · Deadly Blade Crash · Brawler Kyle",
+            "weapons_es": "Nocturno (Dragon) · Spectral Blade",
+            "weapons_en": "Nocturno (Dragon) · Spectral Blade",
             "skills": ["Dragon Slash", "Smoke Bomb", "Shadow Stance", "Crescent Kick"],
-            "desc_es": "Velocidad y dano extremo cuerpo a cuerpo. Muy eficaz en misiones de olas cortas.",
-            "desc_en": "Speed and extreme melee damage. Very effective in short wave missions.",
+            "desc_es": "Dragon Slash aplica fuego a todo en linea recta con dano masivo. Shadow Stance da invulnerabilidad breve. El mejor para oleadas cortas.",
+            "desc_en": "Dragon Slash applies fire to everything in a straight line with massive damage. Shadow Stance gives brief invulnerability. Best for short waves.",
+            "purpose_es": "Misiones de oleadas cortas · Speedrun · Eliminacion",
+            "purpose_en": "Short wave missions · Speedrun · Elimination",
+            "tags": ["speed", "expert", "dps"],
         },
         {
             "name": "Ranged Ninja",
-            "hero": "Brawler Kyle / Autumn Queen",
+            "hero": "Autumn Queen",
+            "support_es": "Brawler Kyle · Deadly Blade Crash · Dire",
+            "support_en": "Brawler Kyle · Deadly Blade Crash · Dire",
+            "weapons_es": "Hydra · Vacuum Tube Bow",
+            "weapons_en": "Hydra · Vacuum Tube Bow",
             "skills": ["Throwing Stars", "Smoke Bomb", "Crescent Kick", "Shadow Stance"],
-            "desc_es": "Movilidad con dano a distancia. Ideal para kiting y misiones de eliminacion.",
-            "desc_en": "Mobility with ranged damage. Ideal for kiting and elimination missions.",
+            "desc_es": "Movilidad extrema con dano a distancia. Throwing Stars + Smoke Bomb para kiting perfecto. Ideal para misiones donde hay que moverse constantemente.",
+            "desc_en": "Extreme mobility with ranged damage. Throwing Stars + Smoke Bomb for perfect kiting. Ideal for missions requiring constant movement.",
+            "purpose_es": "Kiting · Misiones de eliminacion · Movilidad maxima",
+            "purpose_en": "Kiting · Elimination missions · Maximum mobility",
+            "tags": ["speed", "dps"],
         },
     ],
     "Outlander": [
         {
             "name": "TEDDY Outlander",
-            "hero": "Phase Scout Jess / Enforcer Grizzly",
+            "hero": "Enforcer Grizzly",
+            "support_es": "Phase Scout Jess · Pathfinder Jess · Ranger Deadeye",
+            "support_en": "Phase Scout Jess · Pathfinder Jess · Ranger Deadeye",
+            "weapons_es": "Razorblade · Siegebreaker",
+            "weapons_en": "Razorblade · Siegebreaker",
             "skills": ["T.E.D.D.Y.", "Anti-Material Charge", "Seismic Smash", "In the Zone"],
-            "desc_es": "TEDDY hace el trabajo pesado. Perfecto para misiones de recoleccion y defensa.",
-            "desc_en": "TEDDY does the heavy lifting. Perfect for collection and defense missions.",
+            "desc_es": "TEDDY hace el trabajo pesado. AMC destruye estructuras enemigas y da materiales extra. In the Zone maximiza la movilidad para recolectar sin parar.",
+            "desc_en": "TEDDY does the heavy lifting. AMC destroys enemy structures and gives extra materials. In the Zone maximizes mobility for non-stop collection.",
+            "purpose_es": "Farm de recursos · AFK parcial · Recoleccion",
+            "purpose_en": "Resource farming · Semi-AFK · Collection missions",
+            "tags": ["afk", "farm", "beginner"],
         },
         {
-            "name": "Support Outlander",
-            "hero": "Ranger Deadeye / Pathfinder Jess",
-            "skills": ["Anti-Material Charge", "In the Zone", "T.E.D.D.Y.", "Seismic Smash"],
-            "desc_es": "Soporte al equipo con recursos y control de area. Excelente en grupos.",
-            "desc_en": "Team support with resources and area control. Excellent in groups.",
+            "name": "V-Bucks Outlander",
+            "hero": "Phase Scout Jess",
+            "support_es": "Ranger Deadeye · Pathfinder Jess · Enforcer Grizzly",
+            "support_en": "Ranger Deadeye · Pathfinder Jess · Enforcer Grizzly",
+            "weapons_es": "Vacuum Tube Sniper · Grave Digger",
+            "weapons_en": "Vacuum Tube Sniper · Grave Digger",
+            "skills": ["T.E.D.D.Y.", "In the Zone", "Anti-Material Charge", "Seismic Smash"],
+            "desc_es": "Optimizado para completar alertas de V-Bucks rapido. In the Zone acelera el movimiento para llegar a misiones antes del limite de tiempo.",
+            "desc_en": "Optimized for completing V-Bucks alerts fast. In the Zone speeds up movement to reach missions before time limits.",
+            "purpose_es": "Farm V-Bucks · Alertas diarias · Misiones con tiempo",
+            "purpose_en": "V-Bucks farming · Daily alerts · Timed missions",
+            "tags": ["vbucks", "speed", "farm"],
         },
     ],
     "Soldier": [
         {
-            "name": "Gunslinger",
-            "hero": "Raider Headhunter / Commando Ramirez",
-            "skills": ["Frag Grenade", "Lefty and Righty", "War Cry", "Goin Commando"],
-            "desc_es": "Maximo DPS con armas de fuego. El mejor para eliminacion rapida.",
-            "desc_en": "Maximum DPS with firearms. The best for quick elimination missions.",
+            "name": "Gunslinger DPS",
+            "hero": "Raider Headhunter",
+            "support_es": "Commando Ramirez · Sergeant Jonesy · Enforcer Grizzly",
+            "support_en": "Commando Ramirez · Sergeant Jonesy · Enforcer Grizzly",
+            "weapons_es": "Nocturno · Siegebreaker · Ground Pounder",
+            "weapons_en": "Nocturno · Siegebreaker · Ground Pounder",
+            "skills": ["Frag Grenade", "Lefty and Righty", "War Cry", "Goin' Commando"],
+            "desc_es": "El DPS mas alto del juego. War Cry potencia a todo el equipo. Lefty and Righty + Goin' Commando para oleadas masivas. El rey del endgame.",
+            "desc_en": "Highest DPS in the game. War Cry buffs the entire team. Lefty and Righty + Goin' Commando for massive waves. The endgame king.",
+            "purpose_es": "Maximo DPS · Endgame · Twine Peaks · Storm King",
+            "purpose_en": "Maximum DPS · Endgame · Twine Peaks · Storm King",
+            "tags": ["endgame", "dps", "expert"],
         },
         {
             "name": "Support Soldier",
-            "hero": "Urban Assault Headhunter / Sergeant Jonesy",
-            "skills": ["War Cry", "Frag Grenade", "Goin Commando", "Shockwave"],
-            "desc_es": "Potencia al equipo con War Cry. Imprescindible en partidas de grupo.",
-            "desc_en": "Powers the whole team with War Cry. Essential in group matches.",
+            "hero": "Sergeant Jonesy",
+            "support_es": "Urban Assault Headhunter · Commando Ramirez · Raider Headhunter",
+            "support_en": "Urban Assault Headhunter · Commando Ramirez · Raider Headhunter",
+            "weapons_es": "Typewriter · Hydra",
+            "weapons_en": "Typewriter · Hydra",
+            "skills": ["War Cry", "Frag Grenade", "Goin' Commando", "Shockwave"],
+            "desc_es": "War Cry potencia a todos los aliados en rango. Imprescindible en partidas de 4 jugadores. Shockwave para control de emergencias.",
+            "desc_en": "War Cry buffs all allies in range. Essential in 4-player matches. Shockwave for emergency crowd control.",
+            "purpose_es": "Partidas grupales · Buff de equipo · Cooperativo",
+            "purpose_en": "Group matches · Team buff · Cooperative",
+            "tags": ["team", "beginner"],
         },
     ],
 }
-
 HERO_CLASSES = ["all", "Constructor", "Ninja", "Outlander", "Soldier"]
+BUILD_TAGS   = ["afk", "farm", "vbucks", "speed", "endgame", "dps", "team", "beginner", "expert"]
 
-# ── Trap loadouts ─────────────────────────────────────────────────────────────
-TRAP_LOADOUTS = {
-    "Ride the Lightning": {
-        "es": {
-            "desc": "Mision de tren: coloca trampas a lo largo del camino para eliminar husks en movimiento.",
-            "traps": [
-                ("Ceiling Electric Field", "Dano electrico continuo bajo el techo del tunel."),
-                ("Wall Dynamo", "Electrocuta y paraliza husks contra la pared lateral."),
-                ("Wooden Floor Spike", "Dano pasivo a husks que caminan sobre el suelo."),
-                ("Launcher Pad", "Lanza husks fuera del camino del objetivo."),
-            ],
-        },
-        "en": {
-            "desc": "Train mission: place traps along the train path to eliminate husks on the move.",
-            "traps": [
-                ("Ceiling Electric Field", "Continuous electric damage under the tunnel ceiling."),
-                ("Wall Dynamo", "Electrocutes and stuns husks against the side wall."),
-                ("Wooden Floor Spike", "Passive damage to husks walking on the floor."),
-                ("Launcher Pad", "Launches husks off the objective path."),
-            ],
-        },
-    },
-    "Retrieve the Data": {
-        "es": {
-            "desc": "Defiende el dron hasta que cargue. Crea un embudo de trampas en las entradas.",
-            "traps": [
-                ("Wall Launcher", "Empuja husks de vuelta al area de trampas."),
-                ("Gas Trap", "Dano de veneno en area, perfecto para grupos densos."),
-                ("Ceiling Electric Field", "Cobertura aerea constante sobre el dron."),
-                ("Freeze Trap", "Ralentiza husks permitiendo mas tiempo de dano."),
-            ],
-        },
-        "en": {
-            "desc": "Defend the drone while it charges. Create a trap funnel at the main entrances.",
-            "traps": [
-                ("Wall Launcher", "Pushes husks back into the trap area."),
-                ("Gas Trap", "Area poison damage, perfect for dense groups."),
-                ("Ceiling Electric Field", "Constant aerial coverage above the drone."),
-                ("Freeze Trap", "Slows husks allowing more damage time."),
-            ],
-        },
-    },
-    "Shelter Evacuation": {
-        "es": {
-            "desc": "Escolta a los supervivientes. Asegura el camino con trampas de slow y retroceso.",
-            "traps": [
-                ("Freeze Trap", "Ralentiza grupos de husks que bloquean la ruta."),
-                ("Wall Dynamo", "Elimina husks pegados a las paredes del pasillo."),
-                ("Wooden Floor Spike", "Dano continuo en el camino de los supervivientes."),
-                ("Ceiling Zapper", "Dano rapido para grupos pequenos en espacios cerrados."),
-            ],
-        },
-        "en": {
-            "desc": "Escort survivors. Secure the path with slow and knockback traps.",
-            "traps": [
-                ("Freeze Trap", "Slows husk groups blocking the route."),
-                ("Wall Dynamo", "Eliminates husks stuck to corridor walls."),
-                ("Wooden Floor Spike", "Continuous damage on the survivor path."),
-                ("Ceiling Zapper", "Quick damage for small groups in enclosed spaces."),
-            ],
-        },
-    },
-    "Destroy the Storm King": {
-        "es": {
-            "desc": "Fase de minions: usa trampas de alto DPS. En la fase de orbes, movilidad total.",
-            "traps": [
-                ("Gas Trap", "Maximo DPS contra los minions del Storm King."),
-                ("Ceiling Electric Field", "Cubre amplias areas durante las oleadas."),
-                ("Wall Launcher", "Separa grupos de minions para facil eliminacion."),
-                ("Launcher Pad", "Movilidad rapida entre zonas del Storm King."),
-            ],
-        },
-        "en": {
-            "desc": "Minion phase: use high DPS traps. In the orb phase, full mobility.",
-            "traps": [
-                ("Gas Trap", "Maximum DPS against Storm King minions."),
-                ("Ceiling Electric Field", "Covers large areas during waves."),
-                ("Wall Launcher", "Separates minion groups for easy elimination."),
-                ("Launcher Pad", "Quick mobility between Storm King zones."),
-            ],
-        },
-    },
-    "Zone Catalogue": {
-        "es": {
-            "desc": "Defiende multiples zonas. Distribuye trampas eficientemente por cada punto.",
-            "traps": [
-                ("Gas Trap", "Cobertura de area maxima por trampa colocada."),
-                ("Ceiling Electric Field", "Ideal para cubrir entradas amplias."),
-                ("Freeze Trap", "Compra tiempo mientras te mueves entre zonas."),
-                ("Wooden Floor Spike", "Defensa pasiva en zonas sin jugador activo."),
-            ],
-        },
-        "en": {
-            "desc": "Defend multiple zones. Efficiently distribute traps across each defense point.",
-            "traps": [
-                ("Gas Trap", "Maximum area coverage per placed trap."),
-                ("Ceiling Electric Field", "Ideal for covering wide entrances."),
-                ("Freeze Trap", "Buys time while moving between zones."),
-                ("Wooden Floor Spike", "Passive defense in zones without an active player."),
-            ],
-        },
-    },
-}
-
-# ── Translations ──────────────────────────────────────────────────────────────
-T = {
-    "es": {
-        "home": "Inicio", "builds": "Builds", "news": "Noticias",
-        "guide": "Guia", "settings": "Config",
-        "daily_alerts": "Alertas Diarias", "refresh": "Actualizar",
-        "vbucks_only": "Solo V-Bucks", "region": "Region",
-        "loading": "Cargando...", "no_alerts": "Sin alertas disponibles.",
-        "no_news": "Sin noticias disponibles.", "news_tab": "Noticias STW",
-        "meta_builds": "Meta Builds", "my_builds": "Mis Builds",
-        "traps": "Trampas",
-        "class_filter": "Clase", "skills": "Habilidades",
-        "guide_title": "Guia Completa STW",
-        "settings_title": "Configuracion",
-        "theme": "Tema", "dark": "Oscuro", "light": "Claro",
-        "language": "Idioma", "spanish": "Espanol", "english": "English",
-        "about": "Acerca de",
-        "genesis_valid": "Firma digital valida",
-        "genesis_invalid": "FIRMA INVALIDA",
-        "created_by": "Creado por", "rights": "Todos los derechos reservados",
-        "region_lbl": "Region de alertas",
-        "notif_hour": "Hora notificacion (0-23h)",
-        "save_settings": "Guardado",
-        "check_update": "Buscar actualizacion",
-        "update_available": "Nueva version disponible",
-        "up_to_date": "Aplicacion al dia",
-        "download": "Descargar",
-        "dismiss": "Ignorar",
-        "new_build": "Nuevo Build",
-        "build_name": "Nombre del build",
-        "build_class": "Clase de heroe",
-        "build_hero": "Heroe principal",
-        "build_skills": "Habilidades (separadas por coma)",
-        "build_desc": "Descripcion (opcional)",
-        "save": "Guardar",
-        "cancel": "Cancelar",
-        "edit": "Editar",
-        "delete": "Eliminar",
-        "no_my_builds": "Sin builds guardados.\nPresiona + para crear uno.",
-        "utc_reset": "Reset UTC en",
-        "trap_loadouts": "Cargas de Trampas",
-        "mission_type": "Tipo de mision",
-        "recommended_traps": "Trampas recomendadas",
-        "alerts_cached": "Cache offline",
-        "error_api": "Error al conectar con la API.",
-        "all_classes": "Todas",
-        "checking": "Verificando...",
-    },
-    "en": {
-        "home": "Home", "builds": "Builds", "news": "News",
-        "guide": "Guide", "settings": "Settings",
-        "daily_alerts": "Daily Alerts", "refresh": "Refresh",
-        "vbucks_only": "V-Bucks Only", "region": "Region",
-        "loading": "Loading...", "no_alerts": "No alerts available.",
-        "no_news": "No news available.", "news_tab": "STW News",
-        "meta_builds": "Meta Builds", "my_builds": "My Builds",
-        "traps": "Traps",
-        "class_filter": "Class", "skills": "Skills",
-        "guide_title": "Full STW Guide",
-        "settings_title": "Settings",
-        "theme": "Theme", "dark": "Dark", "light": "Light",
-        "language": "Language", "spanish": "Espanol", "english": "English",
-        "about": "About",
-        "genesis_valid": "Valid digital signature",
-        "genesis_invalid": "INVALID SIGNATURE",
-        "created_by": "Created by", "rights": "All rights reserved",
-        "region_lbl": "Alert region",
-        "notif_hour": "Notification hour (0-23h)",
-        "save_settings": "Saved",
-        "check_update": "Check for update",
-        "update_available": "New version available",
-        "up_to_date": "App is up to date",
-        "download": "Download",
-        "dismiss": "Dismiss",
-        "new_build": "New Build",
-        "build_name": "Build name",
-        "build_class": "Hero class",
-        "build_hero": "Main hero",
-        "build_skills": "Skills (comma-separated)",
-        "build_desc": "Description (optional)",
-        "save": "Save",
-        "cancel": "Cancel",
-        "edit": "Edit",
-        "delete": "Delete",
-        "no_my_builds": "No saved builds yet.\nTap + to create one.",
-        "utc_reset": "UTC reset in",
-        "trap_loadouts": "Trap Loadouts",
-        "mission_type": "Mission type",
-        "recommended_traps": "Recommended traps",
-        "alerts_cached": "Offline cache",
-        "error_api": "Error connecting to the API.",
-        "all_classes": "All",
-        "checking": "Checking...",
-    },
-}
-
-# ── Guide sections ────────────────────────────────────────────────────────────
+# ── Guide sections ─────────────────────────────────────────────────────────────
 GUIDE = {
     "es": [
-        ("Que es STW?", "Fortnite: Save The World es el modo PvE cooperativo donde hasta 4 jugadores defienden objetivos contra oleadas de husks. El objetivo es recolectar recursos, construir fortines y completar misiones para ganar recompensas."),
-        ("V-Bucks gratuitos", "Completa misiones de alerta con el icono de V-Bucks cada dia. Las alertas se reinician a las 00:00 UTC. Filtra por Solo V-Bucks en inicio para verlas rapidamente."),
-        ("Clases de heroes", "Constructor: Especialista en estructuras y B.A.S.E.\nNinja: Velocidad y dano cuerpo a cuerpo.\nExplorador: Recoleccion de recursos y TEDDY.\nSoldado: DPS a distancia y War Cry."),
-        ("Sistema de zonas", "El mapa esta dividido en zonas de diferente dificultad. Desbloquea zonas completando misiones de historia. Las alertas aparecen en zonas desbloqueadas con recompensas extra."),
-        ("Regiones de servidores", "NAE: Este de NA | NAW: Oeste de NA | EU: Europa | BR: Brasil | OC: Oceania | AS: Asia. Elige la region mas cercana para menos latencia."),
-        ("Construccion y trampas", "Construye muros, suelos, techo y rampas con materiales recolectados. Las trampas se colocan en estructuras construidas. Usa el modo de edicion para crear embudos que guien a los husks."),
-        ("Mision Storm King", "Destruye los orbes en hombros y caderas del Storm King. Cuando cae, aparecen minions: usa War Cry y TEDDY. La fase final requiere dano masivo coordinado al corazon."),
-        ("Consejos basicos", "1. Completa la historia principal primero.\n2. No destruyas estructuras del mapa sin necesidad.\n3. Construye antes de la oleada.\n4. Comunicate con tu equipo.\n5. Usa el filtro V-Bucks diariamente."),
+        ("¿Que es Save The World?",
+         "Fortnite: Save The World es el modo PvE cooperativo de Fortnite (hasta 4 jugadores). "
+         "Tu objetivo: construir defensas, recolectar recursos y eliminar oleadas de husks para "
+         "proteger el objetivo. A diferencia de Battle Royale, compras el juego una vez y tienes "
+         "acceso ilimitado.\n\n"
+         "La campaña principal se divide en 4 mundos: Stonewood → Plankerton → "
+         "Canny Valley → Twine Peaks (endgame)."),
+        ("V-Bucks Gratis",
+         "Las alertas diarias se reinician a las 00:00 UTC exactamente. Cada alerta especial "
+         "puede dar entre 50 y 100 V-Bucks.\n\n"
+         "Como maximizarlos:\n"
+         "• Usa el filtro 'Solo V-Bucks' en la pantalla de Inicio\n"
+         "• Completa TODAS las alertas con V-Bucks cada dia\n"
+         "• Las misiones de Storm Zones y Weekly Missions dan 100 V-Bucks\n"
+         "• Avanzar en la historia desbloquea zonas con mas alertas disponibles\n"
+         "• Puedes ganar entre 50 y 1000+ V-Bucks al dia segun tu progreso"),
+        ("Clases de Heroes",
+         "CONSTRUCTOR: Especialista en B.A.S.E. y estructuras. Sus edificaciones son "
+         "mas resistentes y B.A.S.E. las potencia aun mas.\n\n"
+         "NINJA: Velocidad y dano cuerpo a cuerpo extremo. Dragon Slash, Smoke Bomb "
+         "y Shadow Stance son sus armas.\n\n"
+         "EXPLORADOR (Outlander): Maestro de la recoleccion. TEDDY hace el trabajo "
+         "mientras el Explorador recolecta recursos y detecta cofres a distancia.\n\n"
+         "SOLDADO: Maximo DPS a distancia. War Cry es una de las mejores habilidades "
+         "del juego, potenciando a todo el equipo por varios segundos."),
+        ("Sistema de Alertas",
+         "Las alertas son misiones especiales disponibles por tiempo limitado (24h) "
+         "con recompensas extra como V-Bucks, heroes legendarios o esquemas raros.\n\n"
+         "Como funcionan:\n"
+         "• Se renuevan exactamente a 00:00 UTC\n"
+         "• Filtra por tu region para ver las de tu servidor\n"
+         "• Las alertas de mayor poder dan mejores recompensas\n"
+         "• Debes tener desbloqueada la zona donde aparece la alerta\n"
+         "• El contador de reset UTC en la pantalla de Inicio te dice cuanto falta"),
+        ("Construccion y Trampas",
+         "Materiales en orden de resistencia: Madera < Ladrillo < Metal.\n"
+         "Metal es el mas resistente pero tarda mas en construirse — usalo en el "
+         "endgame. En Stonewood/Plankerton, madera es suficiente.\n\n"
+         "Trampas esenciales:\n"
+         "• Gas Trap: Maximo DPS, cubre area\n"
+         "• Ceiling Electric Field: Cobertura aerea constante\n"
+         "• Wall Dynamo: Electrocuta husks lateralmente\n"
+         "• Freeze Trap: Control de masas, ralentiza grupos\n"
+         "• Wall Launcher: Empuja husks fuera del camino\n\n"
+         "Tip clave: Crea embudos (funnels) que fuercen a los husks a pasar por "
+         "tus trampas. Un buen embudo puede defender el objetivo solo."),
+        ("El Storm King",
+         "El boss final de STW. Solo disponible en Twine Peaks (endgame).\n\n"
+         "Estrategia completa:\n"
+         "Fase 1: Destruye los 4 orbes brillantes (2 en hombros, 2 en caderas).\n"
+         "  → No dispares al cuerpo — es inmune.\n\n"
+         "Fase 2: El Storm King cae y libera oleadas masivas de minions.\n"
+         "  → Usa War Cry + TEDDY para eliminarlos rapido.\n\n"
+         "Fase 3: Dano coordinado masivo al corazon brillante.\n"
+         "  → Todo el equipo debe apuntar al mismo punto.\n\n"
+         "Recomendacion de build: Soldado con Goin' Commando o Explorador con TEDDY."),
+        ("Regiones de Servidores",
+         "NAE: Este de Norteamerica\n"
+         "NAW: Oeste de Norteamerica\n"
+         "EU: Europa\n"
+         "BR: Brasil\n"
+         "OC: Oceania\n"
+         "AS: Asia\n\n"
+         "Siempre elige la region mas cercana a tu ubicacion fisica para menor "
+         "latencia. Puedes cambiarla en la pantalla de Inicio o en Configuracion."),
+        ("Consejos de Experto",
+         "1. Completa toda la historia principal antes de enfocarte en alertas.\n"
+         "2. Nunca destruyas estructuras del mapa existentes — puedes necesitarlas.\n"
+         "3. SIEMPRE construye antes de que empiece la oleada, no durante.\n"
+         "4. Comunica con tu equipo donde poner trampas antes de empezar.\n"
+         "5. Usa el filtro V-Bucks en Inicio cada dia sin falta.\n"
+         "6. Prioriza misiones con Power Level cercano al tuyo (±10).\n"
+         "7. Sube el nivel de tu Comandante completando misiones de historia.\n"
+         "8. En misiones con limite de tiempo, usa Outlander con In the Zone.\n"
+         "9. El modo 4 jugadores da recompensas bonus — juega con amigos cuando puedas.\n"
+         "10. Guarda tus mejores esquemas de armas — son difíciles de volver a conseguir."),
     ],
     "en": [
-        ("What is STW?", "Fortnite: Save The World is the cooperative PvE mode where up to 4 players defend objectives against waves of husks. The goal is to collect resources, build forts, and complete missions to earn rewards."),
-        ("Free V-Bucks", "Complete alert missions with the V-Bucks icon each day. Alert missions reset at 00:00 UTC. Filter by V-Bucks Only on the home screen to see them quickly."),
-        ("Hero Classes", "Constructor: Structures and B.A.S.E. specialist.\nNinja: Speed and melee damage.\nOutlander: Resource collection and TEDDY.\nSoldier: Ranged DPS and War Cry for the team."),
-        ("Zone System", "The map is divided into difficulty zones. Unlock zones by completing story missions. Alerts appear in unlocked zones with extra rewards."),
-        ("Server Regions", "NAE: North America East | NAW: North America West | EU: Europe | BR: Brazil | OC: Oceania | AS: Asia. Choose the closest region for lower latency."),
-        ("Building & Traps", "Build walls, floors, ceilings, and ramps with collected materials. Traps are placed on built structures. Use edit mode to create funnels that guide husks toward your traps."),
-        ("Storm King Mission", "Destroy the glowing orbs on the Storm King's shoulders and hips. When it falls, minions appear: use War Cry and TEDDY. The final phase requires massive coordinated damage to the heart."),
-        ("Basic Tips", "1. Complete the main story first.\n2. Don't destroy map structures unnecessarily.\n3. Build before the wave starts.\n4. Communicate with your team.\n5. Use the V-Bucks filter daily."),
+        ("What is Save The World?",
+         "Fortnite: Save The World is Fortnite's PvE cooperative mode (up to 4 players). "
+         "Your goal: build defenses, collect resources, and eliminate husk waves to protect "
+         "the objective. Unlike Battle Royale, you buy the game once and have unlimited access.\n\n"
+         "The main campaign is split into 4 worlds: Stonewood → Plankerton → "
+         "Canny Valley → Twine Peaks (endgame)."),
+        ("Free V-Bucks",
+         "Daily alerts reset exactly at 00:00 UTC. Each special alert can give 50 to 100 V-Bucks.\n\n"
+         "How to maximize them:\n"
+         "• Use the 'V-Bucks Only' filter on the Home screen\n"
+         "• Complete ALL V-Bucks alerts every day\n"
+         "• Storm Zone and Weekly Missions give 100 V-Bucks\n"
+         "• Advancing in the story unlocks zones with more available alerts\n"
+         "• You can earn 50 to 1000+ V-Bucks per day depending on your progress"),
+        ("Hero Classes",
+         "CONSTRUCTOR: B.A.S.E. and structure specialist. Buildings are more resistant "
+         "and B.A.S.E. boosts them even further.\n\n"
+         "NINJA: Speed and extreme melee damage. Dragon Slash, Smoke Bomb, and "
+         "Shadow Stance are their weapons.\n\n"
+         "OUTLANDER: Resource collection master. TEDDY does the work while the "
+         "Outlander collects resources and detects chests from a distance.\n\n"
+         "SOLDIER: Maximum ranged DPS. War Cry is one of the best abilities in the "
+         "game, buffing the entire team for several seconds."),
+        ("Alert System",
+         "Alerts are special missions available for limited time (24h) with extra rewards "
+         "like V-Bucks, legendary heroes, or rare schematics.\n\n"
+         "How they work:\n"
+         "• They refresh exactly at 00:00 UTC\n"
+         "• Filter by your region to see your server's alerts\n"
+         "• Higher power level alerts give better rewards\n"
+         "• You must have unlocked the zone where the alert appears\n"
+         "• The UTC reset counter on Home tells you how long until they refresh"),
+        ("Building & Traps",
+         "Materials in order of resistance: Wood < Brick < Metal.\n"
+         "Metal is the most resistant but takes longer to build — use it in endgame. "
+         "In Stonewood/Plankerton, wood is sufficient.\n\n"
+         "Essential traps:\n"
+         "• Gas Trap: Maximum DPS, covers area\n"
+         "• Ceiling Electric Field: Constant aerial coverage\n"
+         "• Wall Dynamo: Electrocutes husks from the sides\n"
+         "• Freeze Trap: Crowd control, slows groups\n"
+         "• Wall Launcher: Pushes husks off the path\n\n"
+         "Key tip: Create funnels that force husks to pass through your traps. "
+         "A good funnel can defend the objective on its own."),
+        ("The Storm King",
+         "STW's final boss. Only available in Twine Peaks (endgame).\n\n"
+         "Full strategy:\n"
+         "Phase 1: Destroy the 4 glowing orbs (2 on shoulders, 2 on hips).\n"
+         "  → Don't shoot the body — it's immune.\n\n"
+         "Phase 2: The Storm King falls and releases massive minion waves.\n"
+         "  → Use War Cry + TEDDY to eliminate them fast.\n\n"
+         "Phase 3: Coordinated massive damage to the glowing heart.\n"
+         "  → The entire team must aim at the same point.\n\n"
+         "Recommended build: Soldier with Goin' Commando or Outlander with TEDDY."),
+        ("Server Regions",
+         "NAE: North America East\n"
+         "NAW: North America West\n"
+         "EU: Europe\n"
+         "BR: Brazil\n"
+         "OC: Oceania\n"
+         "AS: Asia\n\n"
+         "Always choose the region closest to your physical location for lower latency. "
+         "You can change it on the Home screen or in Settings."),
+        ("Expert Tips",
+         "1. Complete the entire main story before focusing on alerts.\n"
+         "2. Never destroy existing map structures — you might need them.\n"
+         "3. ALWAYS build before the wave starts, not during it.\n"
+         "4. Communicate where to place traps before starting.\n"
+         "5. Use the V-Bucks filter on Home every single day.\n"
+         "6. Prioritize missions with a Power Level close to yours (±10).\n"
+         "7. Level up your Commander by completing story missions.\n"
+         "8. For timed missions, use Outlander with In the Zone.\n"
+         "9. 4-player mode gives bonus rewards — play with friends when you can.\n"
+         "10. Keep your best weapon schematics — they're hard to get again."),
     ],
 }
 
-# ── Theme palettes ────────────────────────────────────────────────────────────
-_DARK = {
-    "bg":      "#07071a", "surface": "#0d0d2b", "card":   "#12123a",
-    "border":  "#1e1e5a", "text":    "#e8e8ff", "sub":    "#9090c0",
-    "orange":  "#ff6d00", "cyan":    "#00e5ff", "yellow": "#ffd700",
-    "purple":  "#7c3aed", "green":   "#00e676", "red":    "#ff1744",
-    "footer":  "#ff8800", "banner":  "#1a0a00",
-}
-_LIGHT = {
-    "bg":      "#f0f0f8", "surface": "#e8e8f5", "card":   "#ffffff",
-    "border":  "#ccccee", "text":    "#111133", "sub":    "#444466",
-    "orange":  "#cc4400", "cyan":    "#007acc", "yellow": "#a07000",
-    "purple":  "#5b21b6", "green":   "#007a33", "red":    "#c00020",
-    "footer":  "#cc5500", "banner":  "#fff3e0",
-}
-THEME = ["dark"]
-LANG  = ["es"]
-
-def _c(key: str) -> str:
-    return (_DARK if THEME[0] == "dark" else _LIGHT)[key]
-
-def t(key: str) -> str:
-    return T[LANG[0]].get(key, key)
-
-# ── Prefs I/O ─────────────────────────────────────────────────────────────────
+# ── Prefs ──────────────────────────────────────────────────────────────────────
 def _load_prefs() -> dict:
     try:
         return json.loads(PREFS_FILE.read_text(encoding="utf-8"))
@@ -415,6 +569,7 @@ def _save_prefs(p: dict):
     except Exception:
         pass
 
+# ── Cache ──────────────────────────────────────────────────────────────────────
 def _load_cache() -> dict:
     try:
         return json.loads(CACHE_FILE.read_text(encoding="utf-8"))
@@ -428,32 +583,46 @@ def _save_cache(c: dict):
     except Exception:
         pass
 
-# ── SQLite — My Builds ────────────────────────────────────────────────────────
+def _alerts_cache_stale(cache: dict) -> bool:
+    ts = cache.get("alerts_ts", "")
+    if not ts:
+        return True
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return not ts.startswith(today)
+
+# ── SQLite ─────────────────────────────────────────────────────────────────────
 def _init_db():
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(str(DB_FILE)) as con:
             con.execute("""
                 CREATE TABLE IF NOT EXISTS my_builds (
-                    id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name    TEXT NOT NULL,
-                    cls     TEXT NOT NULL,
-                    hero    TEXT NOT NULL DEFAULT '',
-                    skills  TEXT NOT NULL DEFAULT '[]',
-                    desc    TEXT NOT NULL DEFAULT '',
-                    created TEXT NOT NULL DEFAULT ''
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name        TEXT NOT NULL DEFAULT '',
+                    cls         TEXT NOT NULL DEFAULT '',
+                    hero        TEXT NOT NULL DEFAULT '',
+                    hero_img    TEXT NOT NULL DEFAULT '',
+                    weapon1     TEXT NOT NULL DEFAULT '',
+                    weapon1_img TEXT NOT NULL DEFAULT '',
+                    weapon2     TEXT NOT NULL DEFAULT '',
+                    weapon2_img TEXT NOT NULL DEFAULT '',
+                    skills      TEXT NOT NULL DEFAULT '[]',
+                    desc        TEXT NOT NULL DEFAULT '',
+                    purpose     TEXT NOT NULL DEFAULT '',
+                    tags        TEXT NOT NULL DEFAULT '[]',
+                    created     TEXT NOT NULL DEFAULT ''
                 )
             """)
             con.commit()
     except Exception:
         pass
 
-def _db_get_my_builds() -> list:
+def _db_all_builds() -> list:
     try:
         with sqlite3.connect(str(DB_FILE)) as con:
             con.row_factory = sqlite3.Row
-            rows = con.execute("SELECT * FROM my_builds ORDER BY id DESC").fetchall()
-            return [dict(r) for r in rows]
+            return [dict(r) for r in
+                    con.execute("SELECT * FROM my_builds ORDER BY id DESC").fetchall()]
     except Exception:
         return []
 
@@ -470,9 +639,15 @@ def _db_save_build(b: dict) -> int:
     try:
         with sqlite3.connect(str(DB_FILE)) as con:
             cur = con.execute(
-                "INSERT INTO my_builds (name,cls,hero,skills,desc,created) VALUES (?,?,?,?,?,?)",
-                (b["name"], b["cls"], b.get("hero", ""), json.dumps(b.get("skills", [])),
-                 b.get("desc", ""), datetime.now().strftime("%Y-%m-%d %H:%M")),
+                "INSERT INTO my_builds "
+                "(name,cls,hero,hero_img,weapon1,weapon1_img,weapon2,weapon2_img,"
+                "skills,desc,purpose,tags,created) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (b["name"], b["cls"], b.get("hero",""), b.get("hero_img",""),
+                 b.get("weapon1",""), b.get("weapon1_img",""),
+                 b.get("weapon2",""), b.get("weapon2_img",""),
+                 json.dumps(b.get("skills",[])), b.get("desc",""),
+                 b.get("purpose",""), json.dumps(b.get("tags",[])),
+                 datetime.now().strftime("%Y-%m-%d %H:%M")),
             )
             con.commit()
             return cur.lastrowid
@@ -483,9 +658,14 @@ def _db_update_build(bid: int, b: dict):
     try:
         with sqlite3.connect(str(DB_FILE)) as con:
             con.execute(
-                "UPDATE my_builds SET name=?,cls=?,hero=?,skills=?,desc=? WHERE id=?",
-                (b["name"], b["cls"], b.get("hero", ""), json.dumps(b.get("skills", [])),
-                 b.get("desc", ""), bid),
+                "UPDATE my_builds SET name=?,cls=?,hero=?,hero_img=?,"
+                "weapon1=?,weapon1_img=?,weapon2=?,weapon2_img=?,"
+                "skills=?,desc=?,purpose=?,tags=? WHERE id=?",
+                (b["name"], b["cls"], b.get("hero",""), b.get("hero_img",""),
+                 b.get("weapon1",""), b.get("weapon1_img",""),
+                 b.get("weapon2",""), b.get("weapon2_img",""),
+                 json.dumps(b.get("skills",[])), b.get("desc",""),
+                 b.get("purpose",""), json.dumps(b.get("tags",[])), bid),
             )
             con.commit()
     except Exception:
@@ -499,7 +679,7 @@ def _db_delete_build(bid: int):
     except Exception:
         pass
 
-# ── Network helpers (blocking — run via asyncio.to_thread) ────────────────────
+# ── Network sync helpers ───────────────────────────────────────────────────────
 def _sync_epic_token():
     if not _REQ_OK:
         return None
@@ -512,7 +692,7 @@ def _sync_epic_token():
             headers={"Authorization": f"Basic {creds}",
                      "Content-Type": "application/x-www-form-urlencoded"},
             data={"grant_type": "client_credentials"},
-            timeout=10,
+            timeout=12,
         )
         return r.json().get("access_token") if r.status_code == 200 else None
     except Exception:
@@ -526,30 +706,33 @@ def _sync_fetch_alerts(region: str) -> list:
         r = requests.get(
             _EPIC_WORLD_URL,
             headers={"Authorization": f"Bearer {token}"},
-            timeout=15,
+            timeout=18,
         )
         if r.status_code != 200:
             return []
-        data     = r.json()
-        missions = data.get("missions", [])
-        alerts   = []
+        missions = r.json().get("missions", [])
+        alerts = []
         for m in missions:
             theater = m.get("theaterId", "").upper()
             if region.upper() not in theater:
                 continue
             for alert in m.get("missionAlert", {}).get("availableAlerts", []):
                 rewards = []
+                has_vbucks = False
                 for rw in alert.get("missionAlertRewards", {}).get("items", []):
-                    rewards.append({
-                        "type":     rw.get("itemType", ""),
-                        "quantity": rw.get("quantity", 0),
-                    })
+                    typ = rw.get("itemType", "")
+                    qty = rw.get("quantity", 0)
+                    is_vb = _VBUCKS_TYPE in typ
+                    if is_vb:
+                        has_vbucks = True
+                    rewards.append({"type": typ, "quantity": qty, "vbucks": is_vb})
                 if rewards:
+                    mtype = (m.get("missionType") or {}).get("missionType", "Mission")
                     alerts.append({
-                        "name":    m.get("missionType", {}).get("missionType", "Mission"),
+                        "name":    mtype,
                         "zone":    m.get("theaterId", ""),
                         "rewards": rewards,
-                        "vbucks":  any(_VBUCKS_TYPE in rw["type"] for rw in rewards),
+                        "vbucks":  has_vbucks,
                     })
         return alerts
     except Exception:
@@ -559,11 +742,43 @@ def _sync_fetch_news() -> list:
     if not _REQ_OK:
         return []
     try:
-        r = requests.get(_NEWS_URL, timeout=10)
+        r = requests.get(_NEWS_URL, timeout=12)
         if r.status_code != 200:
             return []
         items = r.json().get("data", {}).get("motds", [])
-        return [{"title": i.get("title", ""), "body": i.get("body", "")} for i in items[:8]]
+        out = []
+        for i in items[:10]:
+            out.append({
+                "title": i.get("title", ""),
+                "body":  i.get("body", ""),
+                "image": i.get("image", "") or i.get("titleImage", ""),
+            })
+        return out
+    except Exception:
+        return []
+
+def _sync_search_heroes(query: str) -> list:
+    if not _REQ_OK or not query.strip():
+        return []
+    try:
+        r = requests.get(
+            _HEROES_SEARCH_URL,
+            params={"name": query.strip(), "language": "en"},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return []
+        items = r.json().get("data", [])
+        if not isinstance(items, list):
+            items = [items]
+        out = []
+        for item in items[:20]:
+            name = item.get("name", "")
+            imgs = item.get("images", {}) or {}
+            img  = imgs.get("featured") or imgs.get("icon") or imgs.get("smallIcon") or ""
+            if name:
+                out.append({"name": name, "image": img})
+        return out
     except Exception:
         return []
 
@@ -571,7 +786,7 @@ def _sync_check_update():
     if not _REQ_OK:
         return None
     try:
-        r = requests.get(GITHUB_API, timeout=6,
+        r = requests.get(GITHUB_API, timeout=8,
                          headers={"Accept": "application/vnd.github+json"})
         if r.status_code != 200:
             return None
@@ -584,7 +799,7 @@ def _sync_check_update():
     except Exception:
         return None
 
-# ── UTC countdown ─────────────────────────────────────────────────────────────
+# ── UTC countdown ──────────────────────────────────────────────────────────────
 def _utc_reset_str() -> str:
     try:
         now = datetime.now(timezone.utc)
@@ -596,12 +811,11 @@ def _utc_reset_str() -> str:
     except Exception:
         return "--:--:--"
 
-# ═════════════════════════════════════════════════════════════════════════════
-# MAIN — async model: no threading locks, safe on Android
-# ═════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═════════════════════════════════════════════════════════════════════════════════
 async def main(page: ft.Page):
     _init_db()
-
     prefs = _load_prefs()
     if prefs.get("theme"):
         THEME[0] = prefs["theme"]
@@ -615,43 +829,52 @@ async def main(page: ft.Page):
         "notif_hour":       prefs.get("notif_hour", 8),
         "alerts":           [],
         "news":             [],
-        "my_builds":        [],
-        "builds_cls":       "all",
-        "builds_tab":       "meta",
-        "trap_mission":     list(TRAP_LOADOUTS.keys())[0],
-        "last_refresh":     "",
         "loading":          False,
         "news_loading":     False,
+        "last_refresh":     "",
+        "using_cache":      False,
         "update_info":      None,
         "update_dismissed": False,
-        "edit_build_id":    None,
-        "using_cache":      False,
+        "builds_tab":       "meta",
+        "builds_cls":       "all",
+        "hero_search_results":  [],
+        "hero_search_loading":  False,
+        "hero_search_query":    "",
+        "hero_search_origin":   "build_create",
+        "hero_search_field":    "hero",
+        "form_data": {
+            "id": None, "name": "", "cls": "Soldier",
+            "hero": "", "hero_img": "",
+            "weapon1": "", "weapon1_img": "",
+            "weapon2": "", "weapon2_img": "",
+            "skills": "", "desc": "", "purpose": "", "tags": [],
+        },
     }
 
-    # ── Page setup ────────────────────────────────────────────────────────────
+    # ── Page setup ─────────────────────────────────────────────────────────────
     page.title   = f"{APP_NAME} v{APP_VERSION}"
     page.bgcolor = _c("bg")
     page.padding = 0
     try:
         page.window.width  = 400
-        page.window.height = 800
+        page.window.height = 820
     except Exception:
         pass
 
-    # ── UI helpers ────────────────────────────────────────────────────────────
-    def _card(*children, padding=12, margin=4):
+    # ── UI helpers ─────────────────────────────────────────────────────────────
+    def _card(*children, padding=12, margin=4, border_color=None):
         return ft.Container(
             content=ft.Column(list(children), spacing=6, tight=True),
             bgcolor=_c("card"),
-            border=ft.border.all(1, _c("border")),
-            border_radius=10,
+            border=ft.border.all(1, border_color or _c("border")),
+            border_radius=12,
             padding=padding,
             margin=margin,
         )
 
-    def _btn(label, on_click, color=None, width=None, icon=None):
-        return ft.ElevatedButton(
-            text=label, icon=icon, on_click=on_click,
+    def _btn(label, on_click=None, color=None, width=None, icon=None, url=None):
+        return ft.FilledButton(
+            text=label, icon=icon, on_click=on_click, url=url,
             color="#ffffff", bgcolor=color or _c("orange"), width=width,
             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
         )
@@ -667,12 +890,12 @@ async def main(page: ft.Page):
             ),
         )
 
-    def _chip(label, active: bool, on_select):
+    def _chip(label, active: bool, on_select, color=None):
         return ft.Chip(
             label=ft.Text(label, size=12),
             selected=active,
             on_select=on_select,
-            selected_color=_c("orange"),
+            selected_color=color or _c("orange"),
             check_color="#ffffff",
         )
 
@@ -680,31 +903,64 @@ async def main(page: ft.Page):
         return ft.Text(text, size=size, weight=ft.FontWeight.BOLD,
                        color=color or _c("orange"))
 
-    def _sub(text, size=13):
+    def _sub(text, size=12):
         return ft.Text(text, size=size, color=_c("sub"))
 
     def _txt(text, size=14, color=None):
         return ft.Text(text, size=size, color=color or _c("text"))
 
+    def _divider():
+        return ft.Divider(height=1, color=_c("border"))
+
     def _footer():
         return ft.Container(
             content=ft.Text(COPYRIGHT, size=10, color=_c("footer"),
                             text_align=ft.TextAlign.CENTER),
-            padding=ft.padding.symmetric(vertical=6),
+            padding=ft.padding.symmetric(vertical=8),
             alignment=ft.alignment.center,
         )
 
-    def _divider():
-        return ft.Divider(height=1, color=_c("border"))
+    def _hero_img(url: str, size=72):
+        if url:
+            return ft.Image(
+                src=url, width=size, height=size,
+                fit=ft.ImageFit.CONTAIN, border_radius=8,
+                error_content=ft.Container(
+                    width=size, height=size, bgcolor=_c("surface"),
+                    border_radius=8,
+                    content=ft.Icon(ft.Icons.PERSON, size=size // 2,
+                                    color=_c("sub")),
+                    alignment=ft.alignment.center,
+                ),
+            )
+        return ft.Container(
+            width=size, height=size, bgcolor=_c("surface"),
+            border_radius=8,
+            content=ft.Icon(ft.Icons.PERSON, size=size // 2, color=_c("sub")),
+            alignment=ft.alignment.center,
+        )
 
-    # ── Navigation ────────────────────────────────────────────────────────────
-    TAB_ORDER = ["home", "builds", "news", "guide", "settings"]
+    def _tag_chip(tag_key: str):
+        colors = {
+            "vbucks": _c("vbucks"), "endgame": _c("red"),
+            "dps":    _c("cyan"),   "team":    _c("purple"),
+            "speed":  _c("green"),  "farm":    _c("yellow"),
+            "afk":    _c("sub"),    "beginner":_c("green"),
+            "expert": _c("orange"),
+        }
+        color = colors.get(tag_key, _c("sub"))
+        return ft.Container(
+            content=ft.Text(t(f"tag_{tag_key}"), size=10,
+                            color="#ffffff" if THEME[0] == "dark" else "#000000"),
+            bgcolor=color, border_radius=10,
+            padding=ft.padding.symmetric(horizontal=8, vertical=3),
+        )
+
+    # ── Navigation ─────────────────────────────────────────────────────────────
+    TAB_ORDER = ["home", "news", "builds", "guide", "settings"]
 
     def navigate(screen: str):
         state["screen"] = screen
-        if page.navigation_bar:
-            idx = TAB_ORDER.index(screen) if screen in TAB_ORDER else 0
-            page.navigation_bar.selected_index = idx
         render()
 
     def _nav_bar():
@@ -715,11 +971,21 @@ async def main(page: ft.Page):
 
         return ft.NavigationBar(
             destinations=[
-                ft.NavigationBarDestination(icon=ft.Icons.HOME,      label=t("home")),
-                ft.NavigationBarDestination(icon=ft.Icons.HANDYMAN,  label=t("builds")),
-                ft.NavigationBarDestination(icon=ft.Icons.ARTICLE,   label=t("news")),
-                ft.NavigationBarDestination(icon=ft.Icons.MENU_BOOK, label=t("guide")),
-                ft.NavigationBarDestination(icon=ft.Icons.SETTINGS,  label=t("settings")),
+                ft.NavigationBarDestination(icon=ft.Icons.HOME_OUTLINED,
+                                            selected_icon=ft.Icons.HOME,
+                                            label=t("home")),
+                ft.NavigationBarDestination(icon=ft.Icons.ARTICLE_OUTLINED,
+                                            selected_icon=ft.Icons.ARTICLE,
+                                            label=t("news")),
+                ft.NavigationBarDestination(icon=ft.Icons.HANDYMAN_OUTLINED,
+                                            selected_icon=ft.Icons.HANDYMAN,
+                                            label=t("builds")),
+                ft.NavigationBarDestination(icon=ft.Icons.MENU_BOOK_OUTLINED,
+                                            selected_icon=ft.Icons.MENU_BOOK,
+                                            label=t("guide")),
+                ft.NavigationBarDestination(icon=ft.Icons.SETTINGS_OUTLINED,
+                                            selected_icon=ft.Icons.SETTINGS,
+                                            label=t("settings")),
             ],
             selected_index=cur,
             on_change=on_nav,
@@ -727,7 +993,7 @@ async def main(page: ft.Page):
             indicator_color=_c("orange"),
         )
 
-    def _appbar(title_txt: str):
+    def _appbar(title_txt: str, back_screen: str = None):
         def flip_lang(e):
             LANG[0] = "en" if LANG[0] == "es" else "es"
             prefs["lang"] = LANG[0]
@@ -740,44 +1006,78 @@ async def main(page: ft.Page):
             _save_prefs(prefs)
             render()
 
+        leading = None
+        if back_screen:
+            def go_back(e):
+                navigate(back_screen)
+            leading = ft.IconButton(
+                icon=ft.Icons.ARROW_BACK,
+                icon_color=_c("orange"),
+                on_click=go_back,
+            )
+
         return ft.AppBar(
+            leading=leading,
             title=ft.Text(title_txt, size=16, weight=ft.FontWeight.BOLD,
                           color=_c("orange")),
             bgcolor=_c("surface"),
             actions=[
-                ft.IconButton(icon=ft.Icons.TRANSLATE, tooltip="ES/EN",
-                              icon_color=_c("cyan"), on_click=flip_lang),
+                ft.IconButton(icon=ft.Icons.TRANSLATE,
+                              tooltip="ES / EN",
+                              icon_color=_c("cyan"),
+                              on_click=flip_lang),
                 ft.IconButton(
                     icon=ft.Icons.DARK_MODE if THEME[0] == "dark" else ft.Icons.LIGHT_MODE,
-                    tooltip=t("theme"), icon_color=_c("yellow"),
+                    tooltip=t("theme"),
+                    icon_color=_c("yellow"),
                     on_click=toggle_theme),
             ],
         )
 
-    # ── Async background tasks — safe on Android ──────────────────────────────
-    async def _task_load_alerts():
+    # ── Async tasks ────────────────────────────────────────────────────────────
+    async def _task_load_alerts(force=False):
+        cache = _load_cache()
+        if not force and not _alerts_cache_stale(cache) and cache.get("alerts"):
+            state["alerts"]      = cache["alerts"]
+            state["using_cache"] = True
+            state["last_refresh"] = cache.get("alerts_ts", "?")[:16]
+            render()
+            return
         state["loading"]     = True
         state["using_cache"] = False
         render()
         alerts = await asyncio.to_thread(_sync_fetch_alerts, state["region"])
         if alerts:
             state["alerts"]       = alerts
-            state["last_refresh"] = datetime.now().strftime("%H:%M")
-            _save_cache({"alerts": alerts, "region": state["region"],
-                         "ts": state["last_refresh"]})
+            ts                    = datetime.now(timezone.utc).isoformat()
+            state["last_refresh"] = ts[:16]
+            state["using_cache"]  = False
+            cache["alerts"]       = alerts
+            cache["alerts_ts"]    = ts
+            _save_cache(cache)
         else:
-            cached = _load_cache()
-            if cached.get("alerts"):
-                state["alerts"]       = cached["alerts"]
+            if cache.get("alerts"):
+                state["alerts"]       = cache["alerts"]
                 state["using_cache"]  = True
-                state["last_refresh"] = cached.get("ts", "?")
+                state["last_refresh"] = cache.get("alerts_ts", "?")[:16]
         state["loading"] = False
         render()
 
-    async def _task_load_news():
+    async def _task_load_news(force=False):
+        cache = _load_cache()
+        if not force and cache.get("news"):
+            state["news"] = cache["news"]
+            render()
+            return
         state["news_loading"] = True
         render()
-        state["news"]         = await asyncio.to_thread(_sync_fetch_news)
+        news = await asyncio.to_thread(_sync_fetch_news)
+        if news:
+            state["news"] = news
+            cache["news"] = news
+            _save_cache(cache)
+        elif cache.get("news"):
+            state["news"] = cache["news"]
         state["news_loading"] = False
         render()
 
@@ -788,11 +1088,24 @@ async def main(page: ft.Page):
             state["update_dismissed"] = False
             render()
 
-    # ── HOME screen ───────────────────────────────────────────────────────────
+    async def _task_search_heroes(query: str):
+        state["hero_search_loading"] = True
+        state["hero_search_results"] = []
+        render()
+        results = await asyncio.to_thread(_sync_search_heroes, query)
+        state["hero_search_results"] = results
+        state["hero_search_loading"] = False
+        render()
+
+    async def _auto_refresh_loop():
+        while True:
+            await asyncio.sleep(3600)
+            await _task_load_alerts(force=True)
+
+    # ── HOME screen ────────────────────────────────────────────────────────────
     def _screen_home():
         rows = []
 
-        # Update banner
         if state["update_info"] and not state["update_dismissed"]:
             info = state["update_info"]
 
@@ -807,7 +1120,7 @@ async def main(page: ft.Page):
                         _txt(f"{t('update_available')}: v{info['version']}",
                              size=13, color=_c("yellow")),
                     ], expand=True, spacing=2),
-                    ft.ElevatedButton(
+                    ft.FilledButton(
                         text=t("download"), url=info["url"],
                         color="#ffffff", bgcolor=_c("green"),
                         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
@@ -822,103 +1135,165 @@ async def main(page: ft.Page):
             ))
 
         def do_refresh(e):
-            page.run_task(_task_load_alerts)
+            async def _r(): await _task_load_alerts(force=True)
+            page.run_task(_r)
 
         def toggle_vbucks(e):
             state["vbucks_only"] = not state["vbucks_only"]
             render()
 
-        vbucks_active = state["vbucks_only"]
-        rows.append(ft.Row([
-            _hdr(t("daily_alerts")),
-            _txt(f"{t('utc_reset')}: {_utc_reset_str()}", size=11, color=_c("cyan")),
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
-
         def on_region(e):
             state["region"] = e.control.value
             prefs["region"] = state["region"]
             _save_prefs(prefs)
-            page.run_task(_task_load_alerts)
+            async def _r(): await _task_load_alerts(force=True)
+            page.run_task(_r)
 
         rows.append(ft.Row([
-            _toggle_btn(t("vbucks_only"), vbucks_active, toggle_vbucks),
+            _hdr(t("daily_alerts")),
+            _txt(f"⏱ {_utc_reset_str()}", size=12, color=_c("cyan")),
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+
+        rows.append(ft.Row([
+            _toggle_btn(t("vbucks_only"), state["vbucks_only"], toggle_vbucks),
             ft.Dropdown(
                 value=state["region"],
                 options=[ft.dropdown.Option(r) for r in _REGIONS],
-                on_change=on_region, width=100, text_size=13,
+                on_change=on_region,
+                width=90, text_size=13,
                 border_color=_c("border"), color=_c("text"),
             ),
             _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
         ], spacing=8, wrap=True))
 
         if state["using_cache"] and state["last_refresh"]:
-            rows.append(_sub(f"({t('alerts_cached')} {state['last_refresh']})"))
+            rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
         elif state["last_refresh"]:
-            rows.append(_sub(f"({t('refresh')}: {state['last_refresh']})"))
+            rows.append(_sub(f"{t('last_refresh')}: {state['last_refresh']}"))
 
         if state["loading"]:
-            rows.append(ft.ProgressRing(width=32, height=32, stroke_width=3,
+            rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
                                         color=_c("orange")))
         elif not state["alerts"]:
             rows.append(_card(_txt(t("no_alerts"), color=_c("sub"))))
         else:
-            shown = [a for a in state["alerts"] if not vbucks_active or a.get("vbucks")]
-            for a in shown[:30]:
-                chips = []
+            shown = [a for a in state["alerts"]
+                     if not state["vbucks_only"] or a.get("vbucks")]
+            for a in shown[:35]:
+                reward_chips = []
                 for rw in a.get("rewards", []):
-                    typ = rw["type"]
-                    qty = rw["quantity"]
-                    if _VBUCKS_TYPE in typ:
-                        chips.append(ft.Container(
-                            content=ft.Text(f"V-Bucks x{qty}", size=11,
-                                            color="#000000", weight=ft.FontWeight.BOLD),
-                            bgcolor=_c("yellow"), border_radius=6,
-                            padding=ft.padding.symmetric(horizontal=6, vertical=2),
+                    if rw.get("vbucks"):
+                        reward_chips.append(ft.Container(
+                            content=ft.Text(f"V-Bucks ×{rw['quantity']}", size=11,
+                                            color="#000000",
+                                            weight=ft.FontWeight.BOLD),
+                            bgcolor=_c("gold"), border_radius=8,
+                            padding=ft.padding.symmetric(horizontal=7, vertical=3),
                         ))
                     else:
-                        short = typ.split(":")[-1][:18]
-                        chips.append(ft.Container(
-                            content=ft.Text(f"{short} x{qty}", size=10, color=_c("sub")),
+                        short = rw["type"].split(":")[-1][:20]
+                        reward_chips.append(ft.Container(
+                            content=ft.Text(f"{short} ×{rw['quantity']}", size=10,
+                                            color=_c("sub")),
                             bgcolor=_c("surface"), border_radius=6,
                             border=ft.border.all(1, _c("border")),
                             padding=ft.padding.symmetric(horizontal=5, vertical=2),
                         ))
                 rows.append(_card(
                     ft.Row([
-                        ft.Icon(ft.Icons.BOLT if a.get("vbucks") else ft.Icons.FLAG,
-                                color=_c("yellow") if a.get("vbucks") else _c("orange"),
-                                size=18),
+                        ft.Icon(
+                            ft.Icons.BOLT if a.get("vbucks") else ft.Icons.FLAG,
+                            color=_c("gold") if a.get("vbucks") else _c("orange"),
+                            size=20,
+                        ),
                         _txt(a.get("name", ""), size=13),
                     ], spacing=6),
                     _sub(a.get("zone", ""), size=11),
-                    ft.Row(chips, wrap=True, spacing=4),
+                    ft.Row(reward_chips, wrap=True, spacing=4),
+                    border_color=_c("gold") if a.get("vbucks") else None,
                 ))
 
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
-    # ── BUILDS screen ─────────────────────────────────────────────────────────
+    # ── NEWS screen ────────────────────────────────────────────────────────────
+    def _screen_news():
+        rows = []
+
+        def do_refresh(e):
+            async def _r(): await _task_load_news(force=True)
+            page.run_task(_r)
+
+        rows.append(ft.Row([
+            _hdr(t("news_title")),
+            ft.IconButton(ft.Icons.REFRESH, on_click=do_refresh,
+                          icon_color=_c("cyan"), icon_size=20),
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+
+        if state["news_loading"]:
+            rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
+                                        color=_c("orange")))
+        elif not state["news"]:
+            rows.append(_card(_txt(t("no_news"), color=_c("sub"))))
+        else:
+            for item in state["news"]:
+                card_children = []
+                if item.get("image"):
+                    card_children.append(ft.Container(
+                        content=ft.Image(
+                            src=item["image"],
+                            fit=ft.ImageFit.COVER,
+                            width=9999,
+                            height=170,
+                            error_content=ft.Container(
+                                height=170, bgcolor=_c("surface"),
+                                content=ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED,
+                                                size=40, color=_c("sub")),
+                                alignment=ft.alignment.center,
+                            ),
+                        ),
+                        border_radius=ft.border_radius.only(
+                            top_left=10, top_right=10),
+                        clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                    ))
+                if item.get("title"):
+                    card_children.append(_hdr(item["title"], size=14))
+                if item.get("body"):
+                    card_children.append(_txt(item["body"], size=12,
+                                              color=_c("sub")))
+                rows.append(ft.Container(
+                    content=ft.Column(card_children, spacing=8, tight=True),
+                    bgcolor=_c("card"),
+                    border=ft.border.all(1, _c("border")),
+                    border_radius=12,
+                    clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                    margin=4,
+                    padding=ft.padding.only(bottom=10),
+                ))
+
+        return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+
+    # ── BUILDS screen ──────────────────────────────────────────────────────────
     def _screen_builds():
         rows = []
 
-        def set_btab(tab):
+        def set_tab(tab):
             def _h(e):
                 state["builds_tab"] = tab
                 render()
             return _h
 
         rows.append(ft.Row([
-            _toggle_btn(t("meta_builds"), state["builds_tab"] == "meta",  set_btab("meta")),
-            _toggle_btn(t("my_builds"),   state["builds_tab"] == "my",    set_btab("my")),
-            _toggle_btn(t("traps"),       state["builds_tab"] == "traps", set_btab("traps")),
-        ], spacing=6, wrap=True))
+            _toggle_btn(t("meta_builds"), state["builds_tab"] == "meta",
+                        set_tab("meta")),
+            _toggle_btn(t("my_builds"),   state["builds_tab"] == "my",
+                        set_tab("my")),
+        ], spacing=8, wrap=True))
         rows.append(_divider())
 
         if state["builds_tab"] == "meta":
             rows.extend(_builds_meta())
-        elif state["builds_tab"] == "my":
-            rows.extend(_builds_my())
         else:
-            rows.extend(_builds_traps())
+            rows.extend(_builds_my())
 
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -933,48 +1308,89 @@ async def main(page: ft.Page):
 
         chip_labels = {
             "all": t("all_classes"),
-            "Constructor": "Constructor",
-            "Ninja": "Ninja",
-            "Outlander": "Outlander",
-            "Soldier": "Soldier",
+            "Constructor": "Constructor", "Ninja": "Ninja",
+            "Outlander": "Outlander",     "Soldier": "Soldier",
         }
         rows.append(ft.Row(
             [_chip(chip_labels[c], state["builds_cls"] == c, set_cls(c))
              for c in HERO_CLASSES],
             wrap=True, spacing=4,
         ))
+
         for cls_name, blist in BUILDS.items():
             if state["builds_cls"] != "all" and state["builds_cls"] != cls_name:
                 continue
-            rows.append(_hdr(cls_name, size=15))
+            cls_colors = {
+                "Constructor": _c("cyan"),   "Ninja": _c("pink"),
+                "Outlander":   _c("yellow"), "Soldier": _c("green"),
+            }
+            rows.append(_hdr(cls_name, size=15,
+                             color=cls_colors.get(cls_name, _c("orange"))))
             for b in blist:
-                desc = b["desc_es"] if LANG[0] == "es" else b["desc_en"]
+                lang = LANG[0]
+                desc    = b[f"desc_{lang}"]
+                purpose = b[f"purpose_{lang}"]
+                support = b[f"support_{lang}"]
+                weapons = b[f"weapons_{lang}"]
+                tags    = b.get("tags", [])
                 rows.append(_card(
-                    _hdr(b["name"], size=14),
-                    _sub(b["hero"], size=12),
+                    ft.Row([
+                        ft.Container(
+                            content=ft.Text(cls_name[0], size=20,
+                                           weight=ft.FontWeight.BOLD,
+                                           color="#ffffff"),
+                            bgcolor=cls_colors.get(cls_name, _c("orange")),
+                            width=44, height=44, border_radius=22,
+                            alignment=ft.alignment.center,
+                        ),
+                        ft.Column([
+                            _hdr(b["name"], size=14),
+                            _sub(b["hero"], size=12),
+                        ], expand=True, spacing=2),
+                    ], spacing=10,
+                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    _divider(),
+                    ft.Row([
+                        ft.Icon(ft.Icons.PEOPLE, size=14, color=_c("purple")),
+                        _txt(support, size=11, color=_c("sub")),
+                    ], spacing=6),
+                    ft.Row([
+                        ft.Icon(ft.Icons.SPORTS_ESPORTS, size=14,
+                                color=_c("cyan")),
+                        _txt(weapons, size=11, color=_c("sub")),
+                    ], spacing=6),
                     ft.Row(
                         [ft.Container(
-                            content=ft.Text(sk, size=11, color=_c("text")),
+                            content=ft.Text(sk, size=10, color=_c("text")),
                             bgcolor=_c("surface"),
-                            border=ft.border.all(1, _c("cyan")),
+                            border=ft.border.all(1, _c("border")),
                             border_radius=6,
                             padding=ft.padding.symmetric(horizontal=6, vertical=2),
                          ) for sk in b["skills"]],
-                        wrap=True, spacing=4, run_spacing=4,
+                        wrap=True, spacing=4,
                     ),
                     _txt(desc, size=12, color=_c("sub")),
+                    ft.Row([
+                        ft.Icon(ft.Icons.STAR, size=12, color=_c("yellow")),
+                        _txt(purpose, size=11, color=_c("yellow")),
+                    ], spacing=4),
+                    ft.Row([_tag_chip(tg) for tg in tags], wrap=True, spacing=4),
                 ))
         return rows
 
     def _builds_my():
         rows = []
-        builds = _db_get_my_builds()
-        state["my_builds"] = builds
+        builds = _db_all_builds()
 
         def go_create(e):
-            state["screen"]        = "build_create"
-            state["edit_build_id"] = None
-            render()
+            state["form_data"] = {
+                "id": None, "name": "", "cls": "Soldier",
+                "hero": "", "hero_img": "",
+                "weapon1": "", "weapon1_img": "",
+                "weapon2": "", "weapon2_img": "",
+                "skills": "", "desc": "", "purpose": "", "tags": [],
+            }
+            navigate("build_create")
 
         rows.append(ft.Row([
             _hdr(t("my_builds")),
@@ -986,18 +1402,49 @@ async def main(page: ft.Page):
             return rows
 
         for b in builds:
+            bid = b["id"]
             skills = []
             try:
                 skills = json.loads(b.get("skills", "[]"))
             except Exception:
                 pass
-            bid = b["id"]
+            tags = []
+            try:
+                tags = json.loads(b.get("tags", "[]"))
+            except Exception:
+                pass
 
             def go_edit(bid=bid):
                 def _h(e):
-                    state["screen"]        = "build_edit"
-                    state["edit_build_id"] = bid
-                    render()
+                    rec = _db_get_build(bid)
+                    if not rec:
+                        return
+                    sk = []
+                    try:
+                        sk = json.loads(rec.get("skills", "[]"))
+                    except Exception:
+                        pass
+                    tgs = []
+                    try:
+                        tgs = json.loads(rec.get("tags", "[]"))
+                    except Exception:
+                        pass
+                    state["form_data"] = {
+                        "id":          rec["id"],
+                        "name":        rec.get("name", ""),
+                        "cls":         rec.get("cls", "Soldier"),
+                        "hero":        rec.get("hero", ""),
+                        "hero_img":    rec.get("hero_img", ""),
+                        "weapon1":     rec.get("weapon1", ""),
+                        "weapon1_img": rec.get("weapon1_img", ""),
+                        "weapon2":     rec.get("weapon2", ""),
+                        "weapon2_img": rec.get("weapon2_img", ""),
+                        "skills":      ", ".join(sk),
+                        "desc":        rec.get("desc", ""),
+                        "purpose":     rec.get("purpose", ""),
+                        "tags":        tgs,
+                    }
+                    navigate("build_edit")
                 return _h
 
             def do_delete(bid=bid):
@@ -1006,11 +1453,14 @@ async def main(page: ft.Page):
                     render()
                 return _h
 
+            hero_img_url = b.get("hero_img", "")
             rows.append(_card(
                 ft.Row([
+                    _hero_img(hero_img_url, size=64),
                     ft.Column([
                         _hdr(b["name"], size=14),
-                        _sub(f"{b['cls']}  ·  {b.get('hero', '')}", size=12),
+                        _sub(f"{b['cls']}  ·  {b.get('hero','')}", size=12),
+                        _sub(b.get("created", ""), size=10),
                     ], expand=True, spacing=2),
                     ft.Row([
                         ft.IconButton(ft.Icons.EDIT, on_click=go_edit(),
@@ -1018,162 +1468,299 @@ async def main(page: ft.Page):
                         ft.IconButton(ft.Icons.DELETE, on_click=do_delete(),
                                       icon_color=_c("red"), icon_size=18),
                     ], spacing=0),
-                ], vertical_alignment=ft.CrossAxisAlignment.START),
+                ], spacing=10,
+                   vertical_alignment=ft.CrossAxisAlignment.START),
+                _divider() if (b.get("weapon1") or skills or b.get("desc")) else ft.Text(""),
+                ft.Row([
+                    ft.Icon(ft.Icons.SPORTS_ESPORTS, size=13, color=_c("cyan")),
+                    _txt(b.get("weapon1", ""), size=12),
+                ], spacing=6) if b.get("weapon1") else ft.Text(""),
                 ft.Row(
                     [ft.Container(
-                        content=ft.Text(sk, size=11, color=_c("text")),
+                        content=ft.Text(sk, size=10, color=_c("text")),
                         bgcolor=_c("surface"),
                         border=ft.border.all(1, _c("purple")),
                         border_radius=6,
                         padding=ft.padding.symmetric(horizontal=6, vertical=2),
                      ) for sk in skills],
-                    wrap=True, spacing=4, run_spacing=4,
+                    wrap=True, spacing=4,
                 ) if skills else ft.Text(""),
-                _txt(b.get("desc", ""), size=12, color=_c("sub")) if b.get("desc") else ft.Text(""),
-                _sub(b.get("created", ""), size=10),
+                _txt(b.get("desc", ""), size=12, color=_c("sub"))
+                    if b.get("desc") else ft.Text(""),
+                ft.Row([_tag_chip(tg) for tg in tags], wrap=True, spacing=4)
+                    if tags else ft.Text(""),
             ))
         return rows
 
-    def _builds_traps():
-        rows = []
-        missions = list(TRAP_LOADOUTS.keys())
-
-        def set_mission(m):
-            def _h(e):
-                state["trap_mission"] = m
-                render()
-            return _h
-
-        rows.append(ft.Row(
-            [_chip(m, state["trap_mission"] == m, set_mission(m)) for m in missions],
-            wrap=True, spacing=4,
-        ))
-        rows.append(_divider())
-        mission = state["trap_mission"]
-        data    = TRAP_LOADOUTS[mission][LANG[0]]
-        rows.append(_hdr(mission, size=15))
-        rows.append(_txt(data["desc"], size=13, color=_c("sub")))
-        for i, (trap_name, trap_desc) in enumerate(data["traps"], 1):
-            rows.append(_card(
-                ft.Row([
-                    ft.Container(
-                        content=ft.Text(str(i), size=13, weight=ft.FontWeight.BOLD,
-                                        color="#ffffff"),
-                        bgcolor=_c("orange"), width=26, height=26,
-                        border_radius=13, alignment=ft.alignment.center,
-                    ),
-                    ft.Column([
-                        _hdr(trap_name, size=13),
-                        _txt(trap_desc, size=12, color=_c("sub")),
-                    ], expand=True, spacing=2),
-                ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            ))
-        return rows
-
-    # ── BUILD CREATE/EDIT screen ──────────────────────────────────────────────
+    # ── BUILD FORM ─────────────────────────────────────────────────────────────
     def _screen_build_form():
-        is_edit  = state["screen"] == "build_edit"
-        existing = _db_get_build(state["edit_build_id"]) if is_edit else None
-        existing_skills = []
-        if existing:
-            try:
-                existing_skills = json.loads(existing.get("skills", "[]"))
-            except Exception:
-                pass
+        fd = state["form_data"]
+        is_edit = state["screen"] == "build_edit"
 
-        name_field = ft.TextField(
-            label=t("build_name"), value=existing["name"] if existing else "",
-            border_color=_c("border"), color=_c("text"),
-            label_style=ft.TextStyle(color=_c("sub")),
-        )
-        class_dd = ft.Dropdown(
-            label=t("build_class"),
-            value=existing["cls"] if existing else list(BUILDS.keys())[0],
+        name_field   = ft.TextField(label=t("build_name"), value=fd["name"],
+                                    border_color=_c("border"), color=_c("text"),
+                                    label_style=ft.TextStyle(color=_c("sub")))
+        class_dd     = ft.Dropdown(
+            label=t("build_class"), value=fd["cls"],
             options=[ft.dropdown.Option(k) for k in BUILDS.keys()],
             border_color=_c("border"), color=_c("text"),
-        )
-        hero_field = ft.TextField(
-            label=t("build_hero"), value=existing.get("hero", "") if existing else "",
-            border_color=_c("border"), color=_c("text"),
             label_style=ft.TextStyle(color=_c("sub")),
         )
-        skills_field = ft.TextField(
-            label=t("build_skills"),
-            value=", ".join(existing_skills),
-            multiline=True, min_lines=2,
+        hero_field   = ft.TextField(label=t("build_hero"), value=fd["hero"],
+                                    border_color=_c("border"), color=_c("text"),
+                                    label_style=ft.TextStyle(color=_c("sub")))
+        hero_img_field = ft.TextField(
+            label=t("build_hero_img"), value=fd["hero_img"],
+            hint_text="https://...",
             border_color=_c("border"), color=_c("text"),
-            label_style=ft.TextStyle(color=_c("sub")),
+            label_style=ft.TextStyle(color=_c("sub")), expand=True,
         )
-        desc_field = ft.TextField(
-            label=t("build_desc"), value=existing.get("desc", "") if existing else "",
-            multiline=True, min_lines=3,
+        weapon1_field = ft.TextField(label=t("build_weapon1"), value=fd["weapon1"],
+                                     border_color=_c("border"), color=_c("text"),
+                                     label_style=ft.TextStyle(color=_c("sub")))
+        weapon1_img_field = ft.TextField(
+            label=t("build_weapon1_img"), value=fd["weapon1_img"],
+            hint_text="https://...",
             border_color=_c("border"), color=_c("text"),
-            label_style=ft.TextStyle(color=_c("sub")),
+            label_style=ft.TextStyle(color=_c("sub")), expand=True,
         )
+        weapon2_field = ft.TextField(label=t("build_weapon2"), value=fd["weapon2"],
+                                     border_color=_c("border"), color=_c("text"),
+                                     label_style=ft.TextStyle(color=_c("sub")))
+        skills_field  = ft.TextField(label=t("build_skills"), value=fd["skills"],
+                                     multiline=True, min_lines=2,
+                                     border_color=_c("border"), color=_c("text"),
+                                     label_style=ft.TextStyle(color=_c("sub")))
+        desc_field    = ft.TextField(label=t("build_desc"), value=fd["desc"],
+                                     multiline=True, min_lines=3,
+                                     border_color=_c("border"), color=_c("text"),
+                                     label_style=ft.TextStyle(color=_c("sub")))
+        purpose_field = ft.TextField(label=t("build_purpose"), value=fd["purpose"],
+                                     multiline=True, min_lines=2,
+                                     border_color=_c("border"), color=_c("text"),
+                                     label_style=ft.TextStyle(color=_c("sub")))
+
+        selected_tags = list(fd["tags"])
+        tag_row_ref = ft.Ref[ft.Row]()
+
+        def _build_tag_row():
+            def toggle_tag(tag):
+                def _h(e):
+                    if tag in selected_tags:
+                        selected_tags.remove(tag)
+                    else:
+                        selected_tags.append(tag)
+                    tag_row_ref.current.controls = _tag_chips()
+                    page.update()
+                return _h
+
+            return [_chip(t(f"tag_{tg}"), tg in selected_tags, toggle_tag(tg))
+                    for tg in BUILD_TAGS]
+
+        def _tag_chips():
+            return _build_tag_row()
+
+        def _persist_form():
+            fd["name"]        = name_field.value or ""
+            fd["cls"]         = class_dd.value or "Soldier"
+            fd["hero"]        = hero_field.value or ""
+            fd["hero_img"]    = hero_img_field.value or ""
+            fd["weapon1"]     = weapon1_field.value or ""
+            fd["weapon1_img"] = weapon1_img_field.value or ""
+            fd["weapon2"]     = weapon2_field.value or ""
+            fd["skills"]      = skills_field.value or ""
+            fd["desc"]        = desc_field.value or ""
+            fd["purpose"]     = purpose_field.value or ""
+            fd["tags"]        = list(selected_tags)
+
+        def go_search_hero(field_key: str):
+            def _h(e):
+                _persist_form()
+                state["hero_search_origin"] = state["screen"]
+                state["hero_search_field"]  = field_key
+                state["hero_search_results"] = []
+                state["hero_search_query"]   = ""
+                navigate("hero_search")
+            return _h
 
         def do_save(e):
-            raw = skills_field.value or ""
-            sk  = [s.strip() for s in raw.split(",") if s.strip()]
-            b   = {
-                "name":   (name_field.value or "").strip() or "Build",
-                "cls":    class_dd.value or list(BUILDS.keys())[0],
-                "hero":   (hero_field.value or "").strip(),
-                "skills": sk,
-                "desc":   (desc_field.value or "").strip(),
+            _persist_form()
+            skills_list = [s.strip() for s in fd["skills"].split(",")
+                           if s.strip()]
+            b = {
+                "name":        fd["name"] or t("new_build"),
+                "cls":         fd["cls"],
+                "hero":        fd["hero"],
+                "hero_img":    fd["hero_img"],
+                "weapon1":     fd["weapon1"],
+                "weapon1_img": fd["weapon1_img"],
+                "weapon2":     fd["weapon2"],
+                "weapon2_img": fd["weapon2_img"],
+                "skills":      skills_list,
+                "desc":        fd["desc"],
+                "purpose":     fd["purpose"],
+                "tags":        fd["tags"],
             }
-            if is_edit and state["edit_build_id"]:
-                _db_update_build(state["edit_build_id"], b)
+            if is_edit and fd["id"]:
+                _db_update_build(fd["id"], b)
             else:
                 _db_save_build(b)
-            state["screen"]     = "builds"
             state["builds_tab"] = "my"
-            render()
+            navigate("builds")
 
         def do_cancel(e):
-            state["screen"]     = "builds"
             state["builds_tab"] = "my"
-            render()
+            navigate("builds")
 
-        title = (t("edit") + " Build") if is_edit else t("new_build")
+        hero_preview = _hero_img(fd["hero_img"], size=80) if fd.get("hero_img") else ft.Container()
+        w1_preview   = _hero_img(fd["weapon1_img"], size=60) if fd.get("weapon1_img") else ft.Container()
+
+        title = t("edit") + " Build" if is_edit else t("new_build")
         return ft.Column([
-            ft.Row([
-                ft.IconButton(ft.Icons.ARROW_BACK, on_click=do_cancel,
-                              icon_color=_c("orange")),
-                _hdr(title),
-            ], spacing=4),
+            ft.Row([_hdr(title, size=16)], alignment=ft.MainAxisAlignment.CENTER),
             _divider(),
-            name_field, class_dd, hero_field, skills_field, desc_field,
+            name_field,
+            class_dd,
+            _hdr(t("build_hero"), size=13, color=_c("cyan")),
+            hero_field,
+            ft.Row([
+                hero_img_field,
+                ft.IconButton(ft.Icons.IMAGE_SEARCH, icon_color=_c("cyan"),
+                              tooltip=t("search_hero"),
+                              on_click=go_search_hero("hero_img")),
+            ], spacing=6),
+            hero_preview,
+            _divider(),
+            _hdr(t("weapons"), size=13, color=_c("cyan")),
+            weapon1_field,
+            ft.Row([
+                weapon1_img_field,
+                ft.IconButton(ft.Icons.IMAGE_SEARCH, icon_color=_c("sub"),
+                              tooltip=t("search_hero"),
+                              on_click=go_search_hero("weapon1_img")),
+            ], spacing=6),
+            w1_preview,
+            weapon2_field,
+            _divider(),
+            skills_field,
+            desc_field,
+            purpose_field,
+            _hdr(t("build_tags"), size=13, color=_c("cyan")),
+            ft.Row(ref=tag_row_ref, controls=_tag_chips(), wrap=True, spacing=4),
+            _divider(),
             ft.Row([
                 _btn(t("save"),   do_save,   color=_c("green")),
                 _btn(t("cancel"), do_cancel, color=_c("sub")),
-            ], spacing=8),
+            ], spacing=10),
         ], spacing=10, scroll=ft.ScrollMode.AUTO, expand=True)
 
-    # ── NEWS screen ───────────────────────────────────────────────────────────
-    def _screen_news():
-        rows = [_hdr(t("news_tab"))]
-        if state["news_loading"]:
-            rows.append(ft.ProgressRing(width=32, height=32, stroke_width=3,
-                                        color=_c("orange")))
-        elif not state["news"]:
-            rows.append(_card(_txt(t("no_news"), color=_c("sub"))))
-        else:
-            for item in state["news"]:
-                rows.append(_card(
-                    _hdr(item.get("title", ""), size=14),
-                    _txt(item.get("body", ""),  size=12, color=_c("sub")),
+    # ── HERO SEARCH screen ────────────────────────────────────────────────────
+    def _screen_hero_search():
+        query_field = ft.TextField(
+            label=t("hero_placeholder"),
+            value=state["hero_search_query"],
+            border_color=_c("border"), color=_c("text"),
+            label_style=ft.TextStyle(color=_c("sub")),
+            expand=True,
+            autofocus=True,
+        )
+
+        def do_search(e):
+            q = (query_field.value or "").strip()
+            if not q:
+                return
+            state["hero_search_query"] = q
+            async def _s(qry=q): await _task_search_heroes(qry)
+            page.run_task(_s)
+
+        def go_back(e):
+            navigate(state["hero_search_origin"])
+
+        results = []
+        if state["hero_search_loading"]:
+            results.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
+                                           color=_c("orange")))
+        elif state["hero_search_results"]:
+            for h in state["hero_search_results"]:
+                name    = h["name"]
+                img_url = h["image"]
+
+                def on_select(n=name, u=img_url):
+                    def _h(e):
+                        fd = state["form_data"]
+                        field = state["hero_search_field"]
+                        if field == "hero_img":
+                            fd["hero_img"] = u
+                            fd["hero"]     = n
+                        elif field == "weapon1_img":
+                            fd["weapon1_img"] = u
+                            if not fd["weapon1"]:
+                                fd["weapon1"] = n
+                        navigate(state["hero_search_origin"])
+                    return _h
+
+                results.append(ft.Container(
+                    content=ft.Row([
+                        _hero_img(img_url, size=56),
+                        _txt(name, size=13, color=_c("text")),
+                        ft.FilledButton(
+                            text=t("select"),
+                            on_click=on_select(),
+                            color="#ffffff",
+                            bgcolor=_c("orange"),
+                            style=ft.ButtonStyle(
+                                shape=ft.RoundedRectangleBorder(radius=8)),
+                        ),
+                    ], spacing=10,
+                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    bgcolor=_c("card"),
+                    border=ft.border.all(1, _c("border")),
+                    border_radius=10,
+                    padding=10, margin=4,
                 ))
-        return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+        elif state["hero_search_query"] and not state["hero_search_loading"]:
+            results.append(_txt(t("no_hero_results"), color=_c("sub")))
+
+        return ft.Column([
+            ft.Row([
+                ft.IconButton(ft.Icons.ARROW_BACK, icon_color=_c("orange"),
+                              on_click=go_back),
+                _hdr(t("hero_search_title"), size=15),
+            ], spacing=4),
+            _divider(),
+            ft.Row([
+                query_field,
+                ft.IconButton(ft.Icons.SEARCH, icon_color=_c("cyan"),
+                              on_click=do_search),
+            ], spacing=6),
+            _sub("Powered by fortnite-api.com", size=10),
+            *results,
+        ], spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # ── GUIDE screen ──────────────────────────────────────────────────────────
     def _screen_guide():
-        rows = [_hdr(t("guide_title"))]
-        for sec_title, sec_body in GUIDE[LANG[0]]:
-            rows.append(_card(
-                _hdr(sec_title, size=14, color=_c("cyan")),
-                _txt(sec_body,  size=12),
+        sections = []
+        for title_s, body_s in GUIDE[LANG[0]]:
+            sections.append(ft.ExpansionTile(
+                title=ft.Text(title_s, size=14, weight=ft.FontWeight.BOLD,
+                              color=_c("cyan")),
+                controls=[
+                    ft.Container(
+                        content=ft.Text(body_s, size=12, color=_c("text")),
+                        padding=ft.padding.only(left=8, right=8, bottom=10),
+                    )
+                ],
+                bgcolor=_c("card"),
+                collapsed_bgcolor=_c("card"),
+                icon_color=_c("orange"),
+                collapsed_icon_color=_c("orange"),
+                text_color=_c("cyan"),
+                controls_padding=0,
             ))
-        return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+        return ft.Column(
+            [_hdr(t("guide_title")), *sections],
+            spacing=6, scroll=ft.ScrollMode.AUTO, expand=True,
+        )
 
     # ── SETTINGS screen ───────────────────────────────────────────────────────
     def _screen_settings():
@@ -1223,6 +1810,7 @@ async def main(page: ft.Page):
                 options=[ft.dropdown.Option(r) for r in _REGIONS],
                 on_change=on_region_change,
                 border_color=_c("border"), color=_c("text"),
+                label_style=ft.TextStyle(color=_c("sub")),
             ),
         ))
 
@@ -1244,7 +1832,8 @@ async def main(page: ft.Page):
             _save_prefs(prefs)
             try:
                 page.show_dialog(ft.SnackBar(
-                    content=ft.Text(t("save_settings")), bgcolor=_c("green")
+                    content=ft.Text(t("save_settings")),
+                    bgcolor=_c("green"),
                 ))
             except Exception:
                 pass
@@ -1268,9 +1857,9 @@ async def main(page: ft.Page):
             page.update()
 
         rows.append(_card(
-            _sub(t("check_update")),
             ft.Row([
-                _btn(t("check_update"), manual_check_update, icon=ft.Icons.SYSTEM_UPDATE),
+                _btn(t("check_update"), manual_check_update,
+                     icon=ft.Icons.SYSTEM_UPDATE),
                 update_status,
             ], spacing=10, wrap=True),
         ))
@@ -1278,57 +1867,83 @@ async def main(page: ft.Page):
         genesis_ok = _verify_genesis()
         rows.append(_card(
             _hdr(t("about"), size=14),
-            _sub(f"{APP_NAME} v{APP_VERSION}"),
+            _sub(f"{APP_NAME}  v{APP_VERSION}"),
             _sub(f"{t('created_by')}: {APP_AUTHOR}"),
+            _sub(f"{APP_RIGHTS}  ©{APP_YEAR}"),
             _divider(),
             ft.Row([
-                ft.Icon(ft.Icons.VERIFIED if genesis_ok else ft.Icons.WARNING,
-                        color=_c("green") if genesis_ok else _c("red"), size=16),
-                _txt(t("genesis_valid") if genesis_ok else t("genesis_invalid"),
-                     size=12, color=_c("green") if genesis_ok else _c("red")),
-            ], spacing=6),
-            _sub(f"Seal: {_GENESIS_SEAL[:32]}...", size=10),
-            _sub(f"Commit: {_GENESIS_COMMIT}", size=10),
+                ft.Icon(
+                    ft.Icons.VERIFIED if genesis_ok else ft.Icons.WARNING_AMBER,
+                    color=_c("green") if genesis_ok else _c("red"), size=18),
+                ft.Column([
+                    _txt(t("genesis_valid") if genesis_ok else t("genesis_invalid"),
+                         size=12,
+                         color=_c("green") if genesis_ok else _c("red")),
+                    _sub(f"SHA-256: {_GENESIS_SEAL[:24]}...", size=10),
+                    _sub(f"Origin: {_GENESIS_COMMIT}", size=10),
+                    _sub(f"Date: {_GENESIS_DATE}", size=10),
+                    _sub(f"Author: {_GENESIS_AUTHOR}", size=10),
+                ], spacing=2),
+            ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.START),
         ))
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
-    # ── Master render — sync, always called from event loop ───────────────────
+    # ── Render ─────────────────────────────────────────────────────────────────
     def render():
         try:
+            APP_YEAR_NOW = str(date.today().year)
+            global COPYRIGHT
+            COPYRIGHT = (f"Creado por: {APP_AUTHOR}   ·   "
+                         f"{APP_RIGHTS}   ©{APP_YEAR_NOW}")
+
             page.bgcolor = _c("bg")
-            if page.navigation_bar:
-                page.navigation_bar.bgcolor = _c("surface")
 
             screen = state["screen"]
+            is_sub = screen in ("build_create", "build_edit", "hero_search")
+
             if screen == "home":
                 content = _screen_home()
                 title   = f"{APP_NAME} v{APP_VERSION}"
+                appbar  = _appbar(title)
+            elif screen == "news":
+                content = _screen_news()
+                title   = t("news_title")
+                appbar  = _appbar(title)
             elif screen == "builds":
                 content = _screen_builds()
                 title   = t("builds")
+                appbar  = _appbar(title)
             elif screen in ("build_create", "build_edit"):
                 content = _screen_build_form()
                 title   = APP_NAME
-            elif screen == "news":
-                content = _screen_news()
-                title   = t("news_tab")
+                appbar  = _appbar(title, back_screen="builds")
+            elif screen == "hero_search":
+                content = _screen_hero_search()
+                title   = t("hero_search_title")
+                appbar  = _appbar(title,
+                                  back_screen=state["hero_search_origin"])
             elif screen == "guide":
                 content = _screen_guide()
                 title   = t("guide_title")
+                appbar  = _appbar(title)
             elif screen == "settings":
                 content = _screen_settings()
                 title   = t("settings_title")
+                appbar  = _appbar(title)
             else:
                 content = _screen_home()
                 title   = APP_NAME
+                appbar  = _appbar(title)
 
-            page.navigation_bar = _nav_bar()
-            page.appbar         = _appbar(title)
+            page.appbar         = appbar
+            page.navigation_bar = None if is_sub else _nav_bar()
             page.controls.clear()
             page.add(
                 ft.Container(
-                    content=ft.Column([content, _footer()],
-                                      spacing=0, expand=True),
+                    content=ft.Column(
+                        [content, _footer()],
+                        spacing=0, expand=True,
+                    ),
                     bgcolor=_c("bg"),
                     padding=ft.padding.symmetric(horizontal=12, vertical=8),
                     expand=True,
@@ -1338,11 +1953,12 @@ async def main(page: ft.Page):
         except Exception:
             pass
 
-    # ── Startup ───────────────────────────────────────────────────────────────
+    # ── Startup ────────────────────────────────────────────────────────────────
     render()
     page.run_task(_task_load_alerts)
     page.run_task(_task_load_news)
     page.run_task(_task_check_update)
+    page.run_task(_auto_refresh_loop)
 
 
 ft.run(main)
