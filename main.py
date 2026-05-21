@@ -1189,7 +1189,7 @@ async def main(page: ft.Page):
             ft.Dropdown(
                 value=state["region"],
                 options=[ft.dropdown.Option(r) for r in _REGIONS],
-                on_change=on_region,
+                on_select=on_region,
                 width=90, text_size=13,
                 border_color=_c("border"), color=_c("text"),
             ),
@@ -1837,7 +1837,7 @@ async def main(page: ft.Page):
             ft.Dropdown(
                 value=state["region"],
                 options=[ft.dropdown.Option(r) for r in _REGIONS],
-                on_change=on_region_change,
+                on_select=on_region_change,
                 border_color=_c("border"), color=_c("text"),
                 label_style=ft.TextStyle(color=_c("sub")),
             ),
