@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.3.8"
+APP_VERSION = "2.3.9"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -970,29 +970,42 @@ def _mission_emoji(name: str) -> str:
 # NOT the mission type. Filtered from the final output of both parse functions.
 _ZONE_TOKENS = frozenset({
     "stonewood", "plankerton", "canny", "valley", "twine", "peaks",
-    "sw", "cv", "tw", "pl", "sh", "wb",   # zone abbreviations
-    "fight", "category",                   # API internal noise
+    "sw", "cv", "tw", "pl", "sh", "wb",       # zone abbreviations
+    "fight", "category",                       # API internal noise
+    "vht", "vhd", "ltb", "lava", "shlt",      # difficulty/variant codes
+    "active", "passive", "novice", "expert",   # difficulty states
+    "normal", "hard", "easy", "phoenix",
+    "a", "b", "c", "d",                        # single-letter category tags
 })
 
 # Clean mission type names keyed by generator substring (longest keys checked first).
 # Used by both _parse_generator and _parse_mission_type for reliable name output.
 _GENERATOR_MAP = {
-    "eliminate":  "Eliminate & Collect",
-    "miniboss":   "Mini Boss",
-    "mini_boss":  "Mini Boss",
-    "retrieve":   "Retrieve Data",
-    "evacuate":   "Evacuate Shelter",
-    "resupply":   "Resupply",
-    "protect":    "Protect Home Base",
-    "deliver":    "Deliver Bomb",
-    "rescue":     "Rescue Survivors",
-    "mutant":     "Mutant Storm",
-    "repair":     "Repair the Shelter",
-    "atlas":      "Defend Atlas",
-    "radar":      "Radar Grid",
-    "ride":       "Ride the Lightning",
-    "storm":      "Storm Alert",
+    "eliminate":   "Eliminate & Collect",
+    "gategroup":   "Storm Gates",
+    "gate_group":  "Storm Gates",
+    "miniboss":    "Mini Boss",
+    "mini_boss":   "Mini Boss",
+    "retrieve":    "Retrieve Data",
+    "evacuate":    "Evacuate Shelter",
+    "resupply":    "Resupply",
+    "protect":     "Protect Home Base",
+    "deliver":     "Deliver Bomb",
+    "rescue":      "Rescue Survivors",
+    "mutant":      "Mutant Storm",
+    "repair":      "Repair the Shelter",
+    "atlas":       "Defend Atlas",
+    "radar":       "Radar Grid",
+    "ride":        "Ride the Lightning",
+    "horde":       "Horde Bash",
+    "ssd":         "Storm Shield",
+    "blitz":       "Blitz",
+    "storm":       "Storm Alert",
 }
+
+# Last words that produce WRONG results in BR cache (misleading crossover characters).
+# e.g. "Kyle" → "South Park Kyle" (BR) but we want "Megabase Kyle" (STW-only).
+_BR_WORD_BLOCKLIST = frozenset({"kyle", "jess", "penny"})
 
 def _mission_name_from_raw(s: str) -> str:
     """Look up the clean human-readable mission name from a raw generator/alert string.
@@ -1017,12 +1030,15 @@ def _parse_mission_type(raw: str) -> str:
     if mapped:
         return mapped
     s = raw
-    # Strip common prefixes
+    # Strip known prefixes
     s = _re.sub(r'^MissionAlert[_]?', '', s, flags=_re.IGNORECASE)
-    # Strip trailing number / zone-code suffixes (iterative for combos like _SW_01)
+    # Strip leading tier prefix (T1_, T02_, T3_, etc.)
+    s = _re.sub(r'^T\d+[_]', '', s, flags=_re.IGNORECASE)
+    # Strip trailing number / zone-code suffixes (iterative)
     for _ in range(4):
         prev = s
-        s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava|VHT|VHD|LTB)\d*$', '',
+                    s, flags=_re.IGNORECASE)
         s = _re.sub(r'[_ ]\d+$', '', s)
         if s == prev:
             break
@@ -1034,12 +1050,13 @@ def _parse_mission_type(raw: str) -> str:
     s = _re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)
     s = _re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', s)
     s = s.replace("_", " ").strip()
-    # Remove difficulty/state noise AND zone/world tokens
-    _noise = frozenset({'Active', 'Passive', 'Novice', 'Expert', 'Normal', 'Hard', 'Easy'})
-    words = [w for w in s.split()
-             if w not in _noise and w.lower() not in _ZONE_TOKENS]
+    # Remove zone/world tokens (includes single-letter tags, VHT, LTB, etc.)
+    words = [w for w in s.split() if w.lower() not in _ZONE_TOKENS]
     filtered = " ".join(words).strip()
-    return filtered or s or raw
+    # If only abbreviations remain (all-caps ≤3 chars each), use generic fallback
+    if filtered and all(w.isupper() and len(w) <= 3 for w in filtered.split()):
+        return "Mission"
+    return filtered or "Mission"
 
 _ELEMENT_EMOJI = {"fire": "🔥", "water": "❄️", "nature": "⚡", "": ""}
 _ELEMENT_COLOR = {
@@ -1082,26 +1099,31 @@ def _parse_generator(raw: str) -> str:
     mapped = _mission_name_from_raw(s)
     if mapped:
         return mapped
-    # Strip MissionGen prefix
+    # Strip MissionGen prefix + leading tier prefix (T1_, T02_, etc.)
     s = _re.sub(r'^MissionGen[_]?', '', s, flags=_re.IGNORECASE)
-    # Try map again after prefix strip
+    s = _re.sub(r'^T\d+[_]', '', s, flags=_re.IGNORECASE)
+    # Try map again after prefix strips
     mapped = _mission_name_from_raw(s)
     if mapped:
         return mapped
     # Strip trailing zone-code + difficulty + number suffixes iteratively
     for _ in range(5):
         prev = s
-        s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava|VHT|VHD|LTB)\d*$', '',
+                    s, flags=_re.IGNORECASE)
         s = _re.sub(r'[_](Novice|Expert|Active|Passive|Storm|Phoenix|Hard|Easy)\w*$',
                     '', s, flags=_re.IGNORECASE)
         s = _re.sub(r'[_]\d+$', '', s)
         if s == prev:
             break
     s = s.replace("_", " ").strip()
-    # Filter zone/world tokens AND API noise words from the result
+    # Filter zone/world tokens from the result
     words = [w for w in s.split() if w.lower() not in _ZONE_TOKENS]
     filtered = " ".join(words).strip()
-    return filtered or s or raw
+    # If only abbreviations remain (all-caps ≤3 chars), use generic fallback
+    if filtered and all(w.isupper() and len(w) <= 3 for w in filtered.split()):
+        return "Mission"
+    return filtered or "Mission"
 
 def _normalize_theater_id(tid: str) -> str:
     """Strip Epic ID prefixes so mission_map lookups succeed regardless of format.
@@ -1554,6 +1576,12 @@ def _reward_label(item_type: str):
         return "💎", "V-Bucks"
     # ── Supercharger (charge fragment — lets you level past 131) ──
     if "supercharg" in t_low:
+        if "hero" in t_low:
+            return "🔮", "Hero Supercharger"
+        if "people" in t_low or "worker" in t_low or "survivor" in t_low:
+            return "🔮", "Survivor Supercharger"
+        if "schematic" in t_low or "weapon" in t_low or "trap" in t_low:
+            return "🔮", "Trap/Weapon Supercharger"
         return "🔮", "Supercharger"
     # ── XP types ──
     if "phoenixxp" in t_low or "phoenix_xp" in t_low:
@@ -2032,17 +2060,20 @@ async def main(page: ft.Page):
                 found = await asyncio.to_thread(_sync_fetch_hero_image_by_name, name)
 
             # ── Layer 4: BR cache scored search ─────────────────────────────────
-            # Try full name first, then last word as absolute last resort.
-            # Score-based ranking prevents obvious wrong matches.
+            # Full name first, then last word — SKIP words in _BR_WORD_BLOCKLIST
+            # to avoid returning wrong characters (South Park Kyle ≠ Megabase Kyle,
+            # Jess/Penny have misleading BR counterparts too).
             if not found:
                 r = await asyncio.to_thread(_sync_search_br_outfits_only, name)
                 if r:
                     found = r[0].get("image", "")
             if not found and len(words) > 1:
-                r = await asyncio.to_thread(
-                    _sync_search_br_outfits_only, words[-1])
-                if r:
-                    found = r[0].get("image", "")
+                last = words[-1].lower()
+                if last not in _BR_WORD_BLOCKLIST:
+                    r = await asyncio.to_thread(
+                        _sync_search_br_outfits_only, words[-1])
+                    if r:
+                        found = r[0].get("image", "")
 
             state["meta_imgs"][name] = found
 
@@ -2305,12 +2336,30 @@ async def main(page: ft.Page):
                 is_es   = (lang == "es")
 
                 # ── Supercharger reward card ───────────────────────────────────
+                # Try to detect the specific type from the 160 mission rewards
+                sc_name = "Supercargador" if is_es else "Supercharger"
+                sc_sub  = ""
+                for _m in m160:
+                    for _rw in _m.get("rewards", []):
+                        _tl = _rw.get("type", "").lower()
+                        if "supercharg" in _tl:
+                            _, _rl = _reward_label(_rw["type"])
+                            sc_name = (_rl.replace("Supercharger", "Supercargador")
+                                       .replace("Hero", "de Héroe")
+                                       .replace("Survivor", "de Superviviente")
+                                       .replace("Trap/Weapon", "de Trampa/Arma")
+                                       if is_es else _rl)
+                            break
+                    else:
+                        continue
+                    break
+
                 rows.append(_card(
                     ft.Row([
                         ft.Text("🔮", size=44),
                         ft.Column([
                             ft.Text(
-                                "Supercargador" if is_es else "Supercharger",
+                                sc_name,
                                 size=16, color=_c("purple"),
                                 weight=ft.FontWeight.BOLD,
                             ),
@@ -2320,10 +2369,20 @@ async def main(page: ft.Page):
                                 "Complete 10 PL 160 missions to earn it",
                                 size=11,
                             ),
+                            # Show all three types so player knows what to expect
+                            ft.Row([
+                                ft.Text("⭐", size=12),
+                                _sub("Hero  ", size=10),
+                                ft.Text("👷", size=12),
+                                _sub("Survivor  ", size=10),
+                                ft.Text("🔧", size=12),
+                                _sub("Trap / Weapon", size=10),
+                            ], spacing=3,
+                               vertical_alignment=ft.CrossAxisAlignment.CENTER),
                             _sub(
-                                "Permite subir héroes y esquemas más allá del nivel 131"
+                                "Sube héroes, supervivientes y esquemas más allá del nv 131"
                                 if is_es else
-                                "Lets you level heroes & schematics past level 131",
+                                "Level heroes, survivors & schematics past level 131",
                                 size=10,
                             ),
                         ], expand=True, spacing=3),
