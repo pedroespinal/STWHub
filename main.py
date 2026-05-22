@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.3.6"
+APP_VERSION = "2.3.7"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -966,29 +966,40 @@ def _mission_emoji(name: str) -> str:
         return "🌪️"
     return "🗺️"
 
+# Tokens that appear in generator/alert names describing zone or API internals,
+# NOT the mission type. Filtered from the final output of both parse functions.
+_ZONE_TOKENS = frozenset({
+    "stonewood", "plankerton", "canny", "valley", "twine", "peaks",
+    "sw", "cv", "tw", "pl", "sh", "wb",   # zone abbreviations
+    "fight", "category",                   # API internal noise
+})
+
 def _parse_mission_type(raw: str) -> str:
-    """Convert raw alert name → human-readable mission type.
-    Handles both underscore-separated ('MissionAlert_Retrieve_Data_T01')
-    and camelCase ('MutantStonewoodActive_01', 'StormMiniBossPassive_02') forms.
+    """Convert raw alert name → short human-readable mission type.
+    Handles underscore form ('MissionAlert_Retrieve_Data_T01')
+    and camelCase form ('MutantStonewoodActive_01', 'StormMiniBossPassive_02').
     """
     import re as _re
     s = raw
     # Strip common prefixes
     s = _re.sub(r'^MissionAlert[_]?', '', s, flags=_re.IGNORECASE)
-    # Strip trailing _N or _NN (plain number suffix like _01, _02)
-    s = _re.sub(r'[_ ]\d+$', '', s)
-    # Strip trailing zone/tier code suffixes (_T01, _SW01, etc.)
-    s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
-    # Split camelCase words (MutantStonewoodActive → Mutant Stonewood Active)
+    # Strip trailing number / zone-code suffixes (iterative for combos like _SW_01)
+    for _ in range(4):
+        prev = s
+        s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'[_ ]\d+$', '', s)
+        if s == prev:
+            break
+    # Split camelCase (MutantStonewoodActive → Mutant Stonewood Active)
     s = _re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)
     s = _re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', s)
-    # Replace underscores with spaces
     s = s.replace("_", " ").strip()
-    # Remove words that describe husk state/difficulty, not the mission type
-    _noise = {'Active', 'Passive', 'Novice', 'Expert', 'Normal', 'Hard', 'Easy'}
-    words = [w for w in s.split() if w not in _noise]
-    s = " ".join(words).strip()
-    return s or raw
+    # Remove difficulty/state noise AND zone/world tokens
+    _noise = frozenset({'Active', 'Passive', 'Novice', 'Expert', 'Normal', 'Hard', 'Easy'})
+    words = [w for w in s.split()
+             if w not in _noise and w.lower() not in _ZONE_TOKENS]
+    filtered = " ".join(words).strip()
+    return filtered or s or raw
 
 _ELEMENT_EMOJI = {"fire": "🔥", "water": "❄️", "nature": "⚡", "": ""}
 _ELEMENT_COLOR = {
@@ -1015,16 +1026,34 @@ def _parse_element(gen: str, mission: dict) -> str:
     return ""
 
 def _parse_generator(raw: str) -> str:
-    """Convert 'MissionGen_Retrieve_Data_T01' → 'Retrieve Data'"""
+    """Convert 'MissionGen_Retrieve_Data_T01' → 'Retrieve Data'.
+    Also handles full UE asset paths like
+    '/Game/Items/MissionGens/MissionGen_Atlas.MissionGen_Atlas'.
+    """
     import re as _re
     s = raw
-    # Strip leading MissionGen_ or MissionGen prefix
+    # Strip UE asset paths
+    if "." in s:
+        s = s.rsplit(".", 1)[-1]
+    elif "/" in s:
+        s = s.rsplit("/", 1)[-1]
+    # Strip MissionGen prefix
     s = _re.sub(r'^MissionGen[_]?', '', s, flags=_re.IGNORECASE)
-    # Strip trailing zone/difficulty suffixes
-    s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
-    s = _re.sub(r'[_](Novice|Expert|Active|Storm|Phoenix|Hard|Easy)\w*$', '', s, flags=_re.IGNORECASE)
+    # Strip trailing zone-code + difficulty + number suffixes iteratively
+    # (handles combos like _CV_01 → pass1: _01 gone → pass2: _CV gone)
+    for _ in range(5):
+        prev = s
+        s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'[_](Novice|Expert|Active|Passive|Storm|Phoenix|Hard|Easy)\w*$',
+                    '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'[_]\d+$', '', s)
+        if s == prev:
+            break
     s = s.replace("_", " ").strip()
-    return s or raw
+    # Filter zone/world tokens AND API noise words from the result
+    words = [w for w in s.split() if w.lower() not in _ZONE_TOKENS]
+    filtered = " ".join(words).strip()
+    return filtered or s or raw
 
 def _normalize_theater_id(tid: str) -> str:
     """Strip Epic ID prefixes so mission_map lookups succeed regardless of format.
@@ -1291,6 +1320,23 @@ def _sync_load_stw_cosmetics() -> list:
         pass
     return _STW_COSMETICS_CACHE
 
+def _extract_img(imgs: dict) -> str:
+    """Pick the best available image URL from a cosmetics images dict.
+    fortnite-api.com uses different field names for BR vs STW items.
+    """
+    if not imgs:
+        return ""
+    # Preferred order: icon > featured > smallIcon > small > large > background
+    for key in ("icon", "featured", "smallIcon", "small", "large", "background"):
+        v = imgs.get(key)
+        if isinstance(v, str) and v.startswith("http"):
+            return v
+    # Last resort: any string URL in the dict
+    for v in imgs.values():
+        if isinstance(v, str) and v.startswith("http"):
+            return v
+    return ""
+
 def _sync_search_stw_only(query: str) -> list:
     """Search STW cosmetics cache only. Used for hero image auto-loading."""
     q = query.strip().lower()
@@ -1299,18 +1345,18 @@ def _sync_search_stw_only(query: str) -> list:
     out = []
     for item in _STW_COSMETICS_CACHE:
         name = item.get("name", "")
-        if q in name.lower():
-            imgs = item.get("images", {}) or {}
-            img  = (imgs.get("icon") or imgs.get("featured")
-                    or imgs.get("smallIcon") or "")
-            if img:
-                out.append({"name": name, "image": img})
+        if not name or q not in name.lower():
+            continue
+        img = _extract_img(item.get("images", {}) or {})
+        if img:
+            out.append({"name": name, "image": img})
     return out[:5]
 
 def _sync_search_br_outfits_only(query: str) -> list:
     """Search BR outfits with relevance scoring.
     Exact / shorter-name matches rank above substring toy/action-figure variants.
-    'Kyle' → actual Kyle skin (score 0-1) before 'Kyle Action Figure' (score 3).
+    Full-query-only search — no single-word fallback to avoid wrong-character matches
+    (e.g. 'South Park Kyle' when searching for 'Kyle').
     """
     q = query.strip().lower()
     if not q:
@@ -1323,9 +1369,7 @@ def _sync_search_br_outfits_only(query: str) -> list:
         name_low = name.lower()
         if q not in name_low:
             continue
-        imgs = item.get("images", {}) or {}
-        img  = (imgs.get("icon") or imgs.get("featured")
-                or imgs.get("smallIcon") or "")
+        img = _extract_img(item.get("images", {}) or {})
         if not img:
             continue
         # Relevance: 0=exact, 1=starts-with, 2=word-boundary, 3=substring
@@ -1341,10 +1385,31 @@ def _sync_search_br_outfits_only(query: str) -> list:
     scored.sort(key=lambda x: (x[0], x[1]))
     return [{"name": n, "image": i} for _, _, n, i in scored[:5]]
 
+def _sync_fetch_stw_image_by_name(name: str) -> str:
+    """Search STW cosmetics by name via fortnite-api.com search endpoint.
+    Used as per-hero fallback when the bulk STW cache search finds nothing.
+    Returns empty string on any failure (404, timeout, no data).
+    """
+    if not _REQ_OK or not name.strip():
+        return ""
+    try:
+        r = requests.get(
+            "https://fortnite-api.com/v2/cosmetics/stw/search",
+            params={"name": name.strip(), "matchMethod": "contains", "language": "en"},
+            timeout=8,
+        )
+        if r.status_code == 200:
+            item = r.json().get("data")
+            if item:
+                return _extract_img(item.get("images", {}) or {})
+    except Exception:
+        pass
+    return ""
+
 def _sync_fetch_hero_image_by_name(name: str) -> str:
     """Search BR cosmetics by exact name via fortnite-api.com search endpoint.
     More reliable than substring cache search for STW heroes that have BR crossovers
-    (e.g. Megabase Kyle, Dragon Scorch, Raider Headhunter).
+    (e.g. Dragon Scorch, Raider Headhunter, Sergeant Jonesy).
     """
     if not _REQ_OK or not name.strip():
         return ""
@@ -1357,9 +1422,7 @@ def _sync_fetch_hero_image_by_name(name: str) -> str:
         if r.status_code == 200:
             item = r.json().get("data")
             if item:
-                imgs = item.get("images", {}) or {}
-                return (imgs.get("icon") or imgs.get("featured")
-                        or imgs.get("smallIcon") or "")
+                return _extract_img(item.get("images", {}) or {})
     except Exception:
         pass
     return ""
@@ -1858,45 +1921,68 @@ async def main(page: ft.Page):
         render()
 
     async def _task_load_meta_imgs():
-        # Pre-load BR and STW cosmetics lists (needed for hero image search)
-        await asyncio.to_thread(_sync_load_br_cosmetics)
-        await asyncio.to_thread(_sync_load_stw_cosmetics)
-        # Collect unique hero names from meta builds + community builds
-        meta_names  = {b["hero"] for builds in BUILDS.values() for b in builds}
-        comm_names  = {b.get("hero", "") for b in state.get("community_builds", [])}
+        """Load hero images for meta + community builds.
+
+        4-layer lookup per hero name — tries each source in order:
+          1. STW bulk cache  — full name / last word / first word
+          2. STW API search  — per-hero targeted call (fallback if bulk cache empty)
+          3. BR API exact    — for BR crossover heroes (Sentinel, Jonesy, Headhunter…)
+          4. BR cache scored — full name, then last word (avoids South Park Kyle etc.)
+        """
+        # Pre-load cosmetics caches in parallel
+        await asyncio.gather(
+            asyncio.to_thread(_sync_load_br_cosmetics),
+            asyncio.to_thread(_sync_load_stw_cosmetics),
+        )
+
+        meta_names = {b["hero"] for builds in BUILDS.values() for b in builds}
+        comm_names = {b.get("hero", "") for b in state.get("community_builds", [])}
         names = list((meta_names | comm_names) - {""})
+
         for name in names:
-            if state["meta_imgs"].get(name):  # already found
+            if state["meta_imgs"].get(name):  # already found in a previous pass
                 continue
             words = name.split()
             found = ""
 
-            # ── Step 1: search STW endpoint with full name, last word, first word ──
-            # STW heroes like "Megabase Kyle", "Dragon Scorch" live here.
-            # Single-word queries stay in STW to avoid false positives in BR.
-            stw_queries = [name]
-            if len(words) >= 2:
-                stw_queries += [words[-1], words[0], " ".join(words[:2])]
-            for q in stw_queries:
+            # ── Layer 1: STW bulk cache ─────────────────────────────────────────
+            # Try full name, then last word (e.g. "Kyle"), then first word.
+            # `_sync_search_stw_only` now handles all image field variants.
+            for q in ([name] + ([words[-1], words[0]] if len(words) >= 2 else [])):
                 r = await asyncio.to_thread(_sync_search_stw_only, q)
                 if r:
                     found = r[0].get("image", "")
                     break
 
-            # ── Step 1.5: targeted BR API search by exact hero name ──
-            # Finds STW heroes that have BR crossover skins (Megabase Kyle, Dragon Scorch…)
-            # without falling through to wrong-character substring matches (South Park Kyle…)
+            # ── Layer 2: STW API per-hero search ────────────────────────────────
+            # Reliable even when the bulk cache failed to load (network timeout).
+            # Tries full name, then last word for STW heroes.
+            if not found and _REQ_OK:
+                found = await asyncio.to_thread(_sync_fetch_stw_image_by_name, name)
+            if not found and _REQ_OK and len(words) > 1:
+                found = await asyncio.to_thread(
+                    _sync_fetch_stw_image_by_name, words[-1])
+
+            # ── Layer 3: BR API exact match ─────────────────────────────────────
+            # Catches heroes with exact BR crossover skins (Sergeant Jonesy, Sentinel…).
             if not found and _REQ_OK:
                 found = await asyncio.to_thread(_sync_fetch_hero_image_by_name, name)
 
-            # ── Step 2: try BR outfits from local cache (full name only) ──
-            # Avoids wrong-character matches like "South Park Kyle" when searching "Kyle"
+            # ── Layer 4: BR cache scored search ─────────────────────────────────
+            # Try full name first, then last word as absolute last resort.
+            # Score-based ranking prevents obvious wrong matches.
             if not found:
                 r = await asyncio.to_thread(_sync_search_br_outfits_only, name)
                 if r:
                     found = r[0].get("image", "")
+            if not found and len(words) > 1:
+                r = await asyncio.to_thread(
+                    _sync_search_br_outfits_only, words[-1])
+                if r:
+                    found = r[0].get("image", "")
 
             state["meta_imgs"][name] = found
+
         render()
 
     async def _task_load_community_builds():
