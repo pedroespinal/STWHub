@@ -1127,8 +1127,6 @@ async def main(page: ft.Page):
             bgcolor=_c("surface"),
             indicator_color=_c("orange"),
             label_behavior=ft.NavigationBarLabelBehavior.ALWAYS_SHOW,
-            surface_tint_color=_c("surface"),
-            shadow_color=_c("border"),
         )
 
     def _appbar(title_txt: str, back_screen: str = None):
