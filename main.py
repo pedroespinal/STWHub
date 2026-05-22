@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.1.1"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -720,7 +720,9 @@ def _sync_epic_token():
     except Exception:
         return None
 
-_SKIP_ZONES = {"[test]", "venture", "survive", "homebase", "horde", "scurvy", "shoal"}
+# English AND Spanish zone-name keywords that mark non-campaign (venture/test) theaters
+_SKIP_ZONES_EN = {"[test]", "venture", "adventure", "survive", "homebase", "horde", "scurvy", "shoal"}
+_SKIP_ZONES_ES = {"aventura", "escorbuto", "estiaje", "horda", "punto de partida"}
 
 def _theater_name(display, lang="en") -> str:
     """Extract zone name from displayName dict (multilingual) or plain string."""
@@ -770,8 +772,11 @@ def _sync_fetch_alerts() -> list:
         for entry in data.get("missionAlerts", []):
             tid = entry.get("theaterId", "")
             lang_zone, en_zone = theater_map.get(tid, (tid[:8], tid[:8]))
-            # Skip test / venture / horde / homebase zones — filter on ENGLISH name
-            if any(kw in en_zone.lower() for kw in _SKIP_ZONES):
+            # Skip test / venture / horde / homebase zones — filter on both EN and display name
+            en_lower = en_zone.lower()
+            es_lower = lang_zone.lower()
+            if (any(kw in en_lower for kw in _SKIP_ZONES_EN) or
+                    any(kw in es_lower for kw in _SKIP_ZONES_ES)):
                 continue
             zone = lang_zone
             for alert in entry.get("availableMissionAlerts", []):
@@ -873,6 +878,51 @@ def _btn_text_color(bgcolor: str) -> str:
         return "#000000" if luminance > 148 else "#ffffff"
     except Exception:
         return "#ffffff"
+
+def _reward_label(item_type: str):
+    """Convert raw Epic itemType → (emoji, short human-readable label).
+    Returns a tuple (emoji_str, label_str).
+    """
+    t_low    = item_type.lower()
+    parts    = item_type.split(":")
+    category = parts[0].lower() if parts else ""
+    # ── V-Bucks ──
+    if "currency_mtxswap" in t_low:
+        return "💎", "V-Bucks"
+    # ── XP types ──
+    if "phoenixxp" in t_low or "phoenix_xp" in t_low:
+        return "🔥", "Phoenix XP"
+    if "campaign_event_currency" in t_low or "acorns" in t_low or "candy" in t_low:
+        return "🪙", "Event Currency"
+    if "seasonxp" in t_low or "season_xp" in t_low:
+        return "⚡", "Season XP"
+    # ── Survivors / Heroes ──
+    if category == "worker":
+        return "👷", "Survivor"
+    if category == "hero":
+        return "⭐", "Hero"
+    # ── Weapons / Traps ──
+    if category == "schematic":
+        return "🔧", "Schematic"
+    # ── Materials ──
+    if "ingredient" in t_low or "reagent" in t_low:
+        return "🧪", "Material"
+    # ── Base / Homebase ──
+    if category == "homebasenode" or "homebase" in t_low:
+        return "🏠", "Base Upgrade"
+    # ── Tokens / Accolades ──
+    if category == "token":
+        return "🎫", "Token"
+    if category == "accolade":
+        return "🏆", "Accolade"
+    # ── Catch-all XP ──
+    if "xp" in t_low:
+        return "⚡", "XP"
+    # ── Fallback: make subtype human-readable ──
+    subtype = parts[1] if len(parts) > 1 else item_type
+    label   = subtype.replace("_", " ").split()[0].capitalize()
+    return "📦", label[:14] if label else "Item"
+
 
 def _newer_version(remote: str, local: str) -> bool:
     try:
@@ -1086,7 +1136,7 @@ async def main(page: ft.Page):
         color = colors.get(tag_key, _c("sub"))
         return ft.Container(
             content=ft.Text(t(f"tag_{tag_key}"), size=10,
-                            color="#ffffff" if THEME[0] == "dark" else "#000000"),
+                            color=_btn_text_color(color)),
             bgcolor=color, border_radius=10,
             padding=_pad_sym(horizontal=8, vertical=3),
         )
@@ -1104,23 +1154,32 @@ async def main(page: ft.Page):
         def on_nav(e):
             navigate(TAB_ORDER[e.control.selected_index])
 
+        # Use explicit ft.Icon with colors so inactive tabs are always legible
+        # (Flutter default makes them near-invisible in light mode)
+        _unsel = _c("sub")   # readable in both dark and light
+        _sel   = "#ffffff"   # white inside the orange indicator pill
         return ft.NavigationBar(
             destinations=[
-                ft.NavigationBarDestination(icon=ft.Icons.HOME_OUTLINED,
-                                            selected_icon=ft.Icons.HOME,
-                                            label=t("home")),
-                ft.NavigationBarDestination(icon=ft.Icons.ARTICLE_OUTLINED,
-                                            selected_icon=ft.Icons.ARTICLE,
-                                            label=t("news")),
-                ft.NavigationBarDestination(icon=ft.Icons.HANDYMAN_OUTLINED,
-                                            selected_icon=ft.Icons.HANDYMAN,
-                                            label=t("builds")),
-                ft.NavigationBarDestination(icon=ft.Icons.MENU_BOOK_OUTLINED,
-                                            selected_icon=ft.Icons.MENU_BOOK,
-                                            label=t("guide")),
-                ft.NavigationBarDestination(icon=ft.Icons.SETTINGS_OUTLINED,
-                                            selected_icon=ft.Icons.SETTINGS,
-                                            label=t("settings")),
+                ft.NavigationBarDestination(
+                    icon=ft.Icon(ft.Icons.HOME_OUTLINED, color=_unsel),
+                    selected_icon=ft.Icon(ft.Icons.HOME, color=_sel),
+                    label=t("home")),
+                ft.NavigationBarDestination(
+                    icon=ft.Icon(ft.Icons.ARTICLE_OUTLINED, color=_unsel),
+                    selected_icon=ft.Icon(ft.Icons.ARTICLE, color=_sel),
+                    label=t("news")),
+                ft.NavigationBarDestination(
+                    icon=ft.Icon(ft.Icons.HANDYMAN_OUTLINED, color=_unsel),
+                    selected_icon=ft.Icon(ft.Icons.HANDYMAN, color=_sel),
+                    label=t("builds")),
+                ft.NavigationBarDestination(
+                    icon=ft.Icon(ft.Icons.MENU_BOOK_OUTLINED, color=_unsel),
+                    selected_icon=ft.Icon(ft.Icons.MENU_BOOK, color=_sel),
+                    label=t("guide")),
+                ft.NavigationBarDestination(
+                    icon=ft.Icon(ft.Icons.SETTINGS_OUTLINED, color=_unsel),
+                    selected_icon=ft.Icon(ft.Icons.SETTINGS, color=_sel),
+                    label=t("settings")),
             ],
             selected_index=cur,
             on_change=on_nav,
@@ -1364,19 +1423,26 @@ async def main(page: ft.Page):
             for a in shown[:35]:
                 reward_chips = []
                 for rw in a.get("rewards", []):
+                    emoji, label = _reward_label(rw["type"])
+                    qty = rw["quantity"]
                     if rw.get("vbucks"):
                         reward_chips.append(ft.Container(
-                            content=ft.Text(f"V-Bucks ×{rw['quantity']}", size=11,
-                                            color="#000000",
-                                            weight=ft.FontWeight.BOLD),
+                            content=ft.Row([
+                                ft.Text(emoji, size=13),
+                                ft.Text(f"{label} ×{qty}", size=11,
+                                        color="#000000",
+                                        weight=ft.FontWeight.BOLD),
+                            ], spacing=3, tight=True),
                             bgcolor=_c("gold"), border_radius=8,
                             padding=_pad_sym(horizontal=7, vertical=3),
                         ))
                     else:
-                        short = rw["type"].split(":")[-1][:20]
                         reward_chips.append(ft.Container(
-                            content=ft.Text(f"{short} ×{rw['quantity']}", size=10,
-                                            color=_c("sub")),
+                            content=ft.Row([
+                                ft.Text(emoji, size=12),
+                                ft.Text(f"{label} ×{qty}", size=10,
+                                        color=_c("sub")),
+                            ], spacing=3, tight=True),
                             bgcolor=_c("surface"), border_radius=6,
                             border=_border_all(1, _c("border")),
                             padding=_pad_sym(horizontal=5, vertical=2),
@@ -1395,6 +1461,7 @@ async def main(page: ft.Page):
                     border_color=_c("gold") if a.get("vbucks") else None,
                 ))
 
+        rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # ── NEWS screen ────────────────────────────────────────────────────────────
@@ -1452,6 +1519,7 @@ async def main(page: ft.Page):
                     padding=_pad_only(bottom=10),
                 ))
 
+        rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # ── BUILDS screen ──────────────────────────────────────────────────────────
@@ -1481,6 +1549,7 @@ async def main(page: ft.Page):
         else:
             rows.extend(_builds_my())
 
+        rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
     def _builds_meta():
@@ -1543,12 +1612,12 @@ async def main(page: ft.Page):
                     _divider(),
                     ft.Row([
                         ft.Icon(ft.Icons.PEOPLE, size=14, color=_c("purple")),
-                        _txt(support, size=11, color=_c("sub")),
+                        ft.Text(support, size=11, color=_c("sub"), expand=True),
                     ], spacing=6),
                     ft.Row([
                         ft.Icon(ft.Icons.SPORTS_ESPORTS, size=14,
                                 color=_c("cyan")),
-                        _txt(weapons, size=11, color=_c("sub")),
+                        ft.Text(weapons, size=11, color=_c("sub"), expand=True),
                     ], spacing=6),
                     ft.Row(
                         [ft.Container(
@@ -2010,6 +2079,7 @@ async def main(page: ft.Page):
                 text_color=_c("cyan"),
                 controls_padding=0,
             ))
+        sections.append(_footer())
         return ft.Column(
             sections,
             spacing=6, scroll=ft.ScrollMode.AUTO, expand=True,
@@ -2137,6 +2207,7 @@ async def main(page: ft.Page):
                 ], spacing=2),
             ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.START),
         ))
+        rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # ── Render ─────────────────────────────────────────────────────────────────
@@ -2191,10 +2262,7 @@ async def main(page: ft.Page):
             page.controls.clear()
             page.add(
                 ft.Container(
-                    content=ft.Column(
-                        [content, _footer()],
-                        spacing=0, expand=True,
-                    ),
+                    content=content,
                     bgcolor=_c("bg"),
                     padding=_pad_sym(horizontal=12, vertical=8),
                     expand=True,
