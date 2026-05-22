@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.1.1"
+APP_VERSION = "2.2.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -92,6 +92,128 @@ _COMMUNITY_BUILDS_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/m
 
 _VBUCKS_TYPE = "AccountResource:currency_mtxswap"
 _REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
+
+# ── STW World data ─────────────────────────────────────────────────────────────
+_WORLD_ORDER = ["stonewood", "plankerton", "canny", "twine"]
+_WORLD_NAMES = {
+    "stonewood":  {"es": "Bosque Pedregoso",    "en": "Stonewood"},
+    "plankerton": {"es": "Finca Arbolada",       "en": "Plankerton"},
+    "canny":      {"es": "Valle del Cañón",      "en": "Canny Valley"},
+    "twine":      {"es": "Cimas del Entramado",  "en": "Twine Peaks"},
+}
+# Substring keywords used to match alert zone_en → world tab
+_WORLD_KEYS  = {
+    "stonewood":  "stonewood",
+    "plankerton": "plankerton",
+    "canny":      "canny",
+    "twine":      "twine",
+}
+GUIDE_WORLDS = {
+    "stonewood": {
+        "es": {
+            "pl": "PL 1–45",
+            "desc": "El mundo inicial de STW. Ideal para aprender mecánicas de construcción y combate. Los husks son débiles — perfecto para practicar sin presión.",
+            "tips": [
+                "Completa misiones de historia para desbloquear esquemas de armas y materiales.",
+                "Construye siempre: madera abajo + ladrillo arriba soporta cualquier oleada aquí.",
+                "Las alertas de Stonewood raramente tienen V-Bucks pero son fáciles de completar.",
+                "Usa Constructor con B.A.S.E. para proteger el objetivo mientras aprendes.",
+                "Recolecta madera y piedra en cada misión — nunca tendrás suficientes materiales.",
+            ],
+            "heroes": "Constructor (B.A.S.E. Kyle) · Soldado (Sergeant Jonesy) · Explorador básico",
+        },
+        "en": {
+            "pl": "PL 1–45",
+            "desc": "STW's starting world. Great for learning building and combat mechanics. Husks are weak — perfect for practicing without pressure.",
+            "tips": [
+                "Complete story missions to unlock weapon schematics and materials.",
+                "Always build: wood bottom + brick on top holds any wave here.",
+                "Stonewood alerts rarely have V-Bucks but are easy to complete.",
+                "Use Constructor with B.A.S.E. to protect the objective while learning.",
+                "Collect wood and stone every mission — you'll never have enough materials.",
+            ],
+            "heroes": "Constructor (B.A.S.E. Kyle) · Soldier (Sergeant Jonesy) · Basic Outlander",
+        },
+    },
+    "plankerton": {
+        "es": {
+            "pl": "PL 15–58",
+            "desc": "El segundo mundo. La dificultad sube notablemente. Desbloqueas el sistema de trampas y aparecen husks con escudos y propulsores.",
+            "tips": [
+                "Invierte en trampas de lanzas y suelo — marcan la diferencia en oleadas largas.",
+                "Empieza a mejorar tus armas favoritas con transformaciones de perk.",
+                "Las alertas de Plankerton ya pueden incluir V-Bucks (50–100 por misión).",
+                "Usa Ninja con Dragon Slash para limpiar grupos rápido.",
+                "El Explorador con TEDDY te permite farmear recursos mientras defiendes.",
+            ],
+            "heroes": "Ninja (Dragon Scorch) · Explorador (Enforcer Grizzly) · Constructor (Sentinel)",
+        },
+        "en": {
+            "pl": "PL 15–58",
+            "desc": "The second world. Difficulty rises notably. You unlock the trap system and start encountering husks with shields and propulsors.",
+            "tips": [
+                "Invest in spike and floor traps — they make a huge difference in long waves.",
+                "Start upgrading your favorite weapons with perk transformations.",
+                "Plankerton alerts can now include V-Bucks (50–100 per mission).",
+                "Use Ninja with Dragon Slash to quickly clear groups.",
+                "Outlander with TEDDY lets you farm resources while defending.",
+            ],
+            "heroes": "Ninja (Dragon Scorch) · Outlander (Enforcer Grizzly) · Constructor (Sentinel)",
+        },
+    },
+    "canny": {
+        "es": {
+            "pl": "PL 40–82",
+            "desc": "El tercer mundo. El mapa es más grande. Desbloqueas el Radar Grid para detectar misiones y cofres. Los husks son significativamente más resistentes.",
+            "tips": [
+                "Activa el Radar Grid para ver cofres y recursos en el mapa completo.",
+                "Las armas de acero son esenciales — fabrica en nivel de investigación 3+.",
+                "Los mini-jefes (Blasters, Smashers) requieren armas especializadas.",
+                "Forma equipo — las misiones en solitario son mucho más difíciles aquí.",
+                "Invierte en perks de velocidad de construcción y resistencia de estructuras.",
+            ],
+            "heroes": "Soldado (Raider Headhunter) · Constructor (Megabase Kyle) · Ninja avanzado",
+        },
+        "en": {
+            "pl": "PL 40–82",
+            "desc": "The third world. Larger map. You unlock the Radar Grid to detect missions and chests. Husks are significantly tougher.",
+            "tips": [
+                "Activate the Radar Grid to see chests and resources on the full map.",
+                "Steel weapons are essential — craft at research level 3+.",
+                "Mini-bosses (Blasters, Smashers) require specialized weapons.",
+                "Team up — solo missions are much harder here.",
+                "Invest in building speed perks and structure resistance.",
+            ],
+            "heroes": "Soldier (Raider Headhunter) · Constructor (Megabase Kyle) · Advanced Ninja",
+        },
+    },
+    "twine": {
+        "es": {
+            "pl": "PL 70–140+",
+            "desc": "El endgame de STW. Las misiones más difíciles y las mejores recompensas. Hogar del Storm King, el jefe final. Las alertas aquí dan los mejores V-Bucks diarios.",
+            "tips": [
+                "El Storm King requiere PL 100+ y equipo coordinado de 4 jugadores.",
+                "Las alertas de Twine dan hasta 100 V-Bucks por misión.",
+                "Usa builds de endgame: Soldado DPS con War Cry + Constructor con BASE.",
+                "Trampas eléctricas y de gas hacen la mayor parte del trabajo pesado.",
+                "Farmea materiales legendarios (Sunbeam, Obsidian, Shadowshard) para las mejores armas.",
+            ],
+            "heroes": "Soldado DPS (Raider Headhunter) · Constructor (Megabase Kyle) · Support Soldier",
+        },
+        "en": {
+            "pl": "PL 70–140+",
+            "desc": "STW's endgame. Hardest missions, best rewards. Home of the Storm King, the final boss. Alerts here give the best daily V-Bucks.",
+            "tips": [
+                "The Storm King requires PL 100+ and a coordinated 4-player team.",
+                "Twine alerts give up to 100 V-Bucks per mission.",
+                "Use endgame builds: DPS Soldier with War Cry + Constructor with BASE.",
+                "Electric and gas traps do most of the heavy lifting.",
+                "Farm legendary materials (Sunbeam, Obsidian, Shadowshard) for best weapons.",
+            ],
+            "heroes": "DPS Soldier (Raider Headhunter) · Constructor (Megabase Kyle) · Support Soldier",
+        },
+    },
+}
 
 # ── Genesis seal ───────────────────────────────────────────────────────────────
 _GENESIS_COMMIT = "stwhub-genesis-20260521"
@@ -221,6 +343,14 @@ T = {
         "tag_beginner": "Principiante", "tag_expert": "Experto",
         "tag_team": "Equipo", "tag_dps": "DPS",
         "error_api": "Error al conectar con la API.",
+        "world_filter": "Mundo",
+        "world_tips": "Consejos",
+        "world_heroes_rec": "Héroes recomendados",
+        "player_tag_lbl": "Nickname en el juego",
+        "player_tag_hint": "Tu tag en Fortnite (ej: S053xY)",
+        "cosmetics_loaded": "cosméticos BR cargados",
+        "cosmetics_loading": "Cosméticos BR: cargando...",
+        "ingame_tag": "Tag en el juego",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -289,6 +419,14 @@ T = {
         "tag_beginner": "Beginner", "tag_expert": "Expert",
         "tag_team": "Team", "tag_dps": "DPS",
         "error_api": "Error connecting to the API.",
+        "world_filter": "World",
+        "world_tips": "Tips",
+        "world_heroes_rec": "Recommended heroes",
+        "player_tag_lbl": "In-game nickname",
+        "player_tag_hint": "Your Fortnite tag (eg: S053xY)",
+        "cosmetics_loaded": "BR cosmetics loaded",
+        "cosmetics_loading": "BR cosmetics: loading...",
+        "ingame_tag": "In-game tag",
     },
 }
 
@@ -793,21 +931,25 @@ def _sync_fetch_alerts() -> list:
                 if rewards:
                     mtype = _parse_mission_type(alert.get("name", "Mission"))
                     alerts.append({
-                        "name":   mtype,
-                        "zone":   zone,
+                        "name":    mtype,
+                        "zone":    zone,
+                        "zone_en": en_zone,   # always English — used for world filter
                         "rewards": rewards,
-                        "vbucks": has_vbucks,
+                        "vbucks":  has_vbucks,
                     })
         return alerts
     except Exception:
         return []
 
 def _sync_fetch_news() -> list:
-    """Fetch STW news. API changed: now /v2/news → data.stw.messages (not motds)."""
+    """Fetch STW news. API changed: now /v2/news → data.stw.messages (not motds).
+    Passes current language — fortnite-api.com returns localized text when available.
+    """
     if not _REQ_OK:
         return []
     try:
-        r = requests.get(_NEWS_URL, timeout=12)
+        lang = LANG[0] if LANG[0] in ("es", "en") else "en"
+        r = requests.get(_NEWS_URL, params={"language": lang}, timeout=12)
         if r.status_code != 200:
             return []
         data = r.json().get("data", {})
@@ -1002,6 +1144,8 @@ async def main(page: ft.Page):
     state = {
         "screen":           "home",
         "vbucks_only":      False,
+        "world_filter":     prefs.get("world_filter", "all"),
+        "guide_world":      "stonewood",
         "region":           prefs.get("region", "NAE"),
         "notif_hour":       prefs.get("notif_hour", 8),
         "alerts":           [],
@@ -1094,9 +1238,13 @@ async def main(page: ft.Page):
         return ft.Divider(height=1, color=_c("border"))
 
     def _footer():
+        tag    = prefs.get("player_tag", "S053xY")
+        tag_str = f" · {tag}" if tag else ""
+        year   = str(date.today().year)
+        text   = f"Creado por: {APP_AUTHOR}{tag_str}   ·   {APP_RIGHTS}   ©{year}"
         return ft.Container(
             content=ft.Text(
-                COPYRIGHT, size=11,
+                text, size=11,
                 color=_c("footer"),
                 weight=ft.FontWeight.W_600,
                 text_align=ft.TextAlign.CENTER,
@@ -1387,6 +1535,12 @@ async def main(page: ft.Page):
             async def _r(): await _task_load_alerts(force=True)
             page.run_task(_r)
 
+        def on_world(e):
+            state["world_filter"] = e.control.value
+            prefs["world_filter"] = state["world_filter"]
+            _save_prefs(prefs)
+            render()
+
         _clock_text = ft.Text(f"⏱ {_utc_reset_str()}", size=12, color=_c("cyan"))
         _clock_ctrl["ref"] = _clock_text
 
@@ -1394,6 +1548,13 @@ async def main(page: ft.Page):
             _hdr(t("daily_alerts")),
             _clock_text,
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+
+        lang = LANG[0]
+        world_options = [ft.dropdown.Option(key="all",
+                             text="🌍 " + ("Todos" if lang == "es" else "All"))]
+        for wk in _WORLD_ORDER:
+            world_options.append(ft.dropdown.Option(
+                key=wk, text=_WORLD_NAMES[wk][lang]))
 
         rows.append(ft.Row([
             _toggle_btn(t("vbucks_only"), state["vbucks_only"], toggle_vbucks),
@@ -1406,6 +1567,17 @@ async def main(page: ft.Page):
             ),
             _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
         ], spacing=8, wrap=True))
+        rows.append(ft.Row([
+            ft.Icon(ft.Icons.PUBLIC, size=16, color=_c("cyan")),
+            ft.Text(t("world_filter") + ":", size=12, color=_c("sub")),
+            ft.Dropdown(
+                value=state["world_filter"],
+                options=world_options,
+                on_select=on_world,
+                text_size=12,
+                border_color=_c("border"), color=_c("text"),
+            ),
+        ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER))
 
         if state["using_cache"] and state["last_refresh"]:
             rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
@@ -1418,8 +1590,11 @@ async def main(page: ft.Page):
         elif not state["alerts"]:
             rows.append(_card(_txt(t("no_alerts"), color=_c("sub"))))
         else:
+            wf = state["world_filter"]
             shown = [a for a in state["alerts"]
-                     if not state["vbucks_only"] or a.get("vbucks")]
+                     if (not state["vbucks_only"] or a.get("vbucks"))
+                     and (wf == "all" or
+                          _WORLD_KEYS.get(wf, "") in a.get("zone_en", "").lower())]
             for a in shown[:35]:
                 reward_chips = []
                 for rw in a.get("rewards", []):
@@ -2061,9 +2236,66 @@ async def main(page: ft.Page):
 
     # ── GUIDE screen ──────────────────────────────────────────────────────────
     def _screen_guide():
-        sections = []
-        for title_s, body_s in GUIDE[LANG[0]]:
-            sections.append(ft.ExpansionTile(
+        lang      = LANG[0]
+        cur_world = state.get("guide_world", "stonewood")
+
+        def set_world(w):
+            def _h(e):
+                state["guide_world"] = w
+                render()
+            return _h
+
+        # World icon mapping
+        world_icons = {
+            "stonewood":  "🌲", "plankerton": "🌾",
+            "canny":      "🏜️", "twine":       "⚡",
+        }
+
+        rows = []
+        # ── World tab bar ──────────────────────────────────────────────────
+        rows.append(ft.Row(
+            [_toggle_btn(
+                f"{world_icons.get(w,'')} {_WORLD_NAMES[w][lang]}",
+                cur_world == w,
+                set_world(w),
+             ) for w in _WORLD_ORDER],
+            spacing=6, wrap=True,
+        ))
+        rows.append(_divider())
+
+        # ── World info card ────────────────────────────────────────────────
+        wdata = GUIDE_WORLDS[cur_world][lang]
+        rows.append(_card(
+            ft.Row([
+                ft.Text(world_icons.get(cur_world, "🌍"), size=22),
+                _hdr(_WORLD_NAMES[cur_world][lang], size=15),
+                ft.Container(
+                    content=ft.Text(wdata["pl"], size=11,
+                                    color=_btn_text_color(_c("orange")),
+                                    weight=ft.FontWeight.BOLD),
+                    bgcolor=_c("orange"), border_radius=8,
+                    padding=_pad_sym(horizontal=8, vertical=2),
+                ),
+            ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            _txt(wdata["desc"], size=12),
+            _divider(),
+            ft.Text(f"💡 {t('world_tips')}", size=12, color=_c("yellow"),
+                    weight=ft.FontWeight.W_600),
+            *[ft.Row([
+                ft.Icon(ft.Icons.ARROW_RIGHT, size=14, color=_c("orange")),
+                ft.Text(tip, size=11, color=_c("text"), expand=True),
+              ], spacing=4) for tip in wdata["tips"]],
+            _divider(),
+            ft.Row([
+                ft.Icon(ft.Icons.PEOPLE, size=14, color=_c("purple")),
+                ft.Text(wdata["heroes"], size=11, color=_c("sub"), expand=True),
+            ], spacing=6),
+            border_color=_c("cyan"),
+        ))
+
+        # ── General guide sections ─────────────────────────────────────────
+        for title_s, body_s in GUIDE[lang]:
+            rows.append(ft.ExpansionTile(
                 title=ft.Text(title_s, size=14, weight=ft.FontWeight.BOLD,
                               color=_c("cyan")),
                 controls=[
@@ -2079,11 +2311,9 @@ async def main(page: ft.Page):
                 text_color=_c("cyan"),
                 controls_padding=0,
             ))
-        sections.append(_footer())
-        return ft.Column(
-            sections,
-            spacing=6, scroll=ft.ScrollMode.AUTO, expand=True,
-        )
+
+        rows.append(_footer())
+        return ft.Column(rows, spacing=6, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # ── SETTINGS screen ───────────────────────────────────────────────────────
     def _screen_settings():
@@ -2137,6 +2367,23 @@ async def main(page: ft.Page):
             ),
         ))
 
+        # ── Player tag field ───────────────────────────────────────────────
+        player_tag_tf = ft.TextField(
+            label=t("player_tag_lbl"),
+            hint_text=t("player_tag_hint"),
+            value=prefs.get("player_tag", "S053xY"),
+            prefix_icon=ft.Icons.VIDEOGAME_ASSET,
+            border_color=_c("border"), color=_c("text"),
+            label_style=ft.TextStyle(color=_c("sub")),
+        )
+        rows.append(_card(
+            ft.Row([
+                ft.Icon(ft.Icons.VIDEOGAME_ASSET, color=_c("cyan"), size=16),
+                _sub(t("player_tag_lbl")),
+            ], spacing=6),
+            player_tag_tf,
+        ))
+
         notif_tf = ft.TextField(
             label=t("notif_hour"), value=str(state["notif_hour"]),
             keyboard_type=ft.KeyboardType.NUMBER,
@@ -2152,6 +2399,7 @@ async def main(page: ft.Page):
             state["notif_hour"] = h
             prefs["notif_hour"] = h
             prefs["region"]     = state["region"]
+            prefs["player_tag"] = (player_tag_tf.value or "").strip()
             _save_prefs(prefs)
             try:
                 page.show_dialog(ft.SnackBar(
@@ -2188,9 +2436,23 @@ async def main(page: ft.Page):
         ))
 
         genesis_ok = _verify_genesis()
+        cosm_n     = len(_BR_COSMETICS_CACHE)
+        player_tag = prefs.get("player_tag", "S053xY")
         rows.append(_card(
             _hdr(t("about"), size=14),
             _sub(f"{APP_NAME}  v{APP_VERSION}"),
+            # Show in-game tag prominently
+            ft.Row([
+                ft.Icon(ft.Icons.VIDEOGAME_ASSET, color=_c("cyan"), size=16),
+                _txt(f"{t('ingame_tag')}: {player_tag}", size=13, color=_c("cyan")),
+            ], spacing=6) if player_tag else ft.Text(""),
+            # Cosmetics cache status
+            ft.Row([
+                ft.Icon(ft.Icons.CHECKROOM if cosm_n else ft.Icons.HOURGLASS_EMPTY,
+                        color=_c("green") if cosm_n else _c("sub"), size=16),
+                _sub(f"{cosm_n:,} {t('cosmetics_loaded')}" if cosm_n
+                     else t("cosmetics_loading"), size=11),
+            ], spacing=6),
             _divider(),
             ft.Row([
                 ft.Icon(
