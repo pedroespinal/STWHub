@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.3.4"
+APP_VERSION = "2.3.5"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1059,12 +1059,32 @@ def _sync_fetch_alerts() -> tuple:
                 if tid_m and tidx >= 0:
                     mission_map[(tid_m, tidx)] = (mname, pl, element)
                 if not skip_zone and gen and pl > 0:
+                    # Parse mission rewards (quad/completion rewards)
+                    # Epic API may use missionRewards, rewards, or missionCompletionRewards
+                    m_rewards: list = []
+                    for rw_field in ("missionRewards", "rewards",
+                                     "missionCompletionRewards", "completionRewards"):
+                        rw_data = m.get(rw_field)
+                        if isinstance(rw_data, dict):
+                            rw_items = rw_data.get("items", [])
+                        elif isinstance(rw_data, list):
+                            rw_items = rw_data
+                        else:
+                            continue
+                        for rw in rw_items:
+                            typ = rw.get("itemType", "") or rw.get("type", "")
+                            qty = int(rw.get("quantity", 1) or 1)
+                            if typ:
+                                m_rewards.append({"type": typ, "quantity": qty})
+                        if m_rewards:
+                            break
                     all_missions.append({
                         "name":    mname or gen,
                         "zone":    lang_zone,
                         "zone_en": en_zone,
                         "pl":      pl,
                         "element": element,
+                        "rewards": m_rewards,
                     })
 
         all_missions.sort(key=lambda x: (-x["pl"], x.get("zone_en", "")))
@@ -2024,9 +2044,8 @@ async def main(page: ft.Page):
                 rows.append(_card(_txt(t("no_missions"), color=_c("sub"))))
             else:
                 missions = state["all_missions"]
-                # Group by world (Twine first — highest PL, most relevant)
                 current_world_display = None
-                for m in missions[:100]:
+                for m in missions[:150]:
                     zone_en = m.get("zone_en", "").lower()
                     world_key = next(
                         (k for k in _WORLD_ORDER
@@ -2048,25 +2067,51 @@ async def main(page: ft.Page):
                     element = m.get("element", "")
                     elem_emoji = _ELEMENT_EMOJI.get(element, "")
                     pl_color   = _ELEMENT_COLOR.get(element) or _c("orange")
-                    pl_label   = f"{elem_emoji} PL {pl}" if elem_emoji else f"PL {pl}"
                     is_160     = (pl >= 160)
+                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji else str(pl))
+                    memoji     = _mission_emoji(m.get("name", ""))
 
                     pl_badge = ft.Container(
-                        content=ft.Text(pl_label, size=10, color="#ffffff",
+                        content=ft.Text(pl_label, size=11, color="#ffffff",
                                         weight=ft.FontWeight.BOLD),
-                        bgcolor=pl_color if not is_160 else "#7c00cc",
-                        border_radius=6,
-                        padding=_pad_sym(horizontal=6, vertical=2),
+                        bgcolor="#7c00cc" if is_160 else pl_color,
+                        border_radius=4,
+                        padding=_pad_sym(horizontal=7, vertical=3),
+                        width=58,
                     )
-                    mname  = m.get("name", "")
-                    memoji = _mission_emoji(mname)
+
+                    # Rewards column (right side)
+                    m_rewards = m.get("rewards", [])
+                    if m_rewards:
+                        rw_children = []
+                        for rw in m_rewards[:3]:
+                            re_emoji, re_label = _reward_label(rw["type"])
+                            re_qty = rw["quantity"]
+                            rw_children.append(
+                                ft.Text(f"{re_emoji} {re_label} ×{re_qty}",
+                                        size=11, color=_c("text"))
+                            )
+                        rw_content = ft.Column(rw_children, spacing=1, expand=True,
+                                               tight=True)
+                    else:
+                        # No reward data from API — show mission name as fallback
+                        rw_content = ft.Text(
+                            m.get("name", ""), size=11,
+                            color=_c("sub"), expand=True,
+                        )
+
                     rows.append(_card(
                         ft.Row([
-                            ft.Text(memoji, size=22),
-                            ft.Text(mname, size=13, color=_c("text"), expand=True),
+                            ft.Text(memoji, size=18),
                             pl_badge,
-                        ], spacing=8,
+                            ft.Container(
+                                width=2, height=26,
+                                bgcolor=_c("purple") if is_160 else _c("border"),
+                            ),
+                            rw_content,
+                        ], spacing=6,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=8, margin=2,
                         border_color=_c("purple") if is_160 else None,
                     ))
 
