@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.2.2"
+APP_VERSION = "2.3.4"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -87,6 +87,7 @@ _EPIC_TOKEN_URL     = "https://account-public-service-prod.ol.epicgames.com/acco
 _EPIC_WORLD_URL     = "https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/world/info"
 _NEWS_URL           = "https://fortnite-api.com/v2/news"
 _BR_COSMETICS_URL   = "https://fortnite-api.com/v2/cosmetics/br"
+_STW_COSMETICS_URL  = "https://fortnite-api.com/v2/cosmetics/stw"
 # Community builds backend — JSON file in GitHub repo (no server needed)
 _COMMUNITY_BUILDS_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/community_builds.json"
 
@@ -351,6 +352,10 @@ T = {
         "cosmetics_loaded": "cosméticos BR cargados",
         "cosmetics_loading": "Cosméticos BR: cargando...",
         "ingame_tag": "Tag en el juego",
+        "alerts_tab": "Alertas",
+        "superchargers": "Supercargadores",
+        "no_missions": "Sin misiones disponibles.",
+        "missions_loading": "Cargando misiones...",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -427,6 +432,10 @@ T = {
         "cosmetics_loaded": "BR cosmetics loaded",
         "cosmetics_loading": "BR cosmetics: loading...",
         "ingame_tag": "In-game tag",
+        "alerts_tab": "Alerts",
+        "superchargers": "Superchargers",
+        "no_missions": "No missions available.",
+        "missions_loading": "Loading missions...",
     },
 }
 
@@ -593,6 +602,22 @@ GUIDE = {
          "• Las alertas de mayor poder dan mejores recompensas\n"
          "• Debes tener desbloqueada la zona donde aparece la alerta\n"
          "• El contador de reset UTC en la pantalla de Inicio te dice cuanto falta"),
+        ("Supercargadores Semanales",
+         "Los Supercargadores Semanales son las misiones de mayor nivel (PL 160) "
+         "disponibles en Twine Peaks. Completa 4 misiones del mismo tipo en una semana "
+         "para obtener recompensas bonus exclusivas: Legendary PERK-UP!, Storm Shard, "
+         "Lightning in a Bottle, Eye of the Storm y mas.\n\n"
+         "Como verlos en la app:\n"
+         "• Abre Inicio → pestaña ⚡ Supercargadores\n"
+         "• Las misiones PL 160 aparecen con borde morado\n"
+         "• El emoji indica el tipo de mision: 💾 Recuperar Datos, 📡 Radar Grid, "
+         "🏠 Refugio, 💣 Deliver Bomb, 🛡️ Atlas, etc.\n"
+         "• Las misiones se agrupan por mundo (Twine primero)\n\n"
+         "Consejos:\n"
+         "• PL 160 = los mejores materiales del juego (Shadowshard, Obsidian)\n"
+         "• Prioriza misiones con elementos que complementen tu build\n"
+         "• Coordina con tu equipo: 4 del mismo tipo = recompensa maxima\n"
+         "• Se renuevan cada martes"),
         ("Construccion y Trampas",
          "Materiales en orden de resistencia: Madera < Ladrillo < Metal.\n"
          "Metal es el mas resistente pero tarda mas en construirse — usalo en el "
@@ -670,6 +695,22 @@ GUIDE = {
          "• Higher power level alerts give better rewards\n"
          "• You must have unlocked the zone where the alert appears\n"
          "• The UTC reset counter on Home tells you how long until they refresh"),
+        ("Weekly Superchargers",
+         "Weekly Superchargers are the highest-level missions (PL 160) available in "
+         "Twine Peaks. Complete 4 missions of the same type in a week to earn exclusive "
+         "bonus rewards: Legendary PERK-UP!, Storm Shard, Lightning in a Bottle, "
+         "Eye of the Storm, and more.\n\n"
+         "How to view them in the app:\n"
+         "• Open Home → ⚡ Superchargers tab\n"
+         "• PL 160 missions are highlighted with a purple border\n"
+         "• The emoji shows the mission type: 💾 Retrieve Data, 📡 Radar Grid, "
+         "🏠 Shelter, 💣 Deliver Bomb, 🛡️ Atlas, etc.\n"
+         "• Missions are grouped by world (Twine Peaks first)\n\n"
+         "Tips:\n"
+         "• PL 160 = best materials in the game (Shadowshard, Obsidian)\n"
+         "• Prioritize mission types that match your build's element\n"
+         "• Coordinate with your team: 4 of the same type = maximum reward\n"
+         "• Superchargers reset every Tuesday"),
         ("Building & Traps",
          "Materials in order of resistance: Wood < Brick < Metal.\n"
          "Metal is the most resistant but takes longer to build — use it in endgame. "
@@ -868,24 +909,107 @@ def _theater_name(display, lang="en") -> str:
         return display.get(lang) or display.get("en") or next(iter(display.values()), "")
     return str(display) if display else ""
 
+def _mission_emoji(name: str) -> str:
+    """Return a representative emoji for a mission type name."""
+    n = name.lower()
+    if any(k in n for k in ("retrieve", "data", "recover")):
+        return "💾"
+    if any(k in n for k in ("radar", "grid")):
+        return "📡"
+    if any(k in n for k in ("evacuate", "shelter")):
+        return "🏠"
+    if any(k in n for k in ("deliver", "bomb", "explosive")):
+        return "💣"
+    if any(k in n for k in ("ride", "lightning")):
+        return "⚡"
+    if any(k in n for k in ("atlas", "defend", "protect")):
+        return "🛡️"
+    if any(k in n for k in ("resupply", "supply")):
+        return "📦"
+    if any(k in n for k in ("eliminate", "hunt")):
+        return "🎯"
+    if any(k in n for k in ("repair", "fix")):
+        return "🔧"
+    if any(k in n for k in ("miniboss", "boss", "mini")):
+        return "👹"
+    if any(k in n for k in ("mutant", "storm")):
+        return "🌪️"
+    return "🗺️"
+
 def _parse_mission_type(raw: str) -> str:
-    """Convert 'MissionAlert_Retrieve_the_Data_T01' → 'Retrieve the Data'"""
+    """Convert raw alert name → human-readable mission type.
+    Handles both underscore-separated ('MissionAlert_Retrieve_Data_T01')
+    and camelCase ('MutantStonewoodActive_01', 'StormMiniBossPassive_02') forms.
+    """
     import re as _re
-    s = raw.replace("MissionAlert_", "").replace("MissionAlert", "")
-    s = _re.sub(r'_(T|PL|SW|TW|CV|SH)\d+$', '', s, flags=_re.IGNORECASE)
-    s = _re.sub(r'_(Novice|Expert|Active|Storm|Phoenix)\w*$', '', s, flags=_re.IGNORECASE)
+    s = raw
+    # Strip common prefixes
+    s = _re.sub(r'^MissionAlert[_]?', '', s, flags=_re.IGNORECASE)
+    # Strip trailing _N or _NN (plain number suffix like _01, _02)
+    s = _re.sub(r'[_ ]\d+$', '', s)
+    # Strip trailing zone/tier code suffixes (_T01, _SW01, etc.)
+    s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
+    # Split camelCase words (MutantStonewoodActive → Mutant Stonewood Active)
+    s = _re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)
+    s = _re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', s)
+    # Replace underscores with spaces
+    s = s.replace("_", " ").strip()
+    # Remove words that describe husk state/difficulty, not the mission type
+    _noise = {'Active', 'Passive', 'Novice', 'Expert', 'Normal', 'Hard', 'Easy'}
+    words = [w for w in s.split() if w not in _noise]
+    s = " ".join(words).strip()
+    return s or raw
+
+_ELEMENT_EMOJI = {"fire": "🔥", "water": "❄️", "nature": "⚡", "": ""}
+_ELEMENT_COLOR = {
+    "fire":   "#cc3300",
+    "water":  "#0077cc",   # ice/water — blue
+    "nature": "#228822",
+    "":       "",          # uses _c("orange") fallback
+}
+
+def _parse_element(gen: str, mission: dict) -> str:
+    """Detect storm element from missionGenerator keywords or modifier fields."""
+    combined = gen.lower()
+    # Also check any modifier/tile fields the API may include
+    for fld in ("missionModifiers", "modifiers", "tileModifiers"):
+        val = mission.get(fld)
+        if val:
+            combined += " " + str(val).lower()
+    if "fire" in combined or "lava" in combined or "volcano" in combined:
+        return "fire"
+    if "water" in combined or "aqua" in combined or "shoal" in combined or "ice" in combined:
+        return "water"
+    if "nature" in combined or "lightning" in combined or "electric" in combined or "storm_4" in combined:
+        return "nature"
+    return ""
+
+def _parse_generator(raw: str) -> str:
+    """Convert 'MissionGen_Retrieve_Data_T01' → 'Retrieve Data'"""
+    import re as _re
+    s = raw
+    # Strip leading MissionGen_ or MissionGen prefix
+    s = _re.sub(r'^MissionGen[_]?', '', s, flags=_re.IGNORECASE)
+    # Strip trailing zone/difficulty suffixes
+    s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
+    s = _re.sub(r'[_](Novice|Expert|Active|Storm|Phoenix|Hard|Easy)\w*$', '', s, flags=_re.IGNORECASE)
     s = s.replace("_", " ").strip()
     return s or raw
 
-def _sync_fetch_alerts() -> list:
-    """Fetch STW mission alerts from Epic world/info API.
-    API structure (v2026):
-      data["theaters"]     — list of theater defs with uniqueId + displayName (lang dict)
-      data["missionAlerts"]— list of {theaterId, availableMissionAlerts:[{missionAlertRewards}]}
+def _sync_fetch_alerts() -> tuple:
+    """Fetch STW world/info and return (alerts, all_missions).
+    alerts      — daily missions with special rewards (V-Bucks, heroes, etc.)
+    all_missions— ALL active missions, sorted PL desc (for Supercargadores view)
+
+    Epic API structure (v2026):
+      data["theaters"]     — theater defs with uniqueId + displayName
+      data["missions"]     — active missions; may be flat [{theaterId, tileIndex, …}]
+                             OR nested [{theaterId, availableMissions:[{tileIndex, …}]}]
+      data["missionAlerts"]— [{theaterId, availableMissionAlerts:[{tileIndex, rewards}]}]
     """
     token = _sync_epic_token()
     if not token:
-        return []
+        return [], []
     try:
         r = requests.get(
             _EPIC_WORLD_URL,
@@ -893,7 +1017,7 @@ def _sync_fetch_alerts() -> list:
             timeout=18,
         )
         if r.status_code != 200:
-            return []
+            return [], []
         data = r.json()
 
         # Build theater GUID → (display_name, english_name) map
@@ -902,15 +1026,53 @@ def _sync_fetch_alerts() -> list:
         for theater in data.get("theaters", []):
             uid     = theater.get("uniqueId", "")
             display = theater.get("displayName", {})
-            en_name   = _theater_name(display, "en")    # always English for filtering
-            lang_name = _theater_name(display, lang)    # user language for display
+            en_name   = _theater_name(display, "en")
+            lang_name = _theater_name(display, lang)
             theater_map[uid] = (lang_name, en_name)
+
+        # Build mission_map AND all_missions list.
+        # Epic API uses NESTED availableMissions:
+        #   [{theaterId, availableMissions: [{tileIndex, missionGenerator, …}]}]
+        # Handle BOTH nested and the legacy flat format for safety.
+        mission_map:  dict = {}
+        all_missions: list = []
+
+        for entry in data.get("missions", []):
+            tid_m = entry.get("theaterId", "")
+            lang_zone, en_zone = theater_map.get(tid_m, (tid_m[:8], tid_m[:8]))
+            en_lower  = en_zone.lower()
+            es_lower  = lang_zone.lower()
+            skip_zone = (any(kw in en_lower for kw in _SKIP_ZONES_EN) or
+                         any(kw in es_lower for kw in _SKIP_ZONES_ES))
+
+            # Detect nested vs flat
+            available = entry.get("availableMissions")
+            ms = available if available is not None else [entry]
+
+            for m in (ms or []):
+                tidx  = m.get("tileIndex", -1)
+                gen   = m.get("missionGenerator", "") or ""
+                diff  = m.get("missionDifficultyInfo", {}) or {}
+                pl    = int(diff.get("recommendedRating", 0) or 0)
+                mname   = _parse_generator(gen) if gen else ""
+                element = _parse_element(gen, m)
+                if tid_m and tidx >= 0:
+                    mission_map[(tid_m, tidx)] = (mname, pl, element)
+                if not skip_zone and gen and pl > 0:
+                    all_missions.append({
+                        "name":    mname or gen,
+                        "zone":    lang_zone,
+                        "zone_en": en_zone,
+                        "pl":      pl,
+                        "element": element,
+                    })
+
+        all_missions.sort(key=lambda x: (-x["pl"], x.get("zone_en", "")))
 
         alerts: list = []
         for entry in data.get("missionAlerts", []):
             tid = entry.get("theaterId", "")
             lang_zone, en_zone = theater_map.get(tid, (tid[:8], tid[:8]))
-            # Skip test / venture / horde / homebase zones — filter on both EN and display name
             en_lower = en_zone.lower()
             es_lower = lang_zone.lower()
             if (any(kw in en_lower for kw in _SKIP_ZONES_EN) or
@@ -929,17 +1091,21 @@ def _sync_fetch_alerts() -> list:
                         has_vbucks = True
                     rewards.append({"type": typ, "quantity": qty, "vbucks": is_vb})
                 if rewards:
-                    mtype = _parse_mission_type(alert.get("name", "Mission"))
+                    tidx = alert.get("tileIndex", -1)
+                    m_name, m_pl, m_element = mission_map.get((tid, tidx), ("", 0, ""))
+                    mtype = m_name or _parse_mission_type(alert.get("name", "Mission"))
                     alerts.append({
                         "name":    mtype,
                         "zone":    zone,
-                        "zone_en": en_zone,   # always English — used for world filter
+                        "zone_en": en_zone,
                         "rewards": rewards,
                         "vbucks":  has_vbucks,
+                        "pl":      m_pl,
+                        "element": m_element,
                     })
-        return alerts
+        return alerts, all_missions
     except Exception:
-        return []
+        return [], []
 
 def _sync_fetch_news() -> list:
     """Fetch STW news. API changed: now /v2/news → data.stw.messages (not motds).
@@ -972,7 +1138,8 @@ def _sync_fetch_news() -> list:
     except Exception:
         return []
 
-_BR_COSMETICS_CACHE: list = []   # in-memory cache of all BR cosmetics
+_BR_COSMETICS_CACHE:  list = []   # in-memory cache of all BR cosmetics
+_STW_COSMETICS_CACHE: list = []   # in-memory cache of all STW cosmetics
 
 def _sync_load_br_cosmetics() -> list:
     """Download and cache all BR cosmetics (used for hero image search)."""
@@ -989,25 +1156,136 @@ def _sync_load_br_cosmetics() -> list:
         pass
     return _BR_COSMETICS_CACHE
 
+def _sync_load_stw_cosmetics() -> list:
+    """Download and cache all STW cosmetics (heroes, schematics, survivors)."""
+    global _STW_COSMETICS_CACHE
+    if _STW_COSMETICS_CACHE:
+        return _STW_COSMETICS_CACHE
+    if not _REQ_OK:
+        return []
+    try:
+        r = requests.get(_STW_COSMETICS_URL, params={"language": "en"}, timeout=40)
+        if r.status_code == 200:
+            _STW_COSMETICS_CACHE = r.json().get("data", [])
+    except Exception:
+        pass
+    return _STW_COSMETICS_CACHE
+
+def _sync_search_stw_only(query: str) -> list:
+    """Search STW cosmetics cache only. Used for hero image auto-loading."""
+    q = query.strip().lower()
+    if not q:
+        return []
+    out = []
+    for item in _STW_COSMETICS_CACHE:
+        name = item.get("name", "")
+        if q in name.lower():
+            imgs = item.get("images", {}) or {}
+            img  = (imgs.get("icon") or imgs.get("featured")
+                    or imgs.get("smallIcon") or "")
+            if img:
+                out.append({"name": name, "image": img})
+    return out[:5]
+
+def _sync_search_br_outfits_only(query: str) -> list:
+    """Search BR outfits with relevance scoring.
+    Exact / shorter-name matches rank above substring toy/action-figure variants.
+    'Kyle' → actual Kyle skin (score 0-1) before 'Kyle Action Figure' (score 3).
+    """
+    q = query.strip().lower()
+    if not q:
+        return []
+    scored = []
+    for item in _BR_COSMETICS_CACHE:
+        if item.get("type", {}).get("value") != "outfit":
+            continue
+        name     = item.get("name", "")
+        name_low = name.lower()
+        if q not in name_low:
+            continue
+        imgs = item.get("images", {}) or {}
+        img  = (imgs.get("icon") or imgs.get("featured")
+                or imgs.get("smallIcon") or "")
+        if not img:
+            continue
+        # Relevance: 0=exact, 1=starts-with, 2=word-boundary, 3=substring
+        if name_low == q:
+            score = 0
+        elif name_low.startswith(q):
+            score = 1
+        elif f" {q}" in name_low:
+            score = 2
+        else:
+            score = 3
+        scored.append((score, len(name), name, img))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return [{"name": n, "image": i} for _, _, n, i in scored[:5]]
+
+def _sync_fetch_hero_image_by_name(name: str) -> str:
+    """Search BR cosmetics by exact name via fortnite-api.com search endpoint.
+    More reliable than substring cache search for STW heroes that have BR crossovers
+    (e.g. Megabase Kyle, Dragon Scorch, Raider Headhunter).
+    """
+    if not _REQ_OK or not name.strip():
+        return ""
+    try:
+        r = requests.get(
+            "https://fortnite-api.com/v2/cosmetics/br/search",
+            params={"name": name.strip(), "matchMethod": "full", "language": "en"},
+            timeout=8,
+        )
+        if r.status_code == 200:
+            item = r.json().get("data")
+            if item:
+                imgs = item.get("images", {}) or {}
+                return (imgs.get("icon") or imgs.get("featured")
+                        or imgs.get("smallIcon") or "")
+    except Exception:
+        pass
+    return ""
+
 def _sync_search_heroes(query: str) -> list:
-    """Search hero/character images from full BR cosmetics list (cached)."""
+    """Search hero/character images — checks STW cosmetics first, then BR.
+    STW heroes (Megabase Kyle, Dragon Scorch, etc.) live in the STW endpoint
+    so they would be missed if we only searched BR outfits.
+    Used by the manual hero-search screen only (not auto-loading).
+    """
     if not query.strip():
         return []
     try:
-        items = _sync_load_br_cosmetics()
         q = query.strip().lower()
-        matches = [i for i in items if q in i.get("name", "").lower()]
-        # Prefer outfits (skins) over other types
-        outfits = [m for m in matches if m.get("type", {}).get("value") == "outfit"]
-        results = outfits or matches
         out = []
-        for item in results[:20]:
+        seen_names: set = set()
+
+        # ── STW cosmetics first (most relevant for STW builds) ──
+        for item in _sync_load_stw_cosmetics():
+            name = item.get("name", "")
+            if q in name.lower():
+                imgs = item.get("images", {}) or {}
+                img  = (imgs.get("icon") or imgs.get("featured")
+                        or imgs.get("smallIcon") or "")
+                if name and img and name not in seen_names:
+                    out.append({"name": name, "image": img})
+                    seen_names.add(name)
+
+        # ── BR cosmetics (outfits preferred, then all) ──
+        br_items   = _sync_load_br_cosmetics()
+        br_matches = [i for i in br_items if q in i.get("name", "").lower()]
+        outfits    = [m for m in br_matches
+                      if m.get("type", {}).get("value") == "outfit"]
+        br_results = outfits or br_matches
+        for item in br_results:
             name = item.get("name", "")
             imgs = item.get("images", {}) or {}
-            img  = imgs.get("icon") or imgs.get("featured") or imgs.get("smallIcon") or ""
-            if name and img:
+            img  = (imgs.get("icon") or imgs.get("featured")
+                    or imgs.get("smallIcon") or "")
+            if name and img and name not in seen_names:
                 out.append({"name": name, "image": img})
-        return out
+                seen_names.add(name)
+            if len(out) >= 20:
+                break
+
+        return out[:20]
     except Exception:
         return []
 
@@ -1149,6 +1427,8 @@ async def main(page: ft.Page):
         "region":           prefs.get("region", "NAE"),
         "notif_hour":       prefs.get("notif_hour", 8),
         "alerts":           [],
+        "all_missions":     [],
+        "home_tab":         "alerts",   # "alerts" | "superchargers"
         "news":             [],
         "loading":          False,
         "news_loading":     False,
@@ -1237,11 +1517,11 @@ async def main(page: ft.Page):
     def _divider():
         return ft.Divider(height=1, color=_c("border"))
 
-    def _footer():
-        tag    = prefs.get("player_tag", "S053xY")
+    def _footer(show_tag=True):
+        tag     = prefs.get("player_tag", "S053xY") if show_tag else ""
         tag_str = f" · {tag}" if tag else ""
-        year   = str(date.today().year)
-        text   = f"Creado por: {APP_AUTHOR}{tag_str}   ·   {APP_RIGHTS}   ©{year}"
+        year    = str(date.today().year)
+        text    = f"Creado por: {APP_AUTHOR}{tag_str}   ·   {APP_RIGHTS}   ©{year}"
         return ft.Container(
             content=ft.Text(
                 text, size=11,
@@ -1343,9 +1623,11 @@ async def main(page: ft.Page):
             _save_prefs(prefs)
             # Clear cached news so it refetches in the new language
             state["news"] = []
+            state["news_loading"] = False
             _c2 = _load_cache(); _c2.pop("news", None); _save_cache(_c2)
             render()
-            page.run_task(lambda: _task_load_news(force=True))
+            async def _refetch_news(): await _task_load_news(force=True)
+            page.run_task(_refetch_news)
 
         def toggle_theme(e):
             THEME[0] = "light" if THEME[0] == "dark" else "dark"
@@ -1385,17 +1667,26 @@ async def main(page: ft.Page):
     async def _task_load_alerts(force=False):
         cache = _load_cache()
         if not force and not _alerts_cache_stale(cache) and cache.get("alerts"):
-            state["alerts"]      = cache["alerts"]
-            state["using_cache"] = True
-            state["last_refresh"] = cache.get("alerts_ts", "?")[:16]
-            render()
-            return
+            cached = cache["alerts"]
+            # Force refresh if cached alerts are from old format (no 'pl' field)
+            if cached and "pl" not in cached[0]:
+                force = True
+            else:
+                state["alerts"]       = cached
+                state["using_cache"]  = True
+                state["last_refresh"] = cache.get("alerts_ts", "?")[:16]
+                render()
+                return
         state["loading"]     = True
         state["using_cache"] = False
         render()
-        alerts = await asyncio.to_thread(_sync_fetch_alerts)
+        # _sync_fetch_alerts now returns (alerts, all_missions) tuple
+        _result = await asyncio.to_thread(_sync_fetch_alerts)
+        alerts, all_missions = (_result if isinstance(_result, tuple)
+                                else (_result, []))
         if alerts:
             state["alerts"]       = alerts
+            state["all_missions"] = all_missions
             ts                    = datetime.now(timezone.utc).isoformat()
             state["last_refresh"] = ts[:16]
             state["using_cache"]  = False
@@ -1403,6 +1694,8 @@ async def main(page: ft.Page):
             cache["alerts_ts"]    = ts
             _save_cache(cache)
         else:
+            if all_missions:
+                state["all_missions"] = all_missions
             if cache.get("alerts"):
                 state["alerts"]       = cache["alerts"]
                 state["using_cache"]  = True
@@ -1445,28 +1738,44 @@ async def main(page: ft.Page):
         render()
 
     async def _task_load_meta_imgs():
-        # Pre-load BR cosmetics list (needed for hero image search)
+        # Pre-load BR and STW cosmetics lists (needed for hero image search)
         await asyncio.to_thread(_sync_load_br_cosmetics)
+        await asyncio.to_thread(_sync_load_stw_cosmetics)
         # Collect unique hero names from meta builds + community builds
         meta_names  = {b["hero"] for builds in BUILDS.values() for b in builds}
         comm_names  = {b.get("hero", "") for b in state.get("community_builds", [])}
-        names = list(meta_names | comm_names - {""})
+        names = list((meta_names | comm_names) - {""})
         for name in names:
             if state["meta_imgs"].get(name):  # already found
                 continue
-            # Fallback ladder: full name → last word → first word → first two words
-            words   = name.split()
-            queries = [name]
-            if len(words) >= 2:
-                queries += [words[-1], words[0], " ".join(words[:2])]
-            elif len(words) == 1:
-                queries += [words[0]]
+            words = name.split()
             found = ""
-            for q in queries:
-                results = await asyncio.to_thread(_sync_search_heroes, q)
-                if results:
-                    found = results[0].get("image", "")
+
+            # ── Step 1: search STW endpoint with full name, last word, first word ──
+            # STW heroes like "Megabase Kyle", "Dragon Scorch" live here.
+            # Single-word queries stay in STW to avoid false positives in BR.
+            stw_queries = [name]
+            if len(words) >= 2:
+                stw_queries += [words[-1], words[0], " ".join(words[:2])]
+            for q in stw_queries:
+                r = await asyncio.to_thread(_sync_search_stw_only, q)
+                if r:
+                    found = r[0].get("image", "")
                     break
+
+            # ── Step 1.5: targeted BR API search by exact hero name ──
+            # Finds STW heroes that have BR crossover skins (Megabase Kyle, Dragon Scorch…)
+            # without falling through to wrong-character substring matches (South Park Kyle…)
+            if not found and _REQ_OK:
+                found = await asyncio.to_thread(_sync_fetch_hero_image_by_name, name)
+
+            # ── Step 2: try BR outfits from local cache (full name only) ──
+            # Avoids wrong-character matches like "South Park Kyle" when searching "Kyle"
+            if not found:
+                r = await asyncio.to_thread(_sync_search_br_outfits_only, name)
+                if r:
+                    found = r[0].get("image", "")
+
             state["meta_imgs"][name] = found
         render()
 
@@ -1552,7 +1861,6 @@ async def main(page: ft.Page):
 
         def on_world(e):
             selected = e.control.value or ""
-            # Convert localized display text → canonical key ("all", "stonewood", etc.)
             if not selected or selected.startswith("🌍"):
                 wkey = "all"
             else:
@@ -1566,13 +1874,31 @@ async def main(page: ft.Page):
             _save_prefs(prefs)
             render()
 
+        def switch_home_tab(tab):
+            def _h(e):
+                state["home_tab"] = tab
+                # Auto-fetch missions if switching to superchargers and data not yet loaded
+                if tab == "superchargers" and not state.get("all_missions") and not state["loading"]:
+                    async def _load_m(): await _task_load_alerts(force=True)
+                    page.run_task(_load_m)
+                render()
+            return _h
+
         _clock_text = ft.Text(f"⏱ {_utc_reset_str()}", size=12, color=_c("cyan"))
         _clock_ctrl["ref"] = _clock_text
 
+        is_alerts_tab = state.get("home_tab", "alerts") == "alerts"
+
         rows.append(ft.Row([
-            _hdr(t("daily_alerts")),
+            _hdr(t("daily_alerts") if is_alerts_tab else t("superchargers")),
             _clock_text,
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+
+        # Tab toggle: Alertas | Supercargadores
+        rows.append(ft.Row([
+            _toggle_btn("🔔 " + t("alerts_tab"), is_alerts_tab, switch_home_tab("alerts")),
+            _toggle_btn("⚡ " + t("superchargers"), not is_alerts_tab, switch_home_tab("superchargers")),
+        ], spacing=8))
 
         lang = LANG[0]
         _all_lbl = "🌍 " + ("Todos" if lang == "es" else "All")
@@ -1584,85 +1910,165 @@ async def main(page: ft.Page):
         for wk in _WORLD_ORDER:
             world_options.append(ft.dropdown.Option(_WORLD_NAMES[wk][lang]))
 
-        rows.append(ft.Row([
-            _toggle_btn(t("vbucks_only"), state["vbucks_only"], toggle_vbucks),
-            ft.Dropdown(
-                value=state["region"],
-                options=[ft.dropdown.Option(r) for r in _REGIONS],
-                on_select=on_region,
-                width=115, text_size=13,
-                border_color=_c("border"), color=_c("text"),
-            ),
-            _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
-        ], spacing=8, wrap=True))
-        rows.append(ft.Row([
-            ft.Icon(ft.Icons.PUBLIC, size=16, color=_c("cyan")),
-            ft.Text(t("world_filter") + ":", size=12, color=_c("sub")),
-            ft.Dropdown(
-                value=_wf_disp,        # localized display name as value
-                options=world_options,
-                on_select=on_world,
-                text_size=12,
-                border_color=_c("border"), color=_c("text"),
-            ),
-        ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER))
+        if is_alerts_tab:
+            # ── ALERTAS DIARIAS ────────────────────────────────────────────────
+            rows.append(ft.Row([
+                _toggle_btn(t("vbucks_only"), state["vbucks_only"], toggle_vbucks),
+                ft.Dropdown(
+                    value=state["region"],
+                    options=[ft.dropdown.Option(r) for r in _REGIONS],
+                    on_select=on_region,
+                    width=115, text_size=13,
+                    border_color=_c("border"), color=_c("text"),
+                ),
+                _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
+            ], spacing=8, wrap=True))
+            rows.append(ft.Row([
+                ft.Icon(ft.Icons.PUBLIC, size=16, color=_c("cyan")),
+                ft.Text(t("world_filter") + ":", size=12, color=_c("sub")),
+                ft.Dropdown(
+                    value=_wf_disp,
+                    options=world_options,
+                    on_select=on_world,
+                    text_size=12,
+                    border_color=_c("border"), color=_c("text"),
+                ),
+            ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER))
 
-        if state["using_cache"] and state["last_refresh"]:
-            rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
-        elif state["last_refresh"]:
-            rows.append(_sub(f"{t('last_refresh')}: {state['last_refresh']}"))
+            if state["using_cache"] and state["last_refresh"]:
+                rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
+            elif state["last_refresh"]:
+                rows.append(_sub(f"{t('last_refresh')}: {state['last_refresh']}"))
 
-        if state["loading"]:
-            rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
-                                        color=_c("orange")))
-        elif not state["alerts"]:
-            rows.append(_card(_txt(t("no_alerts"), color=_c("sub"))))
-        else:
-            wf = state["world_filter"]
-            shown = [a for a in state["alerts"]
-                     if (not state["vbucks_only"] or a.get("vbucks"))
-                     and (wf == "all" or
-                          _WORLD_KEYS.get(wf, "") in a.get("zone_en", "").lower())]
-            for a in shown[:35]:
-                reward_chips = []
-                for rw in a.get("rewards", []):
-                    emoji, label = _reward_label(rw["type"])
-                    qty = rw["quantity"]
-                    if rw.get("vbucks"):
-                        reward_chips.append(ft.Container(
-                            content=ft.Row([
-                                ft.Text(emoji, size=13),
-                                ft.Text(f"{label} ×{qty}", size=11,
-                                        color="#000000",
-                                        weight=ft.FontWeight.BOLD),
-                            ], spacing=3, tight=True),
-                            bgcolor=_c("gold"), border_radius=8,
-                            padding=_pad_sym(horizontal=7, vertical=3),
-                        ))
+            if state["loading"]:
+                rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
+                                            color=_c("orange")))
+            elif not state["alerts"]:
+                rows.append(_card(_txt(t("no_alerts"), color=_c("sub"))))
+            else:
+                wf = state["world_filter"]
+                shown = [a for a in state["alerts"]
+                         if (not state["vbucks_only"] or a.get("vbucks"))
+                         and (wf == "all" or
+                              _WORLD_KEYS.get(wf, "") in a.get("zone_en", "").lower())]
+                for a in shown[:35]:
+                    reward_chips = []
+                    for rw in a.get("rewards", []):
+                        emoji, label = _reward_label(rw["type"])
+                        qty = rw["quantity"]
+                        if rw.get("vbucks"):
+                            reward_chips.append(ft.Container(
+                                content=ft.Row([
+                                    ft.Text(emoji, size=13),
+                                    ft.Text(f"{label} ×{qty}", size=11,
+                                            color="#000000",
+                                            weight=ft.FontWeight.BOLD),
+                                ], spacing=3, tight=True),
+                                bgcolor=_c("gold"), border_radius=8,
+                                padding=_pad_sym(horizontal=7, vertical=3),
+                            ))
+                        else:
+                            reward_chips.append(ft.Container(
+                                content=ft.Row([
+                                    ft.Text(emoji, size=12),
+                                    ft.Text(f"{label} ×{qty}", size=10,
+                                            color=_c("sub")),
+                                ], spacing=3, tight=True),
+                                bgcolor=_c("surface"), border_radius=6,
+                                border=_border_all(1, _c("border")),
+                                padding=_pad_sym(horizontal=5, vertical=2),
+                            ))
+                    pl      = a.get("pl", 0)
+                    element = a.get("element", "")
+                    elem_emoji = _ELEMENT_EMOJI.get(element, "")
+                    if pl:
+                        pl_label  = f"{elem_emoji} PL {pl}" if elem_emoji else f"PL {pl}"
+                        pl_bgcolor = _ELEMENT_COLOR.get(element) or _c("orange")
+                        pl_badge  = ft.Container(
+                            content=ft.Text(pl_label, size=10, color="#ffffff",
+                                            weight=ft.FontWeight.BOLD),
+                            bgcolor=pl_bgcolor, border_radius=6,
+                            padding=_pad_sym(horizontal=6, vertical=2),
+                        )
                     else:
-                        reward_chips.append(ft.Container(
-                            content=ft.Row([
-                                ft.Text(emoji, size=12),
-                                ft.Text(f"{label} ×{qty}", size=10,
-                                        color=_c("sub")),
-                            ], spacing=3, tight=True),
-                            bgcolor=_c("surface"), border_radius=6,
-                            border=_border_all(1, _c("border")),
-                            padding=_pad_sym(horizontal=5, vertical=2),
-                        ))
-                rows.append(_card(
-                    ft.Row([
+                        pl_badge = None
+                    top_row_children = [
                         ft.Icon(
                             ft.Icons.BOLT if a.get("vbucks") else ft.Icons.FLAG,
                             color=_c("gold") if a.get("vbucks") else _c("orange"),
                             size=20,
                         ),
-                        _txt(a.get("name", ""), size=13),
-                    ], spacing=6),
-                    _sub(a.get("zone", ""), size=11),
-                    ft.Row(reward_chips, wrap=True, spacing=4),
-                    border_color=_c("gold") if a.get("vbucks") else None,
-                ))
+                        ft.Text(a.get("name", ""), size=13, color=_c("text"),
+                                expand=True),
+                    ]
+                    if pl_badge:
+                        top_row_children.append(pl_badge)
+                    rows.append(_card(
+                        ft.Row(top_row_children, spacing=6,
+                               vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        _sub(a.get("zone", ""), size=11),
+                        ft.Row(reward_chips, wrap=True, spacing=4),
+                        border_color=_c("gold") if a.get("vbucks") else None,
+                    ))
+
+        else:
+            # ── SUPERCARGADORES SEMANALES ──────────────────────────────────────
+            rows.append(ft.Row([
+                _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
+            ], alignment=ft.MainAxisAlignment.END))
+
+            if state["loading"]:
+                rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
+                                            color=_c("orange")))
+            elif not state.get("all_missions"):
+                rows.append(_card(_txt(t("no_missions"), color=_c("sub"))))
+            else:
+                missions = state["all_missions"]
+                # Group by world (Twine first — highest PL, most relevant)
+                current_world_display = None
+                for m in missions[:100]:
+                    zone_en = m.get("zone_en", "").lower()
+                    world_key = next(
+                        (k for k in _WORLD_ORDER
+                         if _WORLD_KEYS.get(k, "") in zone_en),
+                        None,
+                    )
+                    world_display = (
+                        _WORLD_NAMES[world_key][lang] if world_key
+                        else m.get("zone", "")
+                    )
+                    if world_display != current_world_display:
+                        current_world_display = world_display
+                        rows.append(ft.Container(
+                            content=_hdr(world_display, size=14, color=_c("cyan")),
+                            margin=_margin_b(bottom=2),
+                        ))
+
+                    pl      = m.get("pl", 0)
+                    element = m.get("element", "")
+                    elem_emoji = _ELEMENT_EMOJI.get(element, "")
+                    pl_color   = _ELEMENT_COLOR.get(element) or _c("orange")
+                    pl_label   = f"{elem_emoji} PL {pl}" if elem_emoji else f"PL {pl}"
+                    is_160     = (pl >= 160)
+
+                    pl_badge = ft.Container(
+                        content=ft.Text(pl_label, size=10, color="#ffffff",
+                                        weight=ft.FontWeight.BOLD),
+                        bgcolor=pl_color if not is_160 else "#7c00cc",
+                        border_radius=6,
+                        padding=_pad_sym(horizontal=6, vertical=2),
+                    )
+                    mname  = m.get("name", "")
+                    memoji = _mission_emoji(mname)
+                    rows.append(_card(
+                        ft.Row([
+                            ft.Text(memoji, size=22),
+                            ft.Text(mname, size=13, color=_c("text"), expand=True),
+                            pl_badge,
+                        ], spacing=8,
+                           vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        border_color=_c("purple") if is_160 else None,
+                    ))
 
         rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -1670,6 +2076,12 @@ async def main(page: ft.Page):
     # ── NEWS screen ────────────────────────────────────────────────────────────
     def _screen_news():
         rows = []
+
+        # Auto-fetch if news is empty and nothing is currently loading
+        if not state["news"] and not state["news_loading"]:
+            state["news_loading"] = True  # guard against multiple concurrent triggers
+            async def _auto_news(): await _task_load_news(force=True)
+            page.run_task(_auto_news)
 
         def do_refresh(e):
             async def _r(): await _task_load_news(force=True)
@@ -2382,9 +2794,11 @@ async def main(page: ft.Page):
                 _save_prefs(prefs)
                 # Clear cached news so it refetches in the new language
                 state["news"] = []
+                state["news_loading"] = False
                 _c2 = _load_cache(); _c2.pop("news", None); _save_cache(_c2)
                 render()
-                page.run_task(lambda: _task_load_news(force=True))
+                async def _refetch_news(): await _task_load_news(force=True)
+                page.run_task(_refetch_news)
             return _h
 
         rows.append(_card(
@@ -2420,13 +2834,7 @@ async def main(page: ft.Page):
             border_color=_c("border"), color=_c("text"),
             label_style=ft.TextStyle(color=_c("sub")),
         )
-        rows.append(_card(
-            ft.Row([
-                ft.Icon(ft.Icons.VIDEOGAME_ASSET, color=_c("cyan"), size=16),
-                _sub(t("player_tag_lbl")),
-            ], spacing=6),
-            player_tag_tf,
-        ))
+        rows.append(_card(player_tag_tf))
 
         notif_tf = ft.TextField(
             label=t("notif_hour"), value=str(state["notif_hour"]),
@@ -2480,7 +2888,9 @@ async def main(page: ft.Page):
         ))
 
         genesis_ok = _verify_genesis()
-        cosm_n     = len(_BR_COSMETICS_CACHE)
+        br_n   = len(_BR_COSMETICS_CACHE)
+        stw_n  = len(_STW_COSMETICS_CACHE)
+        cosm_n = br_n + stw_n
         player_tag = prefs.get("player_tag", "S053xY")
         rows.append(_card(
             _hdr(t("about"), size=14),
@@ -2489,8 +2899,11 @@ async def main(page: ft.Page):
             ft.Row([
                 ft.Icon(ft.Icons.CHECKROOM if cosm_n else ft.Icons.HOURGLASS_EMPTY,
                         color=_c("green") if cosm_n else _c("sub"), size=16),
-                _sub(f"{cosm_n:,} {t('cosmetics_loaded')}" if cosm_n
-                     else t("cosmetics_loading"), size=11),
+                _sub(
+                    (f"BR {br_n:,} + STW {stw_n:,} {t('cosmetics_loaded')}"
+                     if cosm_n else t("cosmetics_loading")),
+                    size=11,
+                ),
             ], spacing=6),
             _divider(),
             ft.Row([
@@ -2508,7 +2921,8 @@ async def main(page: ft.Page):
                 ], spacing=2),
             ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.START),
         ))
-        rows.append(_footer())
+        # Settings already shows the tag in the edit field — don't repeat in footer
+        rows.append(_footer(show_tag=False))
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
 
     # ── Render ─────────────────────────────────────────────────────────────────
@@ -2520,6 +2934,14 @@ async def main(page: ft.Page):
                          f"{APP_RIGHTS}   ©{APP_YEAR_NOW}")
 
             page.bgcolor = _c("bg")
+            # Force Flutter theme mode so NavigationBar label text uses our sub color
+            page.theme_mode = (ft.ThemeMode.DARK if THEME[0] == "dark"
+                               else ft.ThemeMode.LIGHT)
+            page.theme = ft.Theme(
+                color_scheme=ft.ColorScheme(
+                    on_surface_variant=_c("sub"),
+                )
+            )
 
             screen = state["screen"]
             is_sub = screen in ("build_create", "build_edit", "hero_search")
