@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.2.1"
+APP_VERSION = "2.2.2"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1341,7 +1341,11 @@ async def main(page: ft.Page):
             LANG[0] = "en" if LANG[0] == "es" else "es"
             prefs["lang"] = LANG[0]
             _save_prefs(prefs)
+            # Clear cached news so it refetches in the new language
+            state["news"] = []
+            _c2 = _load_cache(); _c2.pop("news", None); _save_cache(_c2)
             render()
+            page.run_task(lambda: _task_load_news(force=True))
 
         def toggle_theme(e):
             THEME[0] = "light" if THEME[0] == "dark" else "dark"
@@ -1443,16 +1447,27 @@ async def main(page: ft.Page):
     async def _task_load_meta_imgs():
         # Pre-load BR cosmetics list (needed for hero image search)
         await asyncio.to_thread(_sync_load_br_cosmetics)
-        # Collect unique hero names from all meta builds
-        names = list({b["hero"] for builds in BUILDS.values() for b in builds})
+        # Collect unique hero names from meta builds + community builds
+        meta_names  = {b["hero"] for builds in BUILDS.values() for b in builds}
+        comm_names  = {b.get("hero", "") for b in state.get("community_builds", [])}
+        names = list(meta_names | comm_names - {""})
         for name in names:
-            if name in state["meta_imgs"]:
+            if state["meta_imgs"].get(name):  # already found
                 continue
-            results = await asyncio.to_thread(_sync_search_heroes, name)
-            if results:
-                state["meta_imgs"][name] = results[0].get("image", "")
-            else:
-                state["meta_imgs"][name] = ""
+            # Fallback ladder: full name → last word → first word → first two words
+            words   = name.split()
+            queries = [name]
+            if len(words) >= 2:
+                queries += [words[-1], words[0], " ".join(words[:2])]
+            elif len(words) == 1:
+                queries += [words[0]]
+            found = ""
+            for q in queries:
+                results = await asyncio.to_thread(_sync_search_heroes, q)
+                if results:
+                    found = results[0].get("image", "")
+                    break
+            state["meta_imgs"][name] = found
         render()
 
     async def _task_load_community_builds():
@@ -1536,8 +1551,18 @@ async def main(page: ft.Page):
             page.run_task(_r)
 
         def on_world(e):
-            state["world_filter"] = e.control.value
-            prefs["world_filter"] = state["world_filter"]
+            selected = e.control.value or ""
+            # Convert localized display text → canonical key ("all", "stonewood", etc.)
+            if not selected or selected.startswith("🌍"):
+                wkey = "all"
+            else:
+                wkey = next(
+                    (k for k, names in _WORLD_NAMES.items()
+                     if selected in names.values()),
+                    "all",
+                )
+            state["world_filter"] = wkey
+            prefs["world_filter"] = wkey
             _save_prefs(prefs)
             render()
 
@@ -1550,11 +1575,14 @@ async def main(page: ft.Page):
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
 
         lang = LANG[0]
-        world_options = [ft.dropdown.Option(key="all",
-                             text="🌍 " + ("Todos" if lang == "es" else "All"))]
+        _all_lbl = "🌍 " + ("Todos" if lang == "es" else "All")
+        _wf_key  = state["world_filter"]
+        _wf_disp = _all_lbl if _wf_key == "all" \
+            else _WORLD_NAMES.get(_wf_key, {}).get(lang, _wf_key)
+        # Use localized names as option keys — guaranteed to display correctly in Flet 0.85.1
+        world_options = [ft.dropdown.Option(_all_lbl)]
         for wk in _WORLD_ORDER:
-            world_options.append(ft.dropdown.Option(
-                key=wk, text=_WORLD_NAMES[wk][lang]))
+            world_options.append(ft.dropdown.Option(_WORLD_NAMES[wk][lang]))
 
         rows.append(ft.Row([
             _toggle_btn(t("vbucks_only"), state["vbucks_only"], toggle_vbucks),
@@ -1571,7 +1599,7 @@ async def main(page: ft.Page):
             ft.Icon(ft.Icons.PUBLIC, size=16, color=_c("cyan")),
             ft.Text(t("world_filter") + ":", size=12, color=_c("sub")),
             ft.Dropdown(
-                value=state["world_filter"],
+                value=_wf_disp,        # localized display name as value
                 options=world_options,
                 on_select=on_world,
                 text_size=12,
@@ -1950,9 +1978,12 @@ async def main(page: ft.Page):
             cls_letter = cls[0].upper() if cls else "?"
             cls_colors = {"C": _c("cyan"), "N": _c("purple"), "O": _c("yellow"), "S": _c("green")}
             cls_color = cls_colors.get(cls_letter, _c("sub"))
+            support_key = "support_es" if lang_key == "es" else "support_en"
+            support     = b.get(support_key) or b.get("support_es") or b.get("support_en", "")
+            weapon2     = b.get("weapon2", "")
             rows.append(_card(
                 ft.Row([
-                    _hero_img(hero_img_url, size=52),
+                    _hero_img(hero_img_url, size=56),
                     ft.Column([
                         _hdr(b.get("name", ""), size=15),
                         ft.Row([
@@ -1964,14 +1995,20 @@ async def main(page: ft.Page):
                             ),
                             _txt(hero_name, size=12, color=_c("sub")),
                             _txt(f"👍 {votes}", size=11, color=_c("gold")),
-                            _sub(f"@{author}", size=10) if author else ft.Text(""),
                         ], spacing=6),
+                        _sub(f"@{author}", size=10) if author else ft.Text(""),
                     ], spacing=3, expand=True),
-                ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.START),
+                ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 _divider(),
                 ft.Row([
+                    ft.Icon(ft.Icons.PEOPLE, size=13, color=_c("purple")),
+                    ft.Text(support, size=11, color=_c("sub"), expand=True),
+                ], spacing=6) if support else ft.Text(""),
+                ft.Row([
                     ft.Icon(ft.Icons.SPORTS_ESPORTS, size=13, color=_c("cyan")),
-                    _txt(b.get("weapon1",""), size=12),
+                    ft.Text(
+                        b.get("weapon1","") + (" · " + weapon2 if weapon2 else ""),
+                        size=11, color=_c("sub"), expand=True),
                 ], spacing=6) if b.get("weapon1") else ft.Text(""),
                 ft.Row(
                     [ft.Container(
@@ -1984,7 +2021,10 @@ async def main(page: ft.Page):
                     wrap=True, spacing=4,
                 ) if skills else ft.Text(""),
                 _txt(desc, size=12, color=_c("sub")) if desc else ft.Text(""),
-                _sub(purpose, size=11) if purpose else ft.Text(""),
+                ft.Row([
+                    ft.Icon(ft.Icons.STAR, size=12, color=_c("yellow")),
+                    _txt(purpose, size=11, color=_c("yellow")),
+                ], spacing=4) if purpose else ft.Text(""),
                 ft.Row([_tag_chip(tg) for tg in tags], wrap=True, spacing=4)
                     if tags else ft.Text(""),
             ))
@@ -2340,7 +2380,11 @@ async def main(page: ft.Page):
                 LANG[0] = val
                 prefs["lang"] = val
                 _save_prefs(prefs)
+                # Clear cached news so it refetches in the new language
+                state["news"] = []
+                _c2 = _load_cache(); _c2.pop("news", None); _save_cache(_c2)
                 render()
+                page.run_task(lambda: _task_load_news(force=True))
             return _h
 
         rows.append(_card(
@@ -2441,11 +2485,6 @@ async def main(page: ft.Page):
         rows.append(_card(
             _hdr(t("about"), size=14),
             _sub(f"{APP_NAME}  v{APP_VERSION}"),
-            # Show in-game tag prominently
-            ft.Row([
-                ft.Icon(ft.Icons.VIDEOGAME_ASSET, color=_c("cyan"), size=16),
-                _txt(f"{t('ingame_tag')}: {player_tag}", size=13, color=_c("cyan")),
-            ], spacing=6) if player_tag else ft.Text(""),
             # Cosmetics cache status
             ft.Row([
                 ft.Icon(ft.Icons.CHECKROOM if cosm_n else ft.Icons.HOURGLASS_EMPTY,
