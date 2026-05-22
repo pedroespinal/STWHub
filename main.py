@@ -123,23 +123,23 @@ _DARK = {
     "vbucks":  "#d0a8f0",
 }
 _LIGHT = {
-    "bg":      "#f0f0f8",
-    "surface": "#e8e8f4",
-    "card":    "#ffffff",
-    "border":  "#d0d0e8",
-    "text":    "#111133",
-    "sub":     "#3a3a6a",
-    "orange":  "#d94f00",
-    "cyan":    "#006fa3",
-    "yellow":  "#9a7400",
+    "bg":      "#dfe3f0",   # azul-gris suave, no blanco puro
+    "surface": "#d4d8e8",   # un tono más oscuro que bg
+    "card":    "#eaecf5",   # blanco cálido, no puro
+    "border":  "#b8bdd4",
+    "text":    "#10102e",   # azul-marino oscuro — máximo contraste
+    "sub":     "#42466e",   # gris-azul legible
+    "orange":  "#b83c00",   # naranja oscuro — legible sobre light
+    "cyan":    "#005580",
+    "yellow":  "#7a5800",
     "purple":  "#5b21b6",
-    "green":   "#007733",
-    "red":     "#bb0022",
-    "pink":    "#b5006b",
-    "footer":  "#cc4400",
+    "green":   "#005c24",   # verde oscuro — texto blanco legible encima
+    "red":     "#aa0020",
+    "pink":    "#9a006b",
+    "footer":  "#a83200",
     "banner":  "#fff3e0",
-    "gold":    "#b8860b",
-    "vbucks":  "#6b21a8",
+    "gold":    "#8b6914",
+    "vbucks":  "#5b1fa8",
 }
 THEME = ["dark"]
 LANG  = ["es"]
@@ -420,8 +420,8 @@ GUIDE = {
         ("¿Que es Save The World?",
          "Fortnite: Save The World es el modo PvE cooperativo de Fortnite (hasta 4 jugadores). "
          "Tu objetivo: construir defensas, recolectar recursos y eliminar oleadas de husks para "
-         "proteger el objetivo. A diferencia de Battle Royale, compras el juego una vez y tienes "
-         "acceso ilimitado.\n\n"
+         "proteger el objetivo. ¡Desde 2024 Save The World es completamente GRATIS! "
+         "Solo descarga Fortnite y accede desde el menú principal.\n\n"
          "La campaña principal se divide en 4 mundos: Stonewood → Plankerton → "
          "Canny Valley → Twine Peaks (endgame)."),
         ("V-Bucks Gratis",
@@ -498,7 +498,8 @@ GUIDE = {
         ("What is Save The World?",
          "Fortnite: Save The World is Fortnite's PvE cooperative mode (up to 4 players). "
          "Your goal: build defenses, collect resources, and eliminate husk waves to protect "
-         "the objective. Unlike Battle Royale, you buy the game once and have unlimited access.\n\n"
+         "the objective. Since 2024, Save The World is completely FREE! "
+         "Just download Fortnite and access it from the main menu.\n\n"
          "The main campaign is split into 4 worlds: Stonewood → Plankerton → "
          "Canny Valley → Twine Peaks (endgame)."),
         ("Free V-Bucks",
@@ -715,10 +716,29 @@ def _sync_epic_token():
     except Exception:
         return None
 
-_STW_THEATERS = {"theater00", "theater01", "theater02", "theater03",
-                  "stonewood", "plankerton", "canny", "twine"}
+_SKIP_ZONES = {"[test]", "venture", "survive", "homebase", "horde", "scurvy", "shoal"}
 
-def _sync_fetch_alerts(region: str) -> list:
+def _theater_name(display, lang="en") -> str:
+    """Extract zone name from displayName dict (multilingual) or plain string."""
+    if isinstance(display, dict):
+        return display.get(lang) or display.get("en") or next(iter(display.values()), "")
+    return str(display) if display else ""
+
+def _parse_mission_type(raw: str) -> str:
+    """Convert 'MissionAlert_Retrieve_the_Data_T01' → 'Retrieve the Data'"""
+    import re as _re
+    s = raw.replace("MissionAlert_", "").replace("MissionAlert", "")
+    s = _re.sub(r'_(T|PL|SW|TW|CV|SH)\d+$', '', s, flags=_re.IGNORECASE)
+    s = _re.sub(r'_(Novice|Expert|Active|Storm|Phoenix)\w*$', '', s, flags=_re.IGNORECASE)
+    s = s.replace("_", " ").strip()
+    return s or raw
+
+def _sync_fetch_alerts() -> list:
+    """Fetch STW mission alerts from Epic world/info API.
+    API structure (v2026):
+      data["theaters"]     — list of theater defs with uniqueId + displayName (lang dict)
+      data["missionAlerts"]— list of {theaterId, availableMissionAlerts:[{missionAlertRewards}]}
+    """
     token = _sync_epic_token()
     if not token:
         return []
@@ -730,41 +750,42 @@ def _sync_fetch_alerts(region: str) -> list:
         )
         if r.status_code != 200:
             return []
-        missions = r.json().get("missions", [])
-        alerts = []
-        for m in missions:
-            theater = m.get("theaterId", "")
-            theater_l = theater.lower()
-            # Skip BR (Athena) missions — only show STW missions
-            if "athena" in theater_l:
+        data = r.json()
+
+        # Build theater GUID → name map, using current language
+        lang = LANG[0] if LANG[0] in ("es", "en") else "en"
+        theater_map: dict = {}
+        for theater in data.get("theaters", []):
+            uid = theater.get("uniqueId", "")
+            display = theater.get("displayName", {})
+            theater_map[uid] = _theater_name(display, lang)
+
+        alerts: list = []
+        for entry in data.get("missionAlerts", []):
+            tid  = entry.get("theaterId", "")
+            zone = theater_map.get(tid, tid[:8])
+            # Skip test / venture / horde / homebase zones
+            zone_lower = zone.lower()
+            if any(kw in zone_lower for kw in _SKIP_ZONES):
                 continue
-            # Only process missions that have an alert with rewards
-            mission_alert = m.get("missionAlert") or {}
-            for alert in mission_alert.get("availableAlerts", []):
-                rewards = []
+            for alert in entry.get("availableMissionAlerts", []):
+                items = alert.get("missionAlertRewards", {}).get("items", [])
+                rewards: list = []
                 has_vbucks = False
-                items = (alert.get("missionAlertRewards") or {}).get("items", [])
                 for rw in items:
-                    typ = rw.get("itemType", "")
-                    qty = rw.get("quantity", 0)
+                    typ   = rw.get("itemType", "")
+                    qty   = rw.get("quantity", 0)
                     is_vb = _VBUCKS_TYPE in typ
                     if is_vb:
                         has_vbucks = True
                     rewards.append({"type": typ, "quantity": qty, "vbucks": is_vb})
                 if rewards:
-                    mtype = ((m.get("missionType") or {})
-                             .get("missionType", "Mission"))
-                    # Zone label: map theater ID to readable name
-                    zone_map = {
-                        "theater00": "Stonewood", "theater01": "Plankerton",
-                        "theater02": "Canny Valley", "theater03": "Twine Peaks",
-                    }
-                    zone = zone_map.get(theater_l, theater or "STW")
+                    mtype = _parse_mission_type(alert.get("name", "Mission"))
                     alerts.append({
-                        "name":    mtype,
-                        "zone":    zone,
+                        "name":   mtype,
+                        "zone":   zone,
                         "rewards": rewards,
-                        "vbucks":  has_vbucks,
+                        "vbucks": has_vbucks,
                     })
         return alerts
     except Exception:
@@ -813,6 +834,16 @@ def _sync_search_heroes(query: str) -> list:
         return out
     except Exception:
         return []
+
+def _btn_text_color(bgcolor: str) -> str:
+    """Return black or white text for maximum contrast against bgcolor."""
+    try:
+        h = bgcolor.lstrip("#")
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return "#000000" if luminance > 148 else "#ffffff"
+    except Exception:
+        return "#ffffff"
 
 def _newer_version(remote: str, local: str) -> bool:
     try:
@@ -941,10 +972,11 @@ async def main(page: ft.Page):
         )
 
     def _btn(label, on_click=None, color=None, width=None, icon=None, url=None):
+        bg = color or _c("orange")
         return ft.FilledButton(
-            content=ft.Text(label, color="#ffffff"),
+            content=ft.Text(label, color=_btn_text_color(bg), weight=ft.FontWeight.W_600),
             icon=icon, on_click=on_click, url=url,
-            bgcolor=color or _c("orange"), width=width,
+            bgcolor=bg, width=width,
             style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
         )
 
@@ -1119,7 +1151,7 @@ async def main(page: ft.Page):
         state["loading"]     = True
         state["using_cache"] = False
         render()
-        alerts = await asyncio.to_thread(_sync_fetch_alerts, state["region"])
+        alerts = await asyncio.to_thread(_sync_fetch_alerts)
         if alerts:
             state["alerts"]       = alerts
             ts                    = datetime.now(timezone.utc).isoformat()
@@ -1188,6 +1220,20 @@ async def main(page: ft.Page):
             await asyncio.sleep(3600)
             await _task_load_alerts(force=True)
 
+    # Dict to hold a live reference to the clock Text control
+    _clock_ctrl: dict = {"ref": None}
+
+    async def _task_clock_ticker():
+        """Update countdown clock every second without full render."""
+        while True:
+            await asyncio.sleep(1)
+            if state["screen"] == "home" and _clock_ctrl.get("ref"):
+                try:
+                    _clock_ctrl["ref"].value = f"⏱ {_utc_reset_str()}"
+                    page.update()
+                except Exception:
+                    pass
+
     # ── HOME screen ────────────────────────────────────────────────────────────
     def _screen_home():
         rows = []
@@ -1236,9 +1282,12 @@ async def main(page: ft.Page):
             async def _r(): await _task_load_alerts(force=True)
             page.run_task(_r)
 
+        _clock_text = ft.Text(f"⏱ {_utc_reset_str()}", size=12, color=_c("cyan"))
+        _clock_ctrl["ref"] = _clock_text
+
         rows.append(ft.Row([
             _hdr(t("daily_alerts")),
-            _txt(f"⏱ {_utc_reset_str()}", size=12, color=_c("cyan")),
+            _clock_text,
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
 
         rows.append(ft.Row([
@@ -1311,10 +1360,9 @@ async def main(page: ft.Page):
             page.run_task(_r)
 
         rows.append(ft.Row([
-            _hdr(t("news_title")),
             ft.IconButton(ft.Icons.REFRESH, on_click=do_refresh,
                           icon_color=_c("cyan"), icon_size=20),
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+        ], alignment=ft.MainAxisAlignment.END))
 
         if state["news_loading"]:
             rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
@@ -1850,13 +1898,13 @@ async def main(page: ft.Page):
                 controls_padding=0,
             ))
         return ft.Column(
-            [_hdr(t("guide_title")), *sections],
+            sections,
             spacing=6, scroll=ft.ScrollMode.AUTO, expand=True,
         )
 
     # ── SETTINGS screen ───────────────────────────────────────────────────────
     def _screen_settings():
-        rows = [_hdr(t("settings_title"))]
+        rows = []
 
         def set_theme(val):
             def _h(e):
@@ -1960,8 +2008,6 @@ async def main(page: ft.Page):
         rows.append(_card(
             _hdr(t("about"), size=14),
             _sub(f"{APP_NAME}  v{APP_VERSION}"),
-            _sub(f"{t('created_by')}: {APP_AUTHOR}"),
-            _sub(f"{APP_RIGHTS}  ©{APP_YEAR}"),
             _divider(),
             ft.Row([
                 ft.Icon(
@@ -2072,6 +2118,7 @@ async def main(page: ft.Page):
     page.run_task(_task_check_update)
     page.run_task(_task_load_meta_imgs)
     page.run_task(_auto_refresh_loop)
+    page.run_task(_task_clock_ticker)
 
 
 ft.run(main)
