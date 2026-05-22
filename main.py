@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.3.7"
+APP_VERSION = "2.3.8"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -974,12 +974,48 @@ _ZONE_TOKENS = frozenset({
     "fight", "category",                   # API internal noise
 })
 
+# Clean mission type names keyed by generator substring (longest keys checked first).
+# Used by both _parse_generator and _parse_mission_type for reliable name output.
+_GENERATOR_MAP = {
+    "eliminate":  "Eliminate & Collect",
+    "miniboss":   "Mini Boss",
+    "mini_boss":  "Mini Boss",
+    "retrieve":   "Retrieve Data",
+    "evacuate":   "Evacuate Shelter",
+    "resupply":   "Resupply",
+    "protect":    "Protect Home Base",
+    "deliver":    "Deliver Bomb",
+    "rescue":     "Rescue Survivors",
+    "mutant":     "Mutant Storm",
+    "repair":     "Repair the Shelter",
+    "atlas":      "Defend Atlas",
+    "radar":      "Radar Grid",
+    "ride":       "Ride the Lightning",
+    "storm":      "Storm Alert",
+}
+
+def _mission_name_from_raw(s: str) -> str:
+    """Look up the clean human-readable mission name from a raw generator/alert string.
+    Strips underscores, lowercases, then checks _GENERATOR_MAP longest-key-first.
+    Returns empty string if no match (caller should fall back to string parsing).
+    """
+    key = s.lower().replace("_", "").replace(" ", "")
+    for gkey in sorted(_GENERATOR_MAP, key=lambda k: -len(k)):
+        if gkey.replace("_", "") in key:
+            return _GENERATOR_MAP[gkey]
+    return ""
+
 def _parse_mission_type(raw: str) -> str:
     """Convert raw alert name → short human-readable mission type.
     Handles underscore form ('MissionAlert_Retrieve_Data_T01')
     and camelCase form ('MutantStonewoodActive_01', 'StormMiniBossPassive_02').
+    Checks _GENERATOR_MAP first for reliable clean names.
     """
     import re as _re
+    # Fast path: direct lookup on raw string
+    mapped = _mission_name_from_raw(raw)
+    if mapped:
+        return mapped
     s = raw
     # Strip common prefixes
     s = _re.sub(r'^MissionAlert[_]?', '', s, flags=_re.IGNORECASE)
@@ -990,6 +1026,10 @@ def _parse_mission_type(raw: str) -> str:
         s = _re.sub(r'[_ ]\d+$', '', s)
         if s == prev:
             break
+    # After prefix stripping, try map again
+    mapped = _mission_name_from_raw(s)
+    if mapped:
+        return mapped
     # Split camelCase (MutantStonewoodActive → Mutant Stonewood Active)
     s = _re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)
     s = _re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', s)
@@ -1029,6 +1069,7 @@ def _parse_generator(raw: str) -> str:
     """Convert 'MissionGen_Retrieve_Data_T01' → 'Retrieve Data'.
     Also handles full UE asset paths like
     '/Game/Items/MissionGens/MissionGen_Atlas.MissionGen_Atlas'.
+    Checks _GENERATOR_MAP first for reliable clean names.
     """
     import re as _re
     s = raw
@@ -1037,10 +1078,17 @@ def _parse_generator(raw: str) -> str:
         s = s.rsplit(".", 1)[-1]
     elif "/" in s:
         s = s.rsplit("/", 1)[-1]
+    # Fast path: map lookup on full raw (after path strip)
+    mapped = _mission_name_from_raw(s)
+    if mapped:
+        return mapped
     # Strip MissionGen prefix
     s = _re.sub(r'^MissionGen[_]?', '', s, flags=_re.IGNORECASE)
+    # Try map again after prefix strip
+    mapped = _mission_name_from_raw(s)
+    if mapped:
+        return mapped
     # Strip trailing zone-code + difficulty + number suffixes iteratively
-    # (handles combos like _CV_01 → pass1: _01 gone → pass2: _CV gone)
     for _ in range(5):
         prev = s
         s = _re.sub(r'[_](T|PL|SW|TW|CV|SH|WB|Lava)\d*$', '', s, flags=_re.IGNORECASE)
@@ -1482,6 +1530,18 @@ def _btn_text_color(bgcolor: str) -> str:
     except Exception:
         return "#ffffff"
 
+def _zone_display(zone_en: str, lang: str) -> str:
+    """Translate an English theater/zone name to the current UI language.
+    Used instead of the pre-translated 'zone' field so the display updates
+    immediately when the user switches language without reloading alerts.
+    """
+    z = zone_en.lower()
+    for key, kw in _WORLD_KEYS.items():
+        if kw in z:
+            return _WORLD_NAMES[key].get(lang, zone_en)
+    return zone_en
+
+
 def _reward_label(item_type: str):
     """Convert raw Epic itemType → (emoji, short human-readable label).
     Returns a tuple (emoji_str, label_str).
@@ -1492,6 +1552,9 @@ def _reward_label(item_type: str):
     # ── V-Bucks ──
     if "currency_mtxswap" in t_low:
         return "💎", "V-Bucks"
+    # ── Supercharger (charge fragment — lets you level past 131) ──
+    if "supercharg" in t_low:
+        return "🔮", "Supercharger"
     # ── XP types ──
     if "phoenixxp" in t_low or "phoenix_xp" in t_low:
         return "🔥", "Phoenix XP"
@@ -1507,7 +1570,7 @@ def _reward_label(item_type: str):
     # ── Weapons / Traps ──
     if category == "schematic":
         return "🔧", "Schematic"
-    # ── Materials ──
+    # ── Materials / Reagents ──
     if "ingredient" in t_low or "reagent" in t_low:
         return "🧪", "Material"
     # ── Base / Homebase ──
@@ -2158,63 +2221,71 @@ async def main(page: ft.Page):
                          and (wf == "all" or
                               _WORLD_KEYS.get(wf, "") in a.get("zone_en", "").lower())]
                 for a in shown[:35]:
-                    reward_chips = []
+                    pl         = a.get("pl", 0)
+                    element    = a.get("element", "")
+                    elem_emoji = _ELEMENT_EMOJI.get(element, "")
+                    pl_color   = _ELEMENT_COLOR.get(element) or _c("orange")
+                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji else str(pl)) if pl else "?"
+                    has_vbucks = a.get("vbucks", False)
+                    memoji     = _mission_emoji(a.get("name", ""))
+                    zone_lbl   = _zone_display(
+                        a.get("zone_en", a.get("zone", "")), lang)
+
+                    # ── PL badge ──
+                    pl_badge = ft.Container(
+                        content=ft.Text(pl_label, size=10, color="#ffffff",
+                                        weight=ft.FontWeight.BOLD),
+                        bgcolor=pl_color if pl else _c("border"),
+                        border_radius=4,
+                        padding=_pad_sym(horizontal=6, vertical=2),
+                        width=54,
+                    )
+                    # ── Reward lines ──
+                    rw_lines = []
                     for rw in a.get("rewards", []):
-                        emoji, label = _reward_label(rw["type"])
-                        qty = rw["quantity"]
+                        re_emoji, re_lbl = _reward_label(rw["type"])
+                        re_qty = rw["quantity"]
                         if rw.get("vbucks"):
-                            reward_chips.append(ft.Container(
-                                content=ft.Row([
-                                    ft.Text(emoji, size=13),
-                                    ft.Text(f"{label} ×{qty}", size=11,
-                                            color="#000000",
-                                            weight=ft.FontWeight.BOLD),
-                                ], spacing=3, tight=True),
-                                bgcolor=_c("gold"), border_radius=8,
-                                padding=_pad_sym(horizontal=7, vertical=3),
+                            rw_lines.append(ft.Container(
+                                content=ft.Text(
+                                    f"{re_emoji} {re_lbl} ×{re_qty}",
+                                    size=11, color="#000000",
+                                    weight=ft.FontWeight.BOLD),
+                                bgcolor=_c("gold"), border_radius=6,
+                                padding=_pad_sym(horizontal=6, vertical=2),
                             ))
                         else:
-                            reward_chips.append(ft.Container(
-                                content=ft.Row([
-                                    ft.Text(emoji, size=12),
-                                    ft.Text(f"{label} ×{qty}", size=10,
-                                            color=_c("sub")),
-                                ], spacing=3, tight=True),
-                                bgcolor=_c("surface"), border_radius=6,
-                                border=_border_all(1, _c("border")),
-                                padding=_pad_sym(horizontal=5, vertical=2),
-                            ))
-                    pl      = a.get("pl", 0)
-                    element = a.get("element", "")
-                    elem_emoji = _ELEMENT_EMOJI.get(element, "")
-                    if pl:
-                        pl_label  = f"{elem_emoji} PL {pl}" if elem_emoji else f"PL {pl}"
-                        pl_bgcolor = _ELEMENT_COLOR.get(element) or _c("orange")
-                        pl_badge  = ft.Container(
-                            content=ft.Text(pl_label, size=10, color="#ffffff",
-                                            weight=ft.FontWeight.BOLD),
-                            bgcolor=pl_bgcolor, border_radius=6,
-                            padding=_pad_sym(horizontal=6, vertical=2),
-                        )
-                    else:
-                        pl_badge = None
-                    top_row_children = [
-                        ft.Icon(
-                            ft.Icons.BOLT if a.get("vbucks") else ft.Icons.FLAG,
-                            color=_c("gold") if a.get("vbucks") else _c("orange"),
-                            size=20,
-                        ),
-                        ft.Text(a.get("name", ""), size=13, color=_c("text"),
-                                expand=True),
-                    ]
-                    if pl_badge:
-                        top_row_children.append(pl_badge)
+                            rw_lines.append(ft.Text(
+                                f"{re_emoji} {re_lbl} ×{re_qty}",
+                                size=11, color=_c("sub")))
+
+                    rw_col = ft.Column(rw_lines, spacing=2, tight=True) \
+                        if rw_lines else ft.Text("—", size=10, color=_c("sub"))
+
+                    # ── Card: [emoji] [PL] │ [name / zone / rewards] ──
                     rows.append(_card(
-                        ft.Row(top_row_children, spacing=6,
-                               vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                        _sub(a.get("zone", ""), size=11),
-                        ft.Row(reward_chips, wrap=True, spacing=4),
-                        border_color=_c("gold") if a.get("vbucks") else None,
+                        ft.Row([
+                            ft.Text(memoji, size=22),
+                            pl_badge,
+                            ft.Container(   # vertical divider
+                                width=2, height=48,
+                                bgcolor=_c("gold") if has_vbucks else _c("border"),
+                            ),
+                            ft.Column([
+                                ft.Text(
+                                    a.get("name", ""), size=12,
+                                    color=_c("text"),
+                                    weight=ft.FontWeight.BOLD,
+                                ),
+                                ft.Text(
+                                    zone_lbl, size=10, color=_c("cyan"),
+                                ),
+                                rw_col,
+                            ], spacing=2, expand=True, tight=True),
+                        ], spacing=6,
+                           vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=8, margin=2,
+                        border_color=_c("gold") if has_vbucks else None,
                     ))
 
         else:
@@ -2229,76 +2300,83 @@ async def main(page: ft.Page):
             elif not state.get("all_missions"):
                 rows.append(_card(_txt(t("no_missions"), color=_c("sub"))))
             else:
-                missions = state["all_missions"]
-                current_world_display = None
-                for m in missions[:150]:
-                    zone_en = m.get("zone_en", "").lower()
-                    world_key = next(
-                        (k for k in _WORLD_ORDER
-                         if _WORLD_KEYS.get(k, "") in zone_en),
-                        None,
-                    )
-                    world_display = (
-                        _WORLD_NAMES[world_key][lang] if world_key
-                        else m.get("zone", "")
-                    )
-                    if world_display != current_world_display:
-                        current_world_display = world_display
-                        rows.append(ft.Container(
-                            content=_hdr(world_display, size=14, color=_c("cyan")),
-                            margin=_margin_b(bottom=2),
-                        ))
+                all_m   = state["all_missions"]
+                m160    = [m for m in all_m if m.get("pl", 0) >= 160]
+                is_es   = (lang == "es")
 
-                    pl      = m.get("pl", 0)
-                    element = m.get("element", "")
+                # ── Supercharger reward card ───────────────────────────────────
+                rows.append(_card(
+                    ft.Row([
+                        ft.Text("🔮", size=44),
+                        ft.Column([
+                            ft.Text(
+                                "Supercargador" if is_es else "Supercharger",
+                                size=16, color=_c("purple"),
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                            _sub(
+                                "Completa 10 misiones PL 160 para obtenerlo"
+                                if is_es else
+                                "Complete 10 PL 160 missions to earn it",
+                                size=11,
+                            ),
+                            _sub(
+                                "Permite subir héroes y esquemas más allá del nivel 131"
+                                if is_es else
+                                "Lets you level heroes & schematics past level 131",
+                                size=10,
+                            ),
+                        ], expand=True, spacing=3),
+                    ], spacing=14,
+                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    border_color=_c("purple"),
+                ))
+
+                # ── PL 160 mission list ────────────────────────────────────────
+                src = m160 if m160 else all_m
+                label_160 = (
+                    (f"Misiones PL 160 ({len(m160)})" if is_es
+                     else f"PL 160 Missions ({len(m160)})")
+                    if m160 else
+                    ("Todas las misiones activas" if is_es else "All active missions")
+                )
+                rows.append(_sub(label_160, size=12))
+
+                for m in src[:20]:
+                    pl         = m.get("pl", 0)
+                    element    = m.get("element", "")
                     elem_emoji = _ELEMENT_EMOJI.get(element, "")
-                    pl_color   = _ELEMENT_COLOR.get(element) or _c("orange")
-                    is_160     = (pl >= 160)
+                    pl_color   = _ELEMENT_COLOR.get(element) or "#7c00cc"
                     pl_label   = (f"{elem_emoji} {pl}" if elem_emoji else str(pl))
                     memoji     = _mission_emoji(m.get("name", ""))
+                    zone_lbl   = _zone_display(
+                        m.get("zone_en", m.get("zone", "")), lang)
 
                     pl_badge = ft.Container(
-                        content=ft.Text(pl_label, size=11, color="#ffffff",
+                        content=ft.Text(pl_label, size=10, color="#ffffff",
                                         weight=ft.FontWeight.BOLD),
-                        bgcolor="#7c00cc" if is_160 else pl_color,
-                        border_radius=4,
-                        padding=_pad_sym(horizontal=7, vertical=3),
-                        width=58,
+                        bgcolor=pl_color, border_radius=4,
+                        padding=_pad_sym(horizontal=6, vertical=2),
+                        width=54,
                     )
-
-                    # Rewards column (right side)
-                    m_rewards = m.get("rewards", [])
-                    if m_rewards:
-                        rw_children = []
-                        for rw in m_rewards[:3]:
-                            re_emoji, re_label = _reward_label(rw["type"])
-                            re_qty = rw["quantity"]
-                            rw_children.append(
-                                ft.Text(f"{re_emoji} {re_label} ×{re_qty}",
-                                        size=11, color=_c("text"))
-                            )
-                        rw_content = ft.Column(rw_children, spacing=1, expand=True,
-                                               tight=True)
-                    else:
-                        # No reward data from API — show mission name as fallback
-                        rw_content = ft.Text(
-                            m.get("name", ""), size=11,
-                            color=_c("sub"), expand=True,
-                        )
 
                     rows.append(_card(
                         ft.Row([
-                            ft.Text(memoji, size=18),
+                            ft.Text(memoji, size=20),
                             pl_badge,
                             ft.Container(
-                                width=2, height=26,
-                                bgcolor=_c("purple") if is_160 else _c("border"),
+                                width=2, height=36, bgcolor=_c("purple"),
                             ),
-                            rw_content,
+                            ft.Column([
+                                ft.Text(m.get("name", ""), size=12,
+                                        color=_c("text"),
+                                        weight=ft.FontWeight.BOLD),
+                                ft.Text(zone_lbl, size=10, color=_c("cyan")),
+                            ], spacing=1, expand=True, tight=True),
                         ], spacing=6,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         padding=8, margin=2,
-                        border_color=_c("purple") if is_160 else None,
+                        border_color=_c("purple"),
                     ))
 
         rows.append(_footer())
