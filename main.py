@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.2.1"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -96,10 +96,10 @@ _REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
 # ── STW World data ─────────────────────────────────────────────────────────────
 _WORLD_ORDER = ["stonewood", "plankerton", "canny", "twine"]
 _WORLD_NAMES = {
-    "stonewood":  {"es": "Bosque Pedregoso",    "en": "Stonewood"},
-    "plankerton": {"es": "Finca Arbolada",       "en": "Plankerton"},
-    "canny":      {"es": "Valle del Cañón",      "en": "Canny Valley"},
-    "twine":      {"es": "Cimas del Entramado",  "en": "Twine Peaks"},
+    "stonewood":  {"es": "Bosque Pedregoso", "en": "Stonewood"},
+    "plankerton": {"es": "Villa Tablón",     "en": "Plankerton"},
+    "canny":      {"es": "Valle Latoso",     "en": "Canny Valley"},
+    "twine":      {"es": "Cumbres",          "en": "Twine Peaks"},
 }
 # Substring keywords used to match alert zone_en → world tab
 _WORLD_KEYS  = {
@@ -138,7 +138,7 @@ GUIDE_WORLDS = {
     "plankerton": {
         "es": {
             "pl": "PL 15–58",
-            "desc": "El segundo mundo. La dificultad sube notablemente. Desbloqueas el sistema de trampas y aparecen husks con escudos y propulsores.",
+            "desc": "El segundo mundo (Villa Tablón). La dificultad sube notablemente. Desbloqueas el sistema de trampas y aparecen husks con escudos y propulsores.",
             "tips": [
                 "Invierte en trampas de lanzas y suelo — marcan la diferencia en oleadas largas.",
                 "Empieza a mejorar tus armas favoritas con transformaciones de perk.",
@@ -150,7 +150,7 @@ GUIDE_WORLDS = {
         },
         "en": {
             "pl": "PL 15–58",
-            "desc": "The second world. Difficulty rises notably. You unlock the trap system and start encountering husks with shields and propulsors.",
+            "desc": "The second world (Plankerton). Difficulty rises notably. You unlock the trap system and start encountering husks with shields and propulsors.",
             "tips": [
                 "Invest in spike and floor traps — they make a huge difference in long waves.",
                 "Start upgrading your favorite weapons with perk transformations.",
@@ -164,7 +164,7 @@ GUIDE_WORLDS = {
     "canny": {
         "es": {
             "pl": "PL 40–82",
-            "desc": "El tercer mundo. El mapa es más grande. Desbloqueas el Radar Grid para detectar misiones y cofres. Los husks son significativamente más resistentes.",
+            "desc": "El tercer mundo (Valle Latoso). El mapa es más grande. Desbloqueas el Radar Grid para detectar misiones y cofres. Los husks son significativamente más resistentes.",
             "tips": [
                 "Activa el Radar Grid para ver cofres y recursos en el mapa completo.",
                 "Las armas de acero son esenciales — fabrica en nivel de investigación 3+.",
@@ -190,7 +190,7 @@ GUIDE_WORLDS = {
     "twine": {
         "es": {
             "pl": "PL 70–140+",
-            "desc": "El endgame de STW. Las misiones más difíciles y las mejores recompensas. Hogar del Storm King, el jefe final. Las alertas aquí dan los mejores V-Bucks diarios.",
+            "desc": "El endgame de STW (Cumbres). Las misiones más difíciles y las mejores recompensas. Hogar del Storm King, el jefe final. Las alertas aquí dan los mejores V-Bucks diarios.",
             "tips": [
                 "El Storm King requiere PL 100+ y equipo coordinado de 4 jugadores.",
                 "Las alertas de Twine dan hasta 100 V-Bucks por misión.",
@@ -562,7 +562,7 @@ GUIDE = {
         ("¿Que es Save The World?",
          "Fortnite: Save The World es el modo PvE cooperativo de Fortnite (hasta 4 jugadores). "
          "Tu objetivo: construir defensas, recolectar recursos y eliminar oleadas de husks para "
-         "proteger el objetivo. ¡Desde 2024 Save The World es completamente GRATIS! "
+         "proteger el objetivo. ¡Save The World es completamente GRATIS desde 2026! "
          "Solo descarga Fortnite y accede desde el menú principal.\n\n"
          "La campaña principal se divide en 4 mundos: Stonewood → Plankerton → "
          "Canny Valley → Twine Peaks (endgame)."),
@@ -640,7 +640,7 @@ GUIDE = {
         ("What is Save The World?",
          "Fortnite: Save The World is Fortnite's PvE cooperative mode (up to 4 players). "
          "Your goal: build defenses, collect resources, and eliminate husk waves to protect "
-         "the objective. Since 2024, Save The World is completely FREE! "
+         "the objective. Save The World has been completely FREE since 2026! "
          "Just download Fortnite and access it from the main menu.\n\n"
          "The main campaign is split into 4 worlds: Stonewood → Plankerton → "
          "Canny Valley → Twine Peaks (endgame)."),
