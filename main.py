@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -85,8 +85,10 @@ _EPIC_CLIENT_ID     = "ec684b8c687f479fadea3cb2ad83f5c6"
 _EPIC_CLIENT_SECRET = "e1f31c211f28413186262d37a13fc84d"
 _EPIC_TOKEN_URL     = "https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token"
 _EPIC_WORLD_URL     = "https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/world/info"
-_NEWS_URL           = "https://fortnite-api.com/v2/news/stw"
-_HEROES_SEARCH_URL  = "https://fortnite-api.com/v2/cosmetics/br/search/all"
+_NEWS_URL           = "https://fortnite-api.com/v2/news"
+_BR_COSMETICS_URL   = "https://fortnite-api.com/v2/cosmetics/br"
+# Community builds backend — JSON file in GitHub repo (no server needed)
+_COMMUNITY_BUILDS_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/community_builds.json"
 
 _VBUCKS_TYPE = "AccountResource:currency_mtxswap"
 _REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
@@ -124,22 +126,22 @@ _DARK = {
 }
 _LIGHT = {
     "bg":      "#dfe3f0",   # azul-gris suave, no blanco puro
-    "surface": "#d4d8e8",   # un tono más oscuro que bg
+    "surface": "#d2d6e6",   # un tono más oscuro que bg
     "card":    "#eaecf5",   # blanco cálido, no puro
-    "border":  "#b8bdd4",
+    "border":  "#b0b6cc",
     "text":    "#10102e",   # azul-marino oscuro — máximo contraste
-    "sub":     "#42466e",   # gris-azul legible
-    "orange":  "#b83c00",   # naranja oscuro — legible sobre light
-    "cyan":    "#005580",
+    "sub":     "#3a3f68",   # gris-azul legible
+    "orange":  "#c04800",   # naranja oscuro — legible sobre light
+    "cyan":    "#0060a0",
     "yellow":  "#7a5800",
-    "purple":  "#5b21b6",
-    "green":   "#005c24",   # verde oscuro — texto blanco legible encima
-    "red":     "#aa0020",
-    "pink":    "#9a006b",
-    "footer":  "#a83200",
-    "banner":  "#fff3e0",
+    "purple":  "#6b25c4",   # gamer purple
+    "green":   "#006030",   # verde oscuro — texto blanco legible encima
+    "red":     "#c8007a",   # magenta gamer — en lugar de rojo convencional
+    "pink":    "#b0006a",
+    "footer":  "#aa3000",
+    "banner":  "#ffe8d6",
     "gold":    "#8b6914",
-    "vbucks":  "#5b1fa8",
+    "vbucks":  "#6b1fc4",   # gamer purple-violet
 }
 THEME = ["dark"]
 LANG  = ["es"]
@@ -163,6 +165,7 @@ T = {
         "alerts_cached": "Cache offline", "power": "Poder",
         "news_title": "Noticias STW", "no_news": "Sin noticias disponibles.",
         "meta_builds": "Meta Builds", "my_builds": "Mis Builds",
+        "community_builds": "Comunidad",
         "heroes": "Heroes", "all_classes": "Todas",
         "new_build": "Nuevo Build",
         "build_name": "Nombre del build",
@@ -230,6 +233,7 @@ T = {
         "alerts_cached": "Offline cache", "power": "Power",
         "news_title": "STW News", "no_news": "No news available.",
         "meta_builds": "Meta Builds", "my_builds": "My Builds",
+        "community_builds": "Community",
         "heroes": "Heroes", "all_classes": "All",
         "new_build": "New Build",
         "build_name": "Build name",
@@ -752,22 +756,24 @@ def _sync_fetch_alerts() -> list:
             return []
         data = r.json()
 
-        # Build theater GUID → name map, using current language
+        # Build theater GUID → (display_name, english_name) map
         lang = LANG[0] if LANG[0] in ("es", "en") else "en"
         theater_map: dict = {}
         for theater in data.get("theaters", []):
-            uid = theater.get("uniqueId", "")
+            uid     = theater.get("uniqueId", "")
             display = theater.get("displayName", {})
-            theater_map[uid] = _theater_name(display, lang)
+            en_name   = _theater_name(display, "en")    # always English for filtering
+            lang_name = _theater_name(display, lang)    # user language for display
+            theater_map[uid] = (lang_name, en_name)
 
         alerts: list = []
         for entry in data.get("missionAlerts", []):
-            tid  = entry.get("theaterId", "")
-            zone = theater_map.get(tid, tid[:8])
-            # Skip test / venture / horde / homebase zones
-            zone_lower = zone.lower()
-            if any(kw in zone_lower for kw in _SKIP_ZONES):
+            tid = entry.get("theaterId", "")
+            lang_zone, en_zone = theater_map.get(tid, (tid[:8], tid[:8]))
+            # Skip test / venture / horde / homebase zones — filter on ENGLISH name
+            if any(kw in en_zone.lower() for kw in _SKIP_ZONES):
                 continue
+            zone = lang_zone
             for alert in entry.get("availableMissionAlerts", []):
                 items = alert.get("missionAlertRewards", {}).get("items", [])
                 rewards: list = []
@@ -792,15 +798,24 @@ def _sync_fetch_alerts() -> list:
         return []
 
 def _sync_fetch_news() -> list:
+    """Fetch STW news. API changed: now /v2/news → data.stw.messages (not motds)."""
     if not _REQ_OK:
         return []
     try:
         r = requests.get(_NEWS_URL, timeout=12)
         if r.status_code != 200:
             return []
-        items = r.json().get("data", {}).get("motds", [])
+        data = r.json().get("data", {})
+        # New structure: data.stw.messages
+        stw = data.get("stw") or {}
+        items = stw.get("messages") or stw.get("motds") or []
+        # Fallback: try old structure
+        if not items:
+            items = data.get("motds", [])
         out = []
-        for i in items[:10]:
+        for i in items[:15]:
+            if i.get("hidden"):
+                continue
             out.append({
                 "title": i.get("title", ""),
                 "body":  i.get("body", ""),
@@ -810,26 +825,40 @@ def _sync_fetch_news() -> list:
     except Exception:
         return []
 
-def _sync_search_heroes(query: str) -> list:
-    if not _REQ_OK or not query.strip():
+_BR_COSMETICS_CACHE: list = []   # in-memory cache of all BR cosmetics
+
+def _sync_load_br_cosmetics() -> list:
+    """Download and cache all BR cosmetics (used for hero image search)."""
+    global _BR_COSMETICS_CACHE
+    if _BR_COSMETICS_CACHE:
+        return _BR_COSMETICS_CACHE
+    if not _REQ_OK:
         return []
     try:
-        r = requests.get(
-            _HEROES_SEARCH_URL,
-            params={"name": query.strip(), "language": "en"},
-            timeout=10,
-        )
-        if r.status_code != 200:
-            return []
-        items = r.json().get("data", [])
-        if not isinstance(items, list):
-            items = [items]
+        r = requests.get(_BR_COSMETICS_URL, params={"language": "en"}, timeout=40)
+        if r.status_code == 200:
+            _BR_COSMETICS_CACHE = r.json().get("data", [])
+    except Exception:
+        pass
+    return _BR_COSMETICS_CACHE
+
+def _sync_search_heroes(query: str) -> list:
+    """Search hero/character images from full BR cosmetics list (cached)."""
+    if not query.strip():
+        return []
+    try:
+        items = _sync_load_br_cosmetics()
+        q = query.strip().lower()
+        matches = [i for i in items if q in i.get("name", "").lower()]
+        # Prefer outfits (skins) over other types
+        outfits = [m for m in matches if m.get("type", {}).get("value") == "outfit"]
+        results = outfits or matches
         out = []
-        for item in items[:20]:
+        for item in results[:20]:
             name = item.get("name", "")
             imgs = item.get("images", {}) or {}
-            img  = imgs.get("featured") or imgs.get("icon") or imgs.get("smallIcon") or ""
-            if name:
+            img  = imgs.get("icon") or imgs.get("featured") or imgs.get("smallIcon") or ""
+            if name and img:
                 out.append({"name": name, "image": img})
         return out
     except Exception:
@@ -935,7 +964,8 @@ async def main(page: ft.Page):
         "update_dismissed": False,
         "builds_tab":       "meta",
         "builds_cls":       "all",
-        "meta_imgs":        {},
+        "meta_imgs":            {},
+        "community_builds":     [],
         "hero_search_results":  [],
         "hero_search_loading":  False,
         "hero_search_query":    "",
@@ -1096,6 +1126,9 @@ async def main(page: ft.Page):
             on_change=on_nav,
             bgcolor=_c("surface"),
             indicator_color=_c("orange"),
+            label_behavior=ft.NavigationBarLabelBehavior.ALWAYS_SHOW,
+            surface_tint_color=_c("surface"),
+            shadow_color=_c("border"),
         )
 
     def _appbar(title_txt: str, back_screen: str = None):
@@ -1203,6 +1236,8 @@ async def main(page: ft.Page):
         render()
 
     async def _task_load_meta_imgs():
+        # Pre-load BR cosmetics list (needed for hero image search)
+        await asyncio.to_thread(_sync_load_br_cosmetics)
         # Collect unique hero names from all meta builds
         names = list({b["hero"] for builds in BUILDS.values() for b in builds})
         for name in names:
@@ -1214,6 +1249,19 @@ async def main(page: ft.Page):
             else:
                 state["meta_imgs"][name] = ""
         render()
+
+    async def _task_load_community_builds():
+        if not _REQ_OK:
+            return
+        try:
+            data = await asyncio.to_thread(
+                lambda: requests.get(_COMMUNITY_BUILDS_URL, timeout=10).json()
+            )
+            if isinstance(data, list):
+                state["community_builds"] = data
+                render()
+        except Exception:
+            pass
 
     async def _auto_refresh_loop():
         while True:
@@ -1419,15 +1467,19 @@ async def main(page: ft.Page):
             return _h
 
         rows.append(ft.Row([
-            _toggle_btn(t("meta_builds"), state["builds_tab"] == "meta",
+            _toggle_btn(t("meta_builds"),       state["builds_tab"] == "meta",
                         set_tab("meta")),
-            _toggle_btn(t("my_builds"),   state["builds_tab"] == "my",
+            _toggle_btn(t("my_builds"),         state["builds_tab"] == "my",
                         set_tab("my")),
+            _toggle_btn(t("community_builds"),  state["builds_tab"] == "community",
+                        set_tab("community")),
         ], spacing=8, wrap=True))
         rows.append(_divider())
 
         if state["builds_tab"] == "meta":
             rows.extend(_builds_meta())
+        elif state["builds_tab"] == "community":
+            rows.extend(_builds_community())
         else:
             rows.extend(_builds_my())
 
@@ -1628,6 +1680,69 @@ async def main(page: ft.Page):
                 ) if skills else ft.Text(""),
                 _txt(b.get("desc", ""), size=12, color=_c("sub"))
                     if b.get("desc") else ft.Text(""),
+                ft.Row([_tag_chip(tg) for tg in tags], wrap=True, spacing=4)
+                    if tags else ft.Text(""),
+            ))
+        return rows
+
+    def _builds_community():
+        rows = [_hdr(t("community_builds"))]
+        builds = state.get("community_builds", [])
+        if not builds:
+            rows.append(_card(_sub(
+                "Cargando builds de la comunidad..." if LANG[0] == "es"
+                else "Loading community builds..."
+            )))
+            return rows
+        for b in builds:
+            lang_key = "es" if LANG[0] == "es" else "en"
+            desc = b.get(f"desc_{lang_key}") or b.get("desc_es") or b.get("desc_en", "")
+            purpose = b.get(f"purpose_{lang_key}") or b.get("purpose_es") or ""
+            tags = b.get("tags", [])
+            author = b.get("author", "")
+            votes = b.get("votes", 0)
+            skills = b.get("skills", [])
+            cls = b.get("cls", "")
+            hero_name = b.get("hero", "")
+            hero_img_url = state["meta_imgs"].get(hero_name, "")
+            cls_letter = cls[0].upper() if cls else "?"
+            cls_colors = {"C": _c("cyan"), "N": _c("purple"), "O": _c("yellow"), "S": _c("green")}
+            cls_color = cls_colors.get(cls_letter, _c("sub"))
+            rows.append(_card(
+                ft.Row([
+                    _hero_img(hero_img_url, size=52),
+                    ft.Column([
+                        _hdr(b.get("name", ""), size=15),
+                        ft.Row([
+                            ft.Container(
+                                content=ft.Text(cls_letter, size=10, color="#fff",
+                                                weight=ft.FontWeight.BOLD),
+                                bgcolor=cls_color, border_radius=99,
+                                width=20, height=20, alignment=_ALIGN_CENTER,
+                            ),
+                            _txt(hero_name, size=12, color=_c("sub")),
+                            _txt(f"👍 {votes}", size=11, color=_c("gold")),
+                            _sub(f"@{author}", size=10) if author else ft.Text(""),
+                        ], spacing=6),
+                    ], spacing=3, expand=True),
+                ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.START),
+                _divider(),
+                ft.Row([
+                    ft.Icon(ft.Icons.SPORTS_ESPORTS, size=13, color=_c("cyan")),
+                    _txt(b.get("weapon1",""), size=12),
+                ], spacing=6) if b.get("weapon1") else ft.Text(""),
+                ft.Row(
+                    [ft.Container(
+                        content=ft.Text(sk, size=10, color=_c("text")),
+                        bgcolor=_c("surface"),
+                        border=_border_all(1, _c("purple")),
+                        border_radius=6,
+                        padding=_pad_sym(horizontal=6, vertical=2),
+                    ) for sk in skills],
+                    wrap=True, spacing=4,
+                ) if skills else ft.Text(""),
+                _txt(desc, size=12, color=_c("sub")) if desc else ft.Text(""),
+                _sub(purpose, size=11) if purpose else ft.Text(""),
                 ft.Row([_tag_chip(tg) for tg in tags], wrap=True, spacing=4)
                     if tags else ft.Text(""),
             ))
@@ -2117,6 +2232,7 @@ async def main(page: ft.Page):
     page.run_task(_task_load_news)
     page.run_task(_task_check_update)
     page.run_task(_task_load_meta_imgs)
+    page.run_task(_task_load_community_builds)
     page.run_task(_auto_refresh_loop)
     page.run_task(_task_clock_ticker)
 
