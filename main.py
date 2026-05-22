@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.3.5"
+APP_VERSION = "2.3.6"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -356,6 +356,21 @@ T = {
         "superchargers": "Supercargadores",
         "no_missions": "Sin misiones disponibles.",
         "missions_loading": "Cargando misiones...",
+        "disclaimer_title": "Aviso Legal / Legal Notice",
+        "disclaimer_es": (
+            "Esta aplicacion es un proyecto independiente y gratuito creado por fans "
+            "para ayudar a los jugadores de Fortnite: Save The World con sus alertas "
+            "diarias, builds y progreso. No tiene ningun fin monetario, no esta "
+            "afiliada ni respaldada por Epic Games, y asi permanecera. "
+            "Todos los datos del juego son propiedad de Epic Games."
+        ),
+        "disclaimer_en": (
+            "This app is an independent, free fan project created to help Fortnite: "
+            "Save The World players with their daily alerts, builds, and progress. "
+            "It has no monetary purpose, is not affiliated with or endorsed by "
+            "Epic Games, and will remain so. "
+            "All game data is the property of Epic Games."
+        ),
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -436,6 +451,21 @@ T = {
         "superchargers": "Superchargers",
         "no_missions": "No missions available.",
         "missions_loading": "Loading missions...",
+        "disclaimer_title": "Aviso Legal / Legal Notice",
+        "disclaimer_es": (
+            "Esta aplicacion es un proyecto independiente y gratuito creado por fans "
+            "para ayudar a los jugadores de Fortnite: Save The World con sus alertas "
+            "diarias, builds y progreso. No tiene ningun fin monetario, no esta "
+            "afiliada ni respaldada por Epic Games, y asi permanecera. "
+            "Todos los datos del juego son propiedad de Epic Games."
+        ),
+        "disclaimer_en": (
+            "This app is an independent, free fan project created to help Fortnite: "
+            "Save The World players with their daily alerts, builds, and progress. "
+            "It has no monetary purpose, is not affiliated with or endorsed by "
+            "Epic Games, and will remain so. "
+            "All game data is the property of Epic Games."
+        ),
     },
 }
 
@@ -996,6 +1026,23 @@ def _parse_generator(raw: str) -> str:
     s = s.replace("_", " ").strip()
     return s or raw
 
+def _normalize_theater_id(tid: str) -> str:
+    """Strip Epic ID prefixes so mission_map lookups succeed regardless of format.
+    e.g. 'Theater:FortTheaterInfo_Stonewood' → 'Stonewood'
+    """
+    for prefix in (
+        "Theater:FortTheaterInfo_",
+        "Theater:FortTheater_",
+        "Theater:FortTheaterInfo",
+        "FortTheaterInfo_",
+        "Theater:",
+        "FortTheater:",
+    ):
+        if tid.startswith(prefix):
+            return tid[len(prefix):]
+    return tid
+
+
 def _sync_fetch_alerts() -> tuple:
     """Fetch STW world/info and return (alerts, all_missions).
     alerts      — daily missions with special rewards (V-Bucks, heroes, etc.)
@@ -1003,9 +1050,10 @@ def _sync_fetch_alerts() -> tuple:
 
     Epic API structure (v2026):
       data["theaters"]     — theater defs with uniqueId + displayName
-      data["missions"]     — active missions; may be flat [{theaterId, tileIndex, …}]
-                             OR nested [{theaterId, availableMissions:[{tileIndex, …}]}]
-      data["missionAlerts"]— [{theaterId, availableMissionAlerts:[{tileIndex, rewards}]}]
+      data["missions"]     — active missions (may be empty with client_credentials)
+                             flat [{theaterId, tileIndex, …}]
+                             OR nested [{theaterId, availableMissions:[{tileIndex,…}]}]
+      data["missionAlerts"]— [{theaterId, availableMissionAlerts:[{tileIndex,rewards}]}]
     """
     token = _sync_epic_token()
     if not token:
@@ -1020,7 +1068,8 @@ def _sync_fetch_alerts() -> tuple:
             return [], []
         data = r.json()
 
-        # Build theater GUID → (display_name, english_name) map
+        # ── Theater map (uniqueId → (localized_name, english_name)) ────────────
+        # Index both raw and normalized IDs so lookups work regardless of format.
         lang = LANG[0] if LANG[0] in ("es", "en") else "en"
         theater_map: dict = {}
         for theater in data.get("theaters", []):
@@ -1029,38 +1078,49 @@ def _sync_fetch_alerts() -> tuple:
             en_name   = _theater_name(display, "en")
             lang_name = _theater_name(display, lang)
             theater_map[uid] = (lang_name, en_name)
+            norm_uid = _normalize_theater_id(uid)
+            if norm_uid != uid:
+                theater_map[norm_uid] = (lang_name, en_name)
 
-        # Build mission_map AND all_missions list.
-        # Epic API uses NESTED availableMissions:
-        #   [{theaterId, availableMissions: [{tileIndex, missionGenerator, …}]}]
-        # Handle BOTH nested and the legacy flat format for safety.
+        def _theater_info(tid: str):
+            if tid in theater_map:
+                return theater_map[tid]
+            norm = _normalize_theater_id(tid)
+            if norm in theater_map:
+                return theater_map[norm]
+            fb = (norm or tid)[:8]
+            return (fb, fb)
+
+        # ── missions[] → mission_map + all_missions ─────────────────────────────
         mission_map:  dict = {}
         all_missions: list = []
 
         for entry in data.get("missions", []):
-            tid_m = entry.get("theaterId", "")
-            lang_zone, en_zone = theater_map.get(tid_m, (tid_m[:8], tid_m[:8]))
+            tid_m      = entry.get("theaterId", "")
+            norm_tid_m = _normalize_theater_id(tid_m)
+            lang_zone, en_zone = _theater_info(tid_m)
             en_lower  = en_zone.lower()
             es_lower  = lang_zone.lower()
             skip_zone = (any(kw in en_lower for kw in _SKIP_ZONES_EN) or
                          any(kw in es_lower for kw in _SKIP_ZONES_ES))
 
-            # Detect nested vs flat
             available = entry.get("availableMissions")
             ms = available if available is not None else [entry]
 
             for m in (ms or []):
-                tidx  = m.get("tileIndex", -1)
-                gen   = m.get("missionGenerator", "") or ""
-                diff  = m.get("missionDifficultyInfo", {}) or {}
-                pl    = int(diff.get("recommendedRating", 0) or 0)
+                tidx    = m.get("tileIndex", -1)
+                gen     = m.get("missionGenerator", "") or ""
+                diff    = m.get("missionDifficultyInfo", {}) or {}
+                pl      = int(diff.get("recommendedRating", 0) or 0)
                 mname   = _parse_generator(gen) if gen else ""
                 element = _parse_element(gen, m)
-                if tid_m and tidx >= 0:
-                    mission_map[(tid_m, tidx)] = (mname, pl, element)
+                # Store under both raw and normalized keys
+                if tidx >= 0:
+                    if tid_m:
+                        mission_map[(tid_m, tidx)] = (mname, pl, element)
+                    if norm_tid_m and norm_tid_m != tid_m:
+                        mission_map[(norm_tid_m, tidx)] = (mname, pl, element)
                 if not skip_zone and gen and pl > 0:
-                    # Parse mission rewards (quad/completion rewards)
-                    # Epic API may use missionRewards, rewards, or missionCompletionRewards
                     m_rewards: list = []
                     for rw_field in ("missionRewards", "rewards",
                                      "missionCompletionRewards", "completionRewards"):
@@ -1089,10 +1149,12 @@ def _sync_fetch_alerts() -> tuple:
 
         all_missions.sort(key=lambda x: (-x["pl"], x.get("zone_en", "")))
 
+        # ── missionAlerts[] → alerts ────────────────────────────────────────────
         alerts: list = []
         for entry in data.get("missionAlerts", []):
-            tid = entry.get("theaterId", "")
-            lang_zone, en_zone = theater_map.get(tid, (tid[:8], tid[:8]))
+            tid      = entry.get("theaterId", "")
+            norm_tid = _normalize_theater_id(tid)
+            lang_zone, en_zone = _theater_info(tid)
             en_lower = en_zone.lower()
             es_lower = lang_zone.lower()
             if (any(kw in en_lower for kw in _SKIP_ZONES_EN) or
@@ -1110,19 +1172,57 @@ def _sync_fetch_alerts() -> tuple:
                     if is_vb:
                         has_vbucks = True
                     rewards.append({"type": typ, "quantity": qty, "vbucks": is_vb})
-                if rewards:
-                    tidx = alert.get("tileIndex", -1)
-                    m_name, m_pl, m_element = mission_map.get((tid, tidx), ("", 0, ""))
-                    mtype = m_name or _parse_mission_type(alert.get("name", "Mission"))
-                    alerts.append({
-                        "name":    mtype,
-                        "zone":    zone,
-                        "zone_en": en_zone,
-                        "rewards": rewards,
-                        "vbucks":  has_vbucks,
-                        "pl":      m_pl,
-                        "element": m_element,
+                if not rewards:
+                    continue
+                tidx = alert.get("tileIndex", -1)
+                # Look up mission_map — try raw, then normalized theater ID
+                lookup = (mission_map.get((tid, tidx))
+                          or mission_map.get((norm_tid, tidx)))
+                m_name, m_pl, m_element = lookup if lookup else ("", 0, "")
+                # Fallback: extract PL directly from the alert object fields
+                if not m_pl:
+                    for pl_field in ("missionDifficultyInfo", "difficultyInfo"):
+                        diff_data = alert.get(pl_field, {}) or {}
+                        if isinstance(diff_data, dict):
+                            m_pl = int(diff_data.get("recommendedRating", 0) or 0)
+                            if m_pl:
+                                break
+                    if not m_pl:
+                        m_pl = int(alert.get("recommendedRating", 0)
+                                   or alert.get("powerLevel", 0) or 0)
+                # Fallback: detect element from alert modifiers
+                if not m_element:
+                    m_element = _parse_element("", alert)
+                mtype = m_name or _parse_mission_type(alert.get("name", "Mission"))
+                alerts.append({
+                    "name":    mtype,
+                    "zone":    zone,
+                    "zone_en": en_zone,
+                    "rewards": rewards,
+                    "vbucks":  has_vbucks,
+                    "pl":      m_pl,
+                    "element": m_element,
+                })
+
+        # ── Fallback: if missions[] was empty (API limitation with client_credentials),
+        #    build all_missions from the alerts we already have so Supercargadores
+        #    always shows something.
+        if not all_missions and alerts:
+            seen: set = set()
+            for a in alerts:
+                key = (a["zone_en"], a["name"])
+                if key not in seen:
+                    seen.add(key)
+                    all_missions.append({
+                        "name":    a["name"],
+                        "zone":    a["zone"],
+                        "zone_en": a["zone_en"],
+                        "pl":      a["pl"],
+                        "element": a["element"],
+                        "rewards": a["rewards"],
                     })
+            all_missions.sort(key=lambda x: (-x["pl"], x.get("zone_en", "")))
+
         return alerts, all_missions
     except Exception:
         return [], []
@@ -2965,6 +3065,23 @@ async def main(page: ft.Page):
                     _sub(f"Author: {_GENESIS_AUTHOR}", size=10),
                 ], spacing=2),
             ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.START),
+        ))
+        # ── Bilingual legal disclaimer ──────────────────────────────────────
+        rows.append(_card(
+            ft.Row([
+                ft.Icon(ft.Icons.GAVEL, size=16, color=_c("sub")),
+                _sub(t("disclaimer_title"), size=11),
+            ], spacing=6),
+            _divider(),
+            ft.Text(
+                "🇪🇸  " + t("disclaimer_es"),
+                size=10, color=_c("sub"),
+            ),
+            ft.Container(height=6),
+            ft.Text(
+                "🇺🇸  " + t("disclaimer_en"),
+                size=10, color=_c("sub"),
+            ),
         ))
         # Settings already shows the tag in the edit field — don't repeat in footer
         rows.append(_footer(show_tag=False))
