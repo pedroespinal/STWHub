@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.7"
+APP_VERSION = "2.5.8"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -491,8 +491,10 @@ BUILDS = {
         {
             "name": "BASE Constructor",
             "hero": "Megabase Kyle",
-            "support_es": "BASE Kyle · Electro-pulse Penny · Trailblaster Buzz",
-            "support_en": "BASE Kyle · Electro-pulse Penny · Trailblaster Buzz",
+            "support_es": "BASE Kyle · Electro-pulse Penny · Trailblaster Buzz · Steel Wool Anthony · Power BASE Knox",
+            "support_en": "BASE Kyle · Electro-pulse Penny · Trailblaster Buzz · Steel Wool Anthony · Power BASE Knox",
+            "gadgets_es": "Hover Turret · Plasma Pulse",
+            "gadgets_en": "Hover Turret · Plasma Pulse",
             "weapons_es": "Hydraulic Shotgun · Siegebreaker",
             "weapons_en": "Hydraulic Shotgun · Siegebreaker",
             "skills": ["B.A.S.E.", "Plasma Pulse", "Bull Rush", "Decoy"],
@@ -505,8 +507,10 @@ BUILDS = {
         {
             "name": "Tank Constructor",
             "hero": "Sentinel",
-            "support_es": "Penny · Steel Wool Anthony · Hotdog Stan",
-            "support_en": "Penny · Steel Wool Anthony · Hotdog Stan",
+            "support_es": "Power BASE Knox · Steel Wool Anthony · Electro-pulse Penny · Hotdog Stan · Megabase Kyle",
+            "support_en": "Power BASE Knox · Steel Wool Anthony · Electro-pulse Penny · Hotdog Stan · Megabase Kyle",
+            "gadgets_es": "Hover Turret · Adrenaline Rush",
+            "gadgets_en": "Hover Turret · Adrenaline Rush",
             "weapons_es": "Ground Pounder · Typewriter",
             "weapons_en": "Ground Pounder · Typewriter",
             "skills": ["Kinetic Overload", "Shockwave", "Bull Rush", "Plasma Pulse"],
@@ -521,8 +525,10 @@ BUILDS = {
         {
             "name": "Dragon Ninja",
             "hero": "Dragon Scorch",
-            "support_es": "Dim Mak Mari · Deadly Blade Crash · Brawler Kyle",
-            "support_en": "Dim Mak Mari · Deadly Blade Crash · Brawler Kyle",
+            "support_es": "Dim Mak Mari · Deadly Blade Crash · Brawler Kyle · Fleetfoot Ken · Phase Scout Jess",
+            "support_en": "Dim Mak Mari · Deadly Blade Crash · Brawler Kyle · Fleetfoot Ken · Phase Scout Jess",
+            "gadgets_es": "Smoke Bomb · Adrenaline Rush",
+            "gadgets_en": "Smoke Bomb · Adrenaline Rush",
             "weapons_es": "Nocturno (Dragon) · Spectral Blade",
             "weapons_en": "Nocturno (Dragon) · Spectral Blade",
             "skills": ["Dragon Slash", "Smoke Bomb", "Shadow Stance", "Crescent Kick"],
@@ -535,8 +541,10 @@ BUILDS = {
         {
             "name": "Ranged Ninja",
             "hero": "Autumn Queen",
-            "support_es": "Brawler Kyle · Deadly Blade Crash · Dire",
-            "support_en": "Brawler Kyle · Deadly Blade Crash · Dire",
+            "support_es": "Brawler Kyle · Deadly Blade Crash · Dire · Dim Mak Mari · Fleetfoot Ken",
+            "support_en": "Brawler Kyle · Deadly Blade Crash · Dire · Dim Mak Mari · Fleetfoot Ken",
+            "gadgets_es": "Throwing Stars · Smoke Bomb",
+            "gadgets_en": "Throwing Stars · Smoke Bomb",
             "weapons_es": "Hydra · Vacuum Tube Bow",
             "weapons_en": "Hydra · Vacuum Tube Bow",
             "skills": ["Throwing Stars", "Smoke Bomb", "Crescent Kick", "Shadow Stance"],
@@ -551,8 +559,10 @@ BUILDS = {
         {
             "name": "TEDDY Outlander",
             "hero": "Enforcer Grizzly",
-            "support_es": "Phase Scout Jess · Pathfinder Jess · Ranger Deadeye",
-            "support_en": "Phase Scout Jess · Pathfinder Jess · Ranger Deadeye",
+            "support_es": "Phase Scout Jess · Pathfinder Jess · Ranger Deadeye · Striker A.C. · Trailblaster Recon Scout",
+            "support_en": "Phase Scout Jess · Pathfinder Jess · Ranger Deadeye · Striker A.C. · Trailblaster Recon Scout",
+            "gadgets_es": "T.E.D.D.Y. · Anti-Material Charge",
+            "gadgets_en": "T.E.D.D.Y. · Anti-Material Charge",
             "weapons_es": "Razorblade · Siegebreaker",
             "weapons_en": "Razorblade · Siegebreaker",
             "skills": ["T.E.D.D.Y.", "Anti-Material Charge", "Seismic Smash", "In the Zone"],
@@ -565,8 +575,10 @@ BUILDS = {
         {
             "name": "V-Bucks Outlander",
             "hero": "Phase Scout Jess",
-            "support_es": "Ranger Deadeye · Pathfinder Jess · Enforcer Grizzly",
-            "support_en": "Ranger Deadeye · Pathfinder Jess · Enforcer Grizzly",
+            "support_es": "Ranger Deadeye · Pathfinder Jess · Enforcer Grizzly · Striker A.C. · Trailblaster Recon Scout",
+            "support_en": "Ranger Deadeye · Pathfinder Jess · Enforcer Grizzly · Striker A.C. · Trailblaster Recon Scout",
+            "gadgets_es": "T.E.D.D.Y. · Anti-Material Charge",
+            "gadgets_en": "T.E.D.D.Y. · Anti-Material Charge",
             "weapons_es": "Vacuum Tube Sniper · Grave Digger",
             "weapons_en": "Vacuum Tube Sniper · Grave Digger",
             "skills": ["T.E.D.D.Y.", "In the Zone", "Anti-Material Charge", "Seismic Smash"],
@@ -581,8 +593,10 @@ BUILDS = {
         {
             "name": "Gunslinger DPS",
             "hero": "Raider Headhunter",
-            "support_es": "Commando Ramirez · Sergeant Jonesy · Enforcer Grizzly",
-            "support_en": "Commando Ramirez · Sergeant Jonesy · Enforcer Grizzly",
+            "support_es": "Commando Ramirez · Sergeant Jonesy · Enforcer Grizzly · Urban Assault Headhunter · Shock Specialist A.C.",
+            "support_en": "Commando Ramirez · Sergeant Jonesy · Enforcer Grizzly · Urban Assault Headhunter · Shock Specialist A.C.",
+            "gadgets_es": "Goin' Commando!!! · Hover Turret",
+            "gadgets_en": "Goin' Commando!!! · Hover Turret",
             "weapons_es": "Nocturno · Siegebreaker · Ground Pounder",
             "weapons_en": "Nocturno · Siegebreaker · Ground Pounder",
             "skills": ["Frag Grenade", "Lefty and Righty", "War Cry", "Goin' Commando"],
@@ -595,8 +609,10 @@ BUILDS = {
         {
             "name": "Support Soldier",
             "hero": "Sergeant Jonesy",
-            "support_es": "Urban Assault Headhunter · Commando Ramirez · Raider Headhunter",
-            "support_en": "Urban Assault Headhunter · Commando Ramirez · Raider Headhunter",
+            "support_es": "Urban Assault Headhunter · Commando Ramirez · Raider Headhunter · Shock Specialist A.C. · Trailblaster Buzz",
+            "support_en": "Urban Assault Headhunter · Commando Ramirez · Raider Headhunter · Shock Specialist A.C. · Trailblaster Buzz",
+            "gadgets_es": "War Cry · Adrenaline Rush",
+            "gadgets_en": "War Cry · Adrenaline Rush",
             "weapons_es": "Typewriter · Hydra",
             "weapons_en": "Typewriter · Hydra",
             "skills": ["War Cry", "Frag Grenade", "Goin' Commando", "Shockwave"],
@@ -1393,6 +1409,15 @@ def _sync_fetch_alerts() -> tuple:
                 # Fallback: detect element from alert modifiers
                 if not m_element:
                     m_element = _parse_element("", alert)
+                # Fallback name: try missionGenerator directly on the alert object
+                # (some API versions embed it there, giving us category info like
+                # GateGroup_Cat4FtS that the alert "name" field may not include).
+                if not m_name:
+                    gen_direct = (alert.get("missionGenerator", "")
+                                  or alert.get("generator", "")
+                                  or alert.get("missionGen", "") or "")
+                    if gen_direct:
+                        m_name = _parse_generator(gen_direct)
                 mtype = m_name or _parse_mission_type(alert.get("name", "Mission"))
                 alerts.append({
                     "name":    mtype,
@@ -2614,150 +2639,99 @@ async def main(page: ft.Page):
                         if sc_detected:
                             break
 
-                sc_title = ("Supercargadores Semanales" if is_es
-                            else "Weekly Superchargers")
+                # ── SC type icons — colored diamond cards like the in-game ones ──
+                # Colors match the game: purple=Hero, blue=Survivor, orange=Weapon
+                _SC_DEFS = {
+                    "Hero Supercharger":     ("#8800cc", "🦸", "HÉROE"        , "HERO"),
+                    "Survivor Supercharger": ("#0066cc", "👥", "SUPERVIVIENTE", "SURVIVOR"),
+                    "Weapon Supercharger":   ("#cc5500", "⚔️", "ARMA"         , "WEAPON"),
+                }
 
-                if sc_detected:
-                    _sc_emoji, _sc_es, _sc_en = _SC_TYPE_INFO[sc_detected]
-                    _sc_name = _sc_es if is_es else _sc_en
-                    sc_body = ft.Column([
-                        ft.Text(sc_title, size=15, color=_c("purple"),
-                                weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            ft.Text(_sc_emoji, size=20),
-                            ft.Text(
-                                (f"Esta semana: {_sc_name}" if is_es
-                                 else f"This week: {_sc_name}"),
-                                size=13, color=_c("cyan"),
-                                weight=ft.FontWeight.BOLD,
-                            ),
-                        ], spacing=6,
-                           vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                        _sub(
-                            f"Misiones PL 160: {len(m160)}" if is_es
-                            else f"PL 160 missions: {len(m160)}",
-                            size=10,
-                        ),
-                        _sub(
-                            "Completa 4 del mismo tipo para recompensas bonus"
-                            if is_es else
-                            "Complete 4 of the same type for bonus rewards",
-                            size=9,
-                        ),
-                    ], expand=True, spacing=4)
-                else:
-                    # API doesn't expose SC type with public auth — show all 3
-                    # possible types so the user knows what to look for.
-                    def _sc_badge(emoji, label):
-                        return ft.Container(
-                            content=ft.Row(
-                                [ft.Text(emoji, size=14),
-                                 ft.Text(label, size=10, color=_c("sub"))],
-                                spacing=3,
-                                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                            ),
-                            bgcolor=_c("surface"),
-                            border_radius=10,
-                            padding=_pad_sym(horizontal=8, vertical=4),
-                        )
-                    sc_body = ft.Column([
-                        ft.Text(sc_title, size=15, color=_c("purple"),
-                                weight=ft.FontWeight.BOLD),
-                        _sub(
-                            "Completa 4 misiones PL 160 del mismo tipo:"
-                            if is_es else
-                            "Complete 4 PL 160 missions of the same type:",
-                            size=10,
-                        ),
-                        ft.Row([
-                            _sc_badge("⭐", "Héroe" if is_es else "Hero"),
-                            _sc_badge("👷",
-                                      "Superviviente" if is_es else "Survivor"),
-                            _sc_badge("🔧",
-                                      "Arma" if is_es else "Weapon"),
-                        ], spacing=5, wrap=True),
-                        _sub(
-                            "Verifica el tipo activo en: fortnitedb.com/stw"
-                            if is_es else
-                            "Check active type at: fortnitedb.com/stw",
-                            size=9,
-                        ),
-                        _sub(
-                            "Recompensas: PERK-UP! legendario, Cristal de Tormenta y más"
-                            if is_es else
-                            "Rewards: Legendary PERK-UP!, Storm Shard and more",
-                            size=9,
-                        ),
-                    ], expand=True, spacing=4)
-
-                rows.append(_card(
-                    ft.Row([
-                        ft.Text("🔮", size=40),
-                        sc_body,
-                    ], spacing=12,
-                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                    border_color=_c("purple"),
-                ))
-
-                # ── PL 160 mission list ────────────────────────────────────────
-                # When all_m fallback is used, also filter dev missions there
-                src = (m160 if m160
-                       else [m for m in all_m
-                             if m.get("name", "").lower() not in _SKIP_MISSION_NAMES])
-                label_160 = (
-                    (f"Misiones PL 160 ({len(m160)})" if is_es
-                     else f"PL 160 Missions ({len(m160)})")
-                    if m160 else
-                    ("Todas las misiones activas" if is_es else "All active missions")
-                )
-                rows.append(_sub(label_160, size=12))
-
-                _ELEM_NAME_SC = {"fire": "Fire", "water": "Ice", "nature": "Lightning"}
-                for m in src[:20]:
-                    pl         = m.get("pl", 0)
-                    element    = m.get("element", "")
-                    elem_emoji = _ELEMENT_EMOJI.get(element, "")
-                    pl_color   = _ELEMENT_COLOR.get(element) or "#7c00cc"
-                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji
-                                  else (f"PL {pl}" if pl else "?"))
-                    memoji     = _mission_emoji(m.get("name", ""))
-                    zone_lbl   = _zone_display(
-                        m.get("zone_en", m.get("zone", "")), lang)
-
-                    pl_badge = ft.Container(
-                        content=ft.Text(pl_label, size=10, color="#ffffff",
-                                        weight=ft.FontWeight.BOLD),
-                        bgcolor=pl_color, border_radius=4,
-                        padding=_pad_sym(horizontal=6, vertical=2),
-                        width=60,
+                def _sc_icon(key, big=False):
+                    bg, em, es_lbl, en_lbl = _SC_DEFS[key]
+                    lbl = es_lbl if is_es else en_lbl
+                    sz_em = 32 if big else 20
+                    sz_tx = 10 if big else 8
+                    pd    = _pad_sym(horizontal=14 if big else 10,
+                                     vertical=10 if big else 6)
+                    return ft.Container(
+                        content=ft.Column([
+                            ft.Text(em, size=sz_em,
+                                    text_align=ft.TextAlign.CENTER),
+                            ft.Text(lbl, size=sz_tx, color="#ffffff",
+                                    weight=ft.FontWeight.BOLD,
+                                    text_align=ft.TextAlign.CENTER),
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                           spacing=2, tight=True),
+                        bgcolor=bg,
+                        border_radius=12,
+                        padding=pd,
+                        border=_border_all(2, "#ffffff") if big else None,
+                        width=100 if big else 76,
                     )
 
-                    _sc_disp_name = _mission_display_name(m.get("name", ""), lang)
-                    sc_col_children = [
-                        ft.Text(_sc_disp_name, size=12, color=_c("text"),
-                                weight=ft.FontWeight.BOLD),
-                        ft.Text(zone_lbl, size=10, color=_c("cyan")),
-                    ]
-                    if element and element in _ELEM_NAME_SC:
-                        sc_col_children.append(
-                            ft.Text(f"{elem_emoji} {_ELEM_NAME_SC[element]}",
-                                    size=9, color=pl_color)
-                        )
+                sc_title_text = ft.Text(
+                    "Supercargadores Semanales" if is_es else "Weekly Superchargers",
+                    size=15, color=_c("purple"), weight=ft.FontWeight.BOLD,
+                )
 
-                    rows.append(_card(
-                        ft.Row([
-                            ft.Text(memoji, size=20),
-                            pl_badge,
-                            ft.Container(
-                                width=2, height=36, bgcolor=_c("purple"),
-                            ),
-                            ft.Column(sc_col_children,
-                                      spacing=1, expand=True, tight=True),
-                        ], spacing=6,
-                           vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                        padding=8, margin=2,
-                        border_color=_c("purple"),
-                    ))
+                if sc_detected:
+                    # ── Detected: show the active type big and centered ───────
+                    sc_card_content = ft.Column([
+                        sc_title_text,
+                        ft.Container(height=4),
+                        _sc_icon(sc_detected, big=True),
+                        ft.Container(height=4),
+                        ft.Text(
+                            ("Esta semana: "
+                             + (_SC_DEFS[sc_detected][2] if is_es
+                                else _SC_DEFS[sc_detected][3])),
+                            size=13, color=_c("cyan"),
+                            weight=ft.FontWeight.BOLD,
+                        ),
+                        _sub(
+                            "Completa 10 misiones PL 160 para obtenerlo"
+                            if is_es else
+                            "Complete 10 PL 160 missions to earn it",
+                            size=10,
+                        ),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                       spacing=3)
+                else:
+                    # ── Unknown: show all 3 types, ask user to check ──────────
+                    sc_card_content = ft.Column([
+                        sc_title_text,
+                        _sub(
+                            "Solo 1 tipo activo esta semana:"
+                            if is_es else "Only 1 type active this week:",
+                            size=10,
+                        ),
+                        ft.Container(height=2),
+                        ft.Row(
+                            [_sc_icon(k) for k in _SC_DEFS],
+                            spacing=8, wrap=True,
+                            alignment=ft.MainAxisAlignment.CENTER,
+                        ),
+                        ft.Container(height=4),
+                        _sub(
+                            "Verifica cual es el activo en fortnitedb.com/stw"
+                            if is_es else
+                            "Check which is active at fortnitedb.com/stw",
+                            size=9,
+                        ),
+                        _sub(
+                            "Recompensa: PERK-UP! legendario, Cristal de Tormenta y mas"
+                            if is_es else
+                            "Reward: Legendary PERK-UP!, Storm Shard and more",
+                            size=9,
+                        ),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                       spacing=3)
+
+                rows.append(_card(
+                    sc_card_content,
+                    border_color=_c("purple"),
+                ))
 
         rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -2889,16 +2863,20 @@ async def main(page: ft.Page):
                 lang = LANG[0]
                 desc    = b[f"desc_{lang}"]
                 purpose = b[f"purpose_{lang}"]
-                support = b[f"support_{lang}"]
+                support = b.get(f"support_{lang}", b.get("support_en", ""))
+                gadgets = b.get(f"gadgets_{lang}", b.get("gadgets_en", ""))
                 weapons = b[f"weapons_{lang}"]
                 tags    = b.get("tags", [])
                 hero_img_url = state["meta_imgs"].get(b["hero"], "")
+                cls_color = cls_colors.get(cls_name, _c("orange"))
 
-                hero_widget = _hero_img(hero_img_url, size=56)
+                # Split support string into individual hero names
+                sp_heroes = [h.strip() for h in support.split(" · ") if h.strip()]
 
                 rows.append(_card(
+                    # ── Commander header ──────────────────────────────────────
                     ft.Row([
-                        hero_widget,
+                        _hero_img(hero_img_url, size=56),
                         ft.Column([
                             _hdr(b["name"], size=14),
                             ft.Row([
@@ -2906,26 +2884,57 @@ async def main(page: ft.Page):
                                     content=ft.Text(cls_name[0], size=9,
                                                    weight=ft.FontWeight.BOLD,
                                                    color="#ffffff"),
-                                    bgcolor=cls_colors.get(cls_name, _c("orange")),
+                                    bgcolor=cls_color,
                                     width=18, height=18, border_radius=9,
                                     alignment=_ALIGN_CENTER,
                                 ),
                                 _sub(b["hero"], size=12),
+                                _sub("Comandante" if lang=="es" else "Commander",
+                                     size=10, color=_c("orange")),
                             ], spacing=4,
                                vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         ], expand=True, spacing=2),
                     ], spacing=10,
                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     _divider(),
+                    # ── Support Team (5 heroes) ───────────────────────────────
+                    ft.Column([
+                        ft.Row([
+                            ft.Icon(ft.Icons.PEOPLE, size=13, color=_c("purple")),
+                            ft.Text(
+                                "Equipo de Apoyo" if lang=="es" else "Support Team",
+                                size=11, color=_c("purple"),
+                                weight=ft.FontWeight.W_600),
+                        ], spacing=4),
+                        ft.Column([
+                            ft.Row([
+                                ft.Container(
+                                    content=ft.Text(str(i+1), size=8,
+                                                    color="#fff",
+                                                    weight=ft.FontWeight.BOLD),
+                                    bgcolor=_c("purple"),
+                                    width=16, height=16, border_radius=8,
+                                    alignment=_ALIGN_CENTER,
+                                ),
+                                ft.Text(h, size=11, color=_c("sub")),
+                            ], spacing=5,
+                               vertical_alignment=ft.CrossAxisAlignment.CENTER)
+                            for i, h in enumerate(sp_heroes[:5])
+                        ], spacing=3),
+                    ], spacing=5),
+                    # ── Gadgets ───────────────────────────────────────────────
                     ft.Row([
-                        ft.Icon(ft.Icons.PEOPLE, size=14, color=_c("purple")),
-                        ft.Text(support, size=11, color=_c("sub"), expand=True),
-                    ], spacing=6),
+                        ft.Icon(ft.Icons.GAMEPAD, size=13, color=_c("cyan")),
+                        ft.Text(
+                            ("Gadgets: " if lang=="en" else "Gadgets: ") + gadgets,
+                            size=11, color=_c("sub"), expand=True),
+                    ], spacing=6) if gadgets else ft.Text(""),
+                    # ── Weapons ───────────────────────────────────────────────
                     ft.Row([
-                        ft.Icon(ft.Icons.SPORTS_ESPORTS, size=14,
-                                color=_c("cyan")),
+                        ft.Icon(ft.Icons.SPORTS_ESPORTS, size=13, color=_c("cyan")),
                         ft.Text(weapons, size=11, color=_c("sub"), expand=True),
                     ], spacing=6),
+                    # ── Skills ────────────────────────────────────────────────
                     ft.Row(
                         [ft.Container(
                             content=ft.Text(sk, size=10, color=_c("text")),
@@ -3070,22 +3079,32 @@ async def main(page: ft.Page):
             return rows
         for b in builds:
             lang_key = "es" if LANG[0] == "es" else "en"
-            desc = b.get(f"desc_{lang_key}") or b.get("desc_es") or b.get("desc_en", "")
-            purpose = b.get(f"purpose_{lang_key}") or b.get("purpose_es") or ""
-            tags = b.get("tags", [])
-            author = b.get("author", "")
-            votes = b.get("votes", 0)
-            skills = b.get("skills", [])
-            cls = b.get("cls", "")
+            desc      = b.get(f"desc_{lang_key}") or b.get("desc_es") or b.get("desc_en", "")
+            purpose   = b.get(f"purpose_{lang_key}") or b.get("purpose_es") or ""
+            tags      = b.get("tags", [])
+            author    = b.get("author", "")
+            votes     = b.get("votes", 0)
+            skills    = b.get("skills", [])
+            cls       = b.get("cls", "")
             hero_name = b.get("hero", "")
             hero_img_url = state["meta_imgs"].get(hero_name, "")
-            cls_letter = cls[0].upper() if cls else "?"
-            cls_colors = {"C": _c("cyan"), "N": _c("purple"), "O": _c("yellow"), "S": _c("green")}
-            cls_color = cls_colors.get(cls_letter, _c("sub"))
-            support_key = "support_es" if lang_key == "es" else "support_en"
-            support     = b.get(support_key) or b.get("support_es") or b.get("support_en", "")
-            weapon2     = b.get("weapon2", "")
+            cls_letter   = cls[0].upper() if cls else "?"
+            _cls_colors  = {"C": _c("cyan"), "N": _c("purple"),
+                            "O": _c("yellow"), "S": _c("green")}
+            cls_color    = _cls_colors.get(cls_letter, _c("sub"))
+            support_key  = "support_es" if lang_key == "es" else "support_en"
+            support      = (b.get(support_key) or b.get("support_es")
+                            or b.get("support_en", ""))
+            gadgets      = (b.get(f"gadgets_{lang_key}") or b.get("gadgets_es")
+                            or b.get("gadgets_en", ""))
+            weapon1  = b.get("weapon1", "")
+            weapon2  = b.get("weapon2", "")
+
+            # Split support into individual hero names (up to 5)
+            sp_heroes = [h.strip() for h in support.split(" · ") if h.strip()]
+
             rows.append(_card(
+                # ── Commander header ──────────────────────────────────────────
                 ft.Row([
                     _hero_img(hero_img_url, size=56),
                     ft.Column([
@@ -3100,20 +3119,52 @@ async def main(page: ft.Page):
                             _txt(hero_name, size=12, color=_c("sub")),
                             _txt(f"👍 {votes}", size=11, color=_c("gold")),
                         ], spacing=6),
-                        _sub(f"@{author}", size=10) if author else ft.Text(""),
+                        ft.Row([
+                            _sub("Comandante" if lang_key=="es" else "Commander",
+                                 size=10, color=_c("orange")),
+                            _sub(f"@{author}", size=10) if author else ft.Text(""),
+                        ], spacing=8),
                     ], spacing=3, expand=True),
                 ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.CENTER),
                 _divider(),
+                # ── Support Team (5 heroes) ───────────────────────────────────
+                ft.Column([
+                    ft.Row([
+                        ft.Icon(ft.Icons.PEOPLE, size=13, color=_c("purple")),
+                        ft.Text(
+                            "Equipo de Apoyo" if lang_key=="es" else "Support Team",
+                            size=11, color=_c("purple"),
+                            weight=ft.FontWeight.W_600),
+                    ], spacing=4),
+                    ft.Column([
+                        ft.Row([
+                            ft.Container(
+                                content=ft.Text(str(i+1), size=8, color="#fff",
+                                                weight=ft.FontWeight.BOLD),
+                                bgcolor=_c("purple"),
+                                width=16, height=16, border_radius=8,
+                                alignment=_ALIGN_CENTER,
+                            ),
+                            ft.Text(h, size=11, color=_c("sub")),
+                        ], spacing=5,
+                           vertical_alignment=ft.CrossAxisAlignment.CENTER)
+                        for i, h in enumerate(sp_heroes[:5])
+                    ], spacing=3),
+                ], spacing=5) if sp_heroes else ft.Text(""),
+                # ── Gadgets ───────────────────────────────────────────────────
                 ft.Row([
-                    ft.Icon(ft.Icons.PEOPLE, size=13, color=_c("purple")),
-                    ft.Text(support, size=11, color=_c("sub"), expand=True),
-                ], spacing=6) if support else ft.Text(""),
+                    ft.Icon(ft.Icons.GAMEPAD, size=13, color=_c("cyan")),
+                    ft.Text("Gadgets: " + gadgets, size=11,
+                            color=_c("sub"), expand=True),
+                ], spacing=6) if gadgets else ft.Text(""),
+                # ── Weapons ───────────────────────────────────────────────────
                 ft.Row([
                     ft.Icon(ft.Icons.SPORTS_ESPORTS, size=13, color=_c("cyan")),
                     ft.Text(
-                        b.get("weapon1","") + (" · " + weapon2 if weapon2 else ""),
+                        weapon1 + (" · " + weapon2 if weapon2 else ""),
                         size=11, color=_c("sub"), expand=True),
-                ], spacing=6) if b.get("weapon1") else ft.Text(""),
+                ], spacing=6) if weapon1 else ft.Text(""),
+                # ── Skills ────────────────────────────────────────────────────
                 ft.Row(
                     [ft.Container(
                         content=ft.Text(sk, size=10, color=_c("text")),
