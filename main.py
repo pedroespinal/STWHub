@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.3"
+APP_VERSION = "2.5.4"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -2215,11 +2215,16 @@ async def main(page: ft.Page):
         cache = _load_cache()
         if not force and not _alerts_cache_stale(cache) and cache.get("alerts"):
             cached = cache["alerts"]
-            # Force refresh if cached alerts are from old format (no 'pl' field)
+            # Force refresh if:
+            #  • old format (no 'pl' field) — structure changed in 2.5.1
+            #  • cache was saved by a different app version — mission names may differ
             if cached and "pl" not in cached[0]:
                 force = True
+            elif cache.get("app_version") != APP_VERSION:
+                force = True   # app updated → mission names changed → discard stale names
             else:
                 state["alerts"]       = cached
+                state["all_missions"] = cache.get("all_missions", [])
                 state["using_cache"]  = True
                 state["last_refresh"] = cache.get("alerts_ts", "?")[:16]
                 render()
@@ -2238,11 +2243,15 @@ async def main(page: ft.Page):
             state["last_refresh"] = ts[:16]
             state["using_cache"]  = False
             cache["alerts"]       = alerts
+            cache["all_missions"] = all_missions   # also cache SC missions
             cache["alerts_ts"]    = ts
+            cache["app_version"]  = APP_VERSION    # stamp version → invalidates on next update
             _save_cache(cache)
         else:
             if all_missions:
                 state["all_missions"] = all_missions
+            elif cache.get("all_missions"):
+                state["all_missions"] = cache["all_missions"]
             if cache.get("alerts"):
                 state["alerts"]       = cache["alerts"]
                 state["using_cache"]  = True
