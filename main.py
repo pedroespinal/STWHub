@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.5.1"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1033,11 +1033,21 @@ def _mission_emoji(name: str) -> str:
         return "📡"
     if any(k in n for k in ("evacuate", "shelter")):
         return "🏠"
+    if any(k in n for k in ("rescue", "survivor")):
+        return "👥"
     if any(k in n for k in ("deliver", "bomb", "explosive")):
         return "💣"
     if any(k in n for k in ("ride", "lightning")):
         return "⚡"
-    if any(k in n for k in ("atlas", "defend", "protect")):
+    if any(k in n for k in ("refuel",)):
+        return "⛽"
+    if any(k in n for k in ("balloon", "launch the")):
+        return "🎈"
+    if any(k in n for k in ("destroy", "encampment")):
+        return "💥"
+    if any(k in n for k in ("fight the storm", "fight the")):
+        return "⚔️"
+    if any(k in n for k in ("atlas", "defend", "protect", "outpost")):
         return "🛡️"
     if any(k in n for k in ("resupply", "supply")):
         return "📦"
@@ -1100,9 +1110,12 @@ _GENERATOR_MAP = {
     "launchtheballoon":    "Launch the Balloon",   # full name path
     "balloon":             "Launch the Balloon",
     "outpost":             "Defend the Outpost",
-    "cat1fts":             "Fight the Storm",      # Category-1 Fight the Storm
-    "fts":                 "Fight the Storm",
-    "htm":                 "Hunt",                 # STW_Mission_Hunt
+    "cat4fts":             "Fight the Storm (Cat 4)",  # 4-Atlas defense
+    "cat3fts":             "Fight the Storm (Cat 3)",  # 3-Atlas defense
+    "cat2fts":             "Fight the Storm (Cat 2)",  # 2-Atlas defense
+    "cat1fts":             "Fight the Storm (Cat 1)",  # 1-Atlas defense
+    "fts":                 "Fight the Storm",           # unknown-cat fallback
+    "htm":                 "Hunt",                      # STW_Mission_Hunt
     # ── abbreviations used verbatim in Epic generator paths ───────────────
     "gate":        "Storm Gates",          # T3_R5_1Gate, 2Gates, 3Gates, 4Gates
     "etshelter":   "Evacuate the Shelter",
@@ -2584,12 +2597,14 @@ async def main(page: ft.Page):
                          if (not state["vbucks_only"] or a.get("vbucks"))
                          and (wf == "all" or
                               _WORLD_KEYS.get(wf, "") in a.get("zone_en", "").lower())]
+                _ELEM_NAME = {"fire": "Fire", "water": "Ice", "nature": "Lightning"}
                 for a in shown[:35]:
                     pl         = a.get("pl", 0)
                     element    = a.get("element", "")
                     elem_emoji = _ELEMENT_EMOJI.get(element, "")
                     pl_color   = _ELEMENT_COLOR.get(element) or _c("orange")
-                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji else str(pl)) if pl else "?"
+                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji
+                                  else (f"PL {pl}" if pl else "?"))
                     has_vbucks = a.get("vbucks", False)
                     memoji     = _mission_emoji(a.get("name", ""))
                     zone_lbl   = _zone_display(
@@ -2602,7 +2617,7 @@ async def main(page: ft.Page):
                         bgcolor=pl_color if pl else _c("border"),
                         border_radius=4,
                         padding=_pad_sym(horizontal=6, vertical=2),
-                        width=54,
+                        width=60,
                     )
                     # ── Reward lines ──
                     rw_lines = []
@@ -2626,7 +2641,20 @@ async def main(page: ft.Page):
                     rw_col = ft.Column(rw_lines, spacing=2, tight=True) \
                         if rw_lines else ft.Text("—", size=10, color=_c("sub"))
 
-                    # ── Card: [emoji] [PL] │ [name / zone / rewards] ──
+                    # ── right column: name / zone / element / rewards ──
+                    right_col_children = [
+                        ft.Text(a.get("name", ""), size=12, color=_c("text"),
+                                weight=ft.FontWeight.BOLD),
+                        ft.Text(zone_lbl, size=10, color=_c("cyan")),
+                    ]
+                    if element and element in _ELEM_NAME:
+                        right_col_children.append(
+                            ft.Text(f"{elem_emoji} {_ELEM_NAME[element]}",
+                                    size=9, color=pl_color)
+                        )
+                    right_col_children.append(rw_col)
+
+                    # ── Card: [emoji] [PL] │ [name / zone / element / rewards] ──
                     rows.append(_card(
                         ft.Row([
                             ft.Text(memoji, size=22),
@@ -2635,17 +2663,8 @@ async def main(page: ft.Page):
                                 width=2, height=48,
                                 bgcolor=_c("gold") if has_vbucks else _c("border"),
                             ),
-                            ft.Column([
-                                ft.Text(
-                                    a.get("name", ""), size=12,
-                                    color=_c("text"),
-                                    weight=ft.FontWeight.BOLD,
-                                ),
-                                ft.Text(
-                                    zone_lbl, size=10, color=_c("cyan"),
-                                ),
-                                rw_col,
-                            ], spacing=2, expand=True, tight=True),
+                            ft.Column(right_col_children,
+                                      spacing=2, expand=True, tight=True),
                         ], spacing=6,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         padding=8, margin=2,
@@ -2734,12 +2753,14 @@ async def main(page: ft.Page):
                 )
                 rows.append(_sub(label_160, size=12))
 
+                _ELEM_NAME_SC = {"fire": "Fire", "water": "Ice", "nature": "Lightning"}
                 for m in src[:20]:
                     pl         = m.get("pl", 0)
                     element    = m.get("element", "")
                     elem_emoji = _ELEMENT_EMOJI.get(element, "")
                     pl_color   = _ELEMENT_COLOR.get(element) or "#7c00cc"
-                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji else str(pl))
+                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji
+                                  else (f"PL {pl}" if pl else "?"))
                     memoji     = _mission_emoji(m.get("name", ""))
                     zone_lbl   = _zone_display(
                         m.get("zone_en", m.get("zone", "")), lang)
@@ -2749,8 +2770,19 @@ async def main(page: ft.Page):
                                         weight=ft.FontWeight.BOLD),
                         bgcolor=pl_color, border_radius=4,
                         padding=_pad_sym(horizontal=6, vertical=2),
-                        width=54,
+                        width=60,
                     )
+
+                    sc_col_children = [
+                        ft.Text(m.get("name", ""), size=12, color=_c("text"),
+                                weight=ft.FontWeight.BOLD),
+                        ft.Text(zone_lbl, size=10, color=_c("cyan")),
+                    ]
+                    if element and element in _ELEM_NAME_SC:
+                        sc_col_children.append(
+                            ft.Text(f"{elem_emoji} {_ELEM_NAME_SC[element]}",
+                                    size=9, color=pl_color)
+                        )
 
                     rows.append(_card(
                         ft.Row([
@@ -2759,12 +2791,8 @@ async def main(page: ft.Page):
                             ft.Container(
                                 width=2, height=36, bgcolor=_c("purple"),
                             ),
-                            ft.Column([
-                                ft.Text(m.get("name", ""), size=12,
-                                        color=_c("text"),
-                                        weight=ft.FontWeight.BOLD),
-                                ft.Text(zone_lbl, size=10, color=_c("cyan")),
-                            ], spacing=1, expand=True, tight=True),
+                            ft.Column(sc_col_children,
+                                      spacing=1, expand=True, tight=True),
                         ], spacing=6,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         padding=8, margin=2,
