@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.3.9"
+APP_VERSION = "2.4.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -223,6 +223,13 @@ _GENESIS_AUTHOR = "Pedro Espinal"
 _GENESIS_APP    = "STW Hub"
 _GENESIS_SEAL   = "bdeedb31e7c0e361f24a71fa9f7a14eb584d1d867bbd0f36e5b755b122166aff"
 
+# ── Admin / Super-user constants ───────────────────────────────────────────────
+# NEVER MODIFY _ADMIN_TAG — this IS Pedro's super-user identifier
+_ADMIN_TAG           = "S053xY"
+_HERO_IMAGES_URL     = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/hero_images.json"
+_MISSION_NAMES_URL   = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/mission_names.json"
+_GITHUB_CONTENTS_API = "https://api.github.com/repos/pedroespinal/STWHub/contents/"
+
 def _verify_genesis() -> bool:
     raw = f"{_GENESIS_COMMIT}|{_GENESIS_DATE}|{_GENESIS_AUTHOR}|{_GENESIS_APP}"
     return hashlib.sha256(raw.encode()).hexdigest() == _GENESIS_SEAL
@@ -371,6 +378,35 @@ T = {
             "Epic Games, and will remain so. "
             "All game data is the property of Epic Games."
         ),
+        # ── Admin / first-launch strings ──
+        "admin_section":        "🔧 Panel Admin",
+        "admin_hero_title":     "Fotos de Héroes",
+        "admin_mission_title":  "Nombres de Misiones",
+        "admin_raw_key":        "Clave raw (del API)",
+        "admin_clean_name":     "Nombre limpio",
+        "admin_image_url":      "URL de imagen",
+        "admin_push_github":    "Subir a GitHub",
+        "admin_pat_label":      "Token GitHub (PAT) — solo esta sesión",
+        "admin_pat_hint":       "ghp_...",
+        "admin_push_success":   "¡Subido a GitHub correctamente! ✓",
+        "admin_push_fail":      "Error al subir. Verifica el PAT.",
+        "admin_override_saved": "Override guardado",
+        "admin_overrides_empty":"Sin overrides todavía.",
+        "admin_add_mission":    "+ Nombre de misión",
+        "admin_add_hero":       "+ Foto de héroe",
+        "admin_raw_placeholder":"ej: missiongen_retrieve",
+        "edit_hero_img_title":  "Cambiar imagen del héroe",
+        "edit_hero_img_lbl":    "URL de imagen (http...)",
+        "first_launch_title":   "¡Bienvenido! / Welcome!",
+        "first_launch_subtitle":"STW Hub — Fortnite: Save The World",
+        "first_launch_tag_lbl": "Tu tag en Fortnite (opcional)",
+        "first_launch_tag_hint":"Ej: S053xY",
+        "first_launch_info":    (
+            "Ingresa tu tag para aparecer en el pie de la app. "
+            "Si eres el admin, ingresa tu tag exacto para acceder al panel de administración."
+        ),
+        "first_launch_continue":"Continuar",
+        "first_launch_skip":    "Omitir",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -466,6 +502,35 @@ T = {
             "Epic Games, and will remain so. "
             "All game data is the property of Epic Games."
         ),
+        # ── Admin / first-launch strings ──
+        "admin_section":        "🔧 Admin Panel",
+        "admin_hero_title":     "Hero Images",
+        "admin_mission_title":  "Mission Names",
+        "admin_raw_key":        "Raw key (from API)",
+        "admin_clean_name":     "Clean name",
+        "admin_image_url":      "Image URL",
+        "admin_push_github":    "Push to GitHub",
+        "admin_pat_label":      "GitHub Token (PAT) — this session only",
+        "admin_pat_hint":       "ghp_...",
+        "admin_push_success":   "Pushed to GitHub successfully! ✓",
+        "admin_push_fail":      "Push failed. Check your PAT.",
+        "admin_override_saved": "Override saved",
+        "admin_overrides_empty":"No overrides yet.",
+        "admin_add_mission":    "+ Mission name",
+        "admin_add_hero":       "+ Hero image",
+        "admin_raw_placeholder":"eg: missiongen_retrieve",
+        "edit_hero_img_title":  "Edit hero image",
+        "edit_hero_img_lbl":    "Image URL (http...)",
+        "first_launch_title":   "Welcome! / ¡Bienvenido!",
+        "first_launch_subtitle":"STW Hub — Fortnite: Save The World",
+        "first_launch_tag_lbl": "Your Fortnite tag (optional)",
+        "first_launch_tag_hint":"eg: S053xY",
+        "first_launch_info":    (
+            "Enter your tag to appear in the app footer. "
+            "If you are the admin, enter your exact tag to access the admin panel."
+        ),
+        "first_launch_continue":"Continue",
+        "first_launch_skip":    "Skip",
     },
 }
 
@@ -1007,11 +1072,26 @@ _GENERATOR_MAP = {
 # e.g. "Kyle" → "South Park Kyle" (BR) but we want "Megabase Kyle" (STW-only).
 _BR_WORD_BLOCKLIST = frozenset({"kyle", "jess", "penny"})
 
+# ── Admin override dicts — module-level so _mission_name_from_raw can read them ─
+# Populated at runtime from GitHub JSON files (hero_images.json / mission_names.json).
+_HERO_OVERRIDES:    dict = {}   # hero_name → custom image URL
+_MISSION_OVERRIDES: dict = {}   # raw_key (lowercase, stripped) → clean mission name
+
 def _mission_name_from_raw(s: str) -> str:
     """Look up the clean human-readable mission name from a raw generator/alert string.
-    Strips underscores, lowercases, then checks _GENERATOR_MAP longest-key-first.
+    Checks admin _MISSION_OVERRIDES first (exact match on stripped lowercase key),
+    then _GENERATOR_MAP longest-key-first.
     Returns empty string if no match (caller should fall back to string parsing).
     """
+    # Admin override — takes highest priority
+    if _MISSION_OVERRIDES:
+        raw_key = s.strip().lower()
+        if raw_key in _MISSION_OVERRIDES:
+            return _MISSION_OVERRIDES[raw_key]
+        # Also try with underscores removed (covers messy raw strings)
+        raw_key_stripped = raw_key.replace("_", "").replace(" ", "")
+        if raw_key_stripped in _MISSION_OVERRIDES:
+            return _MISSION_OVERRIDES[raw_key_stripped]
     key = s.lower().replace("_", "").replace(" ", "")
     for gkey in sorted(_GENERATOR_MAP, key=lambda k: -len(k)):
         if gkey.replace("_", "") in key:
@@ -1497,6 +1577,47 @@ def _sync_fetch_hero_image_by_name(name: str) -> str:
         pass
     return ""
 
+def _sync_fetch_json_override(url: str) -> dict:
+    """Fetch a JSON override file from GitHub raw. Returns {} on any failure."""
+    if not _REQ_OK:
+        return {}
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+def _sync_push_github_file(filename: str, data: dict, pat: str,
+                           message: str = "Admin override update") -> bool:
+    """Upload data as JSON to GitHub repo via Contents API PUT. Returns True on success.
+    Reads the current file SHA first (required by GitHub API for updates).
+    """
+    if not _REQ_OK or not pat.strip():
+        return False
+    try:
+        url     = f"{_GITHUB_CONTENTS_API}{filename}"
+        headers = {
+            "Authorization": f"token {pat.strip()}",
+            "Accept":        "application/vnd.github+json",
+        }
+        # Get current SHA so GitHub accepts the PUT as an update (not a conflict)
+        r_get = requests.get(url, headers=headers, timeout=10)
+        sha   = r_get.json().get("sha", "") if r_get.status_code == 200 else ""
+        content_b64 = base64.b64encode(
+            json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
+        ).decode("ascii")
+        payload: dict = {"message": message, "content": content_b64}
+        if sha:
+            payload["sha"] = sha
+        r_put = requests.put(url, headers=headers, json=payload, timeout=15)
+        return r_put.status_code in (200, 201)
+    except Exception:
+        return False
+
 def _sync_search_heroes(query: str) -> list:
     """Search hero/character images — checks STW cosmetics first, then BR.
     STW heroes (Megabase Kyle, Dragon Scorch, etc.) live in the STW endpoint
@@ -1693,8 +1814,11 @@ async def main(page: ft.Page):
     if prefs.get("lang"):
         LANG[0] = prefs["lang"]
 
+    # First launch detection — player_tag key absent means never set
+    _first_launch = "player_tag" not in prefs
+
     state = {
-        "screen":           "home",
+        "screen":           "setup" if _first_launch else "home",
         "vbucks_only":      False,
         "world_filter":     prefs.get("world_filter", "all"),
         "guide_world":      "stonewood",
@@ -1719,6 +1843,8 @@ async def main(page: ft.Page):
         "hero_search_query":    "",
         "hero_search_origin":   "build_create",
         "hero_search_field":    "hero",
+        # Admin state
+        "admin_pat_session":    "",    # GitHub PAT for current session (never saved to prefs)
         "form_data": {
             "id": None, "name": "", "cls": "Soldier",
             "hero": "", "hero_img": "",
@@ -2031,6 +2157,10 @@ async def main(page: ft.Page):
         names = list((meta_names | comm_names) - {""})
 
         for name in names:
+            # Admin hero override takes highest priority — no API lookup needed
+            if _HERO_OVERRIDES.get(name):
+                state["meta_imgs"][name] = _HERO_OVERRIDES[name]
+                continue
             if state["meta_imgs"].get(name):  # already found in a previous pass
                 continue
             words = name.split()
@@ -2092,6 +2222,34 @@ async def main(page: ft.Page):
         except Exception:
             pass
 
+    async def _task_load_overrides():
+        """Load hero image and mission name overrides from GitHub on startup.
+        Updates global _HERO_OVERRIDES and _MISSION_OVERRIDES so all users
+        immediately get admin corrections without restarting.
+        """
+        global _HERO_OVERRIDES, _MISSION_OVERRIDES
+        if not _REQ_OK:
+            return
+        try:
+            hero_data, mission_data = await asyncio.gather(
+                asyncio.to_thread(_sync_fetch_json_override, _HERO_IMAGES_URL),
+                asyncio.to_thread(_sync_fetch_json_override, _MISSION_NAMES_URL),
+            )
+            changed = False
+            if isinstance(hero_data, dict) and hero_data:
+                _HERO_OVERRIDES.update(hero_data)
+                for name, url in hero_data.items():
+                    if url:
+                        state["meta_imgs"][name] = url
+                changed = True
+            if isinstance(mission_data, dict) and mission_data:
+                _MISSION_OVERRIDES.update(mission_data)
+                changed = True
+            if changed:
+                render()
+        except Exception:
+            pass
+
     async def _auto_refresh_loop():
         while True:
             await asyncio.sleep(3600)
@@ -2110,6 +2268,86 @@ async def main(page: ft.Page):
                     page.update()
                 except Exception:
                     pass
+
+    # ── SETUP screen (first launch only) ──────────────────────────────────────
+    def _screen_setup():
+        """First-launch welcome screen. Asks for language + player tag.
+        After confirming, saves prefs and navigates to Home.
+        """
+        tag_tf = ft.TextField(
+            label=t("first_launch_tag_lbl"),
+            hint_text=t("first_launch_tag_hint"),
+            value="",
+            prefix_icon=ft.Icons.VIDEOGAME_ASSET,
+            border_color=_c("border"), color=_c("text"),
+            label_style=ft.TextStyle(color=_c("sub")),
+            autofocus=True,
+        )
+
+        def set_lang_setup(val):
+            def _h(e):
+                LANG[0] = val
+                prefs["lang"] = val
+                _save_prefs(prefs)
+                render()
+            return _h
+
+        def do_continue(e):
+            tag_val = (tag_tf.value or "").strip()
+            prefs["player_tag"] = tag_val
+            _save_prefs(prefs)
+            state["screen"] = "home"
+            render()
+
+        def do_skip(e):
+            prefs["player_tag"] = ""
+            _save_prefs(prefs)
+            state["screen"] = "home"
+            render()
+
+        rows = [
+            ft.Container(height=24),
+            ft.Container(
+                content=ft.Text("🌩️", size=72),
+                alignment=_ALIGN_CENTER,
+            ),
+            ft.Container(
+                content=_hdr(t("first_launch_title"), size=22),
+                alignment=_ALIGN_CENTER,
+            ),
+            ft.Container(
+                content=_sub(t("first_launch_subtitle"), size=13),
+                alignment=_ALIGN_CENTER,
+            ),
+            ft.Container(height=20),
+            _card(
+                _sub("Idioma / Language:", size=11),
+                ft.Row([
+                    _toggle_btn("Español", LANG[0] == "es", set_lang_setup("es")),
+                    _toggle_btn("English", LANG[0] == "en", set_lang_setup("en")),
+                ], spacing=8),
+            ),
+            ft.Container(height=8),
+            _card(
+                tag_tf,
+                ft.Container(
+                    content=ft.Text(t("first_launch_info"), size=10, color=_c("sub")),
+                    padding=_pad_only(top=4),
+                ),
+            ),
+            ft.Container(height=16),
+            ft.Row([
+                _btn(t("first_launch_continue"), do_continue, color=_c("orange")),
+                _btn(t("first_launch_skip"), do_skip, color=_c("surface")),
+            ], spacing=8, alignment=ft.MainAxisAlignment.CENTER),
+            ft.Container(height=24),
+            _footer(show_tag=False),
+        ]
+        return ft.Column(
+            rows, spacing=8,
+            scroll=ft.ScrollMode.AUTO, expand=True,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        )
 
     # ── HOME screen ────────────────────────────────────────────────────────────
     def _screen_home():
@@ -2537,12 +2775,101 @@ async def main(page: ft.Page):
 
     def _builds_meta():
         rows = []
+        is_admin = prefs.get("player_tag", "").strip() == _ADMIN_TAG
 
         def set_cls(cls):
             def _h(e):
                 state["builds_cls"] = cls
                 render()
             return _h
+
+        # ── Admin: open dialog to set a custom hero image URL ──────────────────
+        def _make_hero_edit_handler(hero_name: str, curr_url: str):
+            def open_edit(e):
+                img_tf = ft.TextField(
+                    label=t("edit_hero_img_lbl"),
+                    value=curr_url,
+                    hint_text="https://...",
+                    border_color=_c("border"), color=_c("text"),
+                    label_style=ft.TextStyle(color=_c("sub")),
+                    width=300,
+                )
+                status_txt = ft.Text("", size=11, color=_c("sub"))
+
+                def _close(e=None):
+                    dlg.open = False
+                    page.update()
+                    render()
+
+                def do_save_local(e):
+                    global _HERO_OVERRIDES
+                    url = (img_tf.value or "").strip()
+                    _HERO_OVERRIDES[hero_name] = url
+                    state["meta_imgs"][hero_name] = url
+                    status_txt.value = t("admin_override_saved")
+                    status_txt.color = _c("green")
+                    page.update()
+
+                async def do_save_github(e):
+                    global _HERO_OVERRIDES
+                    pat = state.get("admin_pat_session", "").strip()
+                    if not pat:
+                        status_txt.value = "⚠ " + t("admin_pat_label")
+                        status_txt.color = _c("yellow")
+                        page.update()
+                        return
+                    url = (img_tf.value or "").strip()
+                    _HERO_OVERRIDES[hero_name] = url
+                    state["meta_imgs"][hero_name] = url
+                    status_txt.value = t("checking")
+                    status_txt.color = _c("sub")
+                    page.update()
+                    ok = await asyncio.to_thread(
+                        _sync_push_github_file,
+                        "hero_images.json",
+                        dict(_HERO_OVERRIDES),
+                        pat,
+                        f"Admin: hero image override for {hero_name}",
+                    )
+                    status_txt.value = (t("admin_push_success") if ok
+                                        else t("admin_push_fail"))
+                    status_txt.color = _c("green") if ok else _c("red")
+                    page.update()
+
+                dlg = ft.AlertDialog(
+                    title=ft.Text(f"✏️  {hero_name}", size=14,
+                                  color=_c("orange"),
+                                  weight=ft.FontWeight.BOLD),
+                    content=ft.Column([img_tf, status_txt],
+                                      tight=True, spacing=10),
+                    actions=[
+                        ft.TextButton(
+                            t("save"),
+                            on_click=do_save_local,
+                            style=ft.ButtonStyle(
+                                color=ft.MaterialState.DEFAULT, foreground_color=_c("cyan")
+                            ),
+                        ),
+                        ft.FilledButton(
+                            content=ft.Text(
+                                t("admin_push_github"),
+                                color=_btn_text_color(_c("purple")),
+                            ),
+                            bgcolor=_c("purple"),
+                            on_click=do_save_github,
+                        ),
+                        ft.TextButton(
+                            t("cancel"), on_click=_close,
+                            style=ft.ButtonStyle(foreground_color=_c("sub")),
+                        ),
+                    ],
+                    bgcolor=_c("card"),
+                    on_dismiss=lambda e: None,
+                )
+                page.dialog = dlg
+                dlg.open = True
+                page.update()
+            return open_edit
 
         chip_labels = {
             "all": t("all_classes"),
@@ -2572,9 +2899,32 @@ async def main(page: ft.Page):
                 weapons = b[f"weapons_{lang}"]
                 tags    = b.get("tags", [])
                 hero_img_url = state["meta_imgs"].get(b["hero"], "")
+
+                # Hero image widget — with admin edit button when applicable
+                if is_admin:
+                    hero_widget = ft.Column([
+                        _hero_img(hero_img_url, size=56),
+                        ft.Container(
+                            content=ft.IconButton(
+                                icon=ft.Icons.EDIT,
+                                icon_size=14,
+                                icon_color=_c("cyan"),
+                                tooltip=t("edit_hero_img_title"),
+                                on_click=_make_hero_edit_handler(
+                                    b["hero"], hero_img_url),
+                                padding=_pad_sym(horizontal=0, vertical=0),
+                            ),
+                            alignment=_ALIGN_CENTER,
+                        ),
+                    ], spacing=0,
+                       horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                       tight=True)
+                else:
+                    hero_widget = _hero_img(hero_img_url, size=56)
+
                 rows.append(_card(
                     ft.Row([
-                        _hero_img(hero_img_url, size=56),
+                        hero_widget,
                         ft.Column([
                             _hdr(b["name"], size=14),
                             ft.Row([
@@ -3138,6 +3488,334 @@ async def main(page: ft.Page):
     # ── SETTINGS screen ───────────────────────────────────────────────────────
     def _screen_settings():
         rows = []
+        is_admin = prefs.get("player_tag", "").strip() == _ADMIN_TAG
+
+        # ── Admin panel (visible ONLY to Pedro) ───────────────────────────────
+        if is_admin:
+            pat_tf = ft.TextField(
+                label=t("admin_pat_label"),
+                hint_text=t("admin_pat_hint"),
+                value=state.get("admin_pat_session", ""),
+                password=True,
+                can_reveal_password=True,
+                prefix_icon=ft.Icons.KEY,
+                border_color=_c("purple"),
+                color=_c("text"),
+                label_style=ft.TextStyle(color=_c("purple")),
+            )
+            pat_status = ft.Text("", size=11, color=_c("sub"))
+
+            def save_pat(e):
+                state["admin_pat_session"] = (pat_tf.value or "").strip()
+                pat_status.value = "✓ PAT guardado en sesión"
+                pat_status.color = _c("green")
+                page.update()
+
+            # ── Add mission name override ──────────────────────────────────
+            def open_add_mission(e):
+                raw_tf = ft.TextField(
+                    label=t("admin_raw_key"),
+                    hint_text=t("admin_raw_placeholder"),
+                    border_color=_c("border"), color=_c("text"),
+                    label_style=ft.TextStyle(color=_c("sub")),
+                )
+                clean_tf = ft.TextField(
+                    label=t("admin_clean_name"),
+                    hint_text="ej: Rescue Survivors",
+                    border_color=_c("border"), color=_c("text"),
+                    label_style=ft.TextStyle(color=_c("sub")),
+                )
+                status_txt = ft.Text("", size=11, color=_c("sub"))
+
+                def _close_m(e=None):
+                    dlg_m.open = False
+                    page.update()
+                    render()
+
+                def do_save_mission_local(e):
+                    global _MISSION_OVERRIDES
+                    raw = (raw_tf.value or "").strip().lower()
+                    clean = (clean_tf.value or "").strip()
+                    if not raw or not clean:
+                        status_txt.value = "⚠ Rellena ambos campos"
+                        status_txt.color = _c("yellow")
+                        page.update()
+                        return
+                    _MISSION_OVERRIDES[raw] = clean
+                    status_txt.value = t("admin_override_saved")
+                    status_txt.color = _c("green")
+                    page.update()
+
+                async def do_save_mission_github(e):
+                    global _MISSION_OVERRIDES
+                    raw   = (raw_tf.value or "").strip().lower()
+                    clean = (clean_tf.value or "").strip()
+                    if raw and clean:
+                        _MISSION_OVERRIDES[raw] = clean
+                    pat = state.get("admin_pat_session", "").strip()
+                    if not pat:
+                        status_txt.value = "⚠ " + t("admin_pat_label")
+                        status_txt.color = _c("yellow")
+                        page.update()
+                        return
+                    status_txt.value = t("checking")
+                    status_txt.color = _c("sub")
+                    page.update()
+                    ok = await asyncio.to_thread(
+                        _sync_push_github_file,
+                        "mission_names.json",
+                        dict(_MISSION_OVERRIDES),
+                        pat,
+                        f"Admin: mission name override — {raw}",
+                    )
+                    status_txt.value = (t("admin_push_success") if ok
+                                        else t("admin_push_fail"))
+                    status_txt.color = _c("green") if ok else _c("red")
+                    page.update()
+
+                dlg_m = ft.AlertDialog(
+                    title=ft.Text("✏️  " + t("admin_mission_title"), size=14,
+                                  color=_c("orange"),
+                                  weight=ft.FontWeight.BOLD),
+                    content=ft.Column([raw_tf, clean_tf, status_txt],
+                                      tight=True, spacing=10),
+                    actions=[
+                        ft.TextButton(
+                            t("save"), on_click=do_save_mission_local,
+                            style=ft.ButtonStyle(foreground_color=_c("cyan")),
+                        ),
+                        ft.FilledButton(
+                            content=ft.Text(t("admin_push_github"),
+                                            color=_btn_text_color(_c("purple"))),
+                            bgcolor=_c("purple"),
+                            on_click=do_save_mission_github,
+                        ),
+                        ft.TextButton(
+                            t("cancel"), on_click=_close_m,
+                            style=ft.ButtonStyle(foreground_color=_c("sub")),
+                        ),
+                    ],
+                    bgcolor=_c("card"),
+                    on_dismiss=lambda e: None,
+                )
+                page.dialog = dlg_m
+                dlg_m.open = True
+                page.update()
+
+            # ── Add hero image override ────────────────────────────────────
+            def open_add_hero(e):
+                hname_tf = ft.TextField(
+                    label=t("admin_raw_key") + " (héroe)",
+                    hint_text="ej: Megabase Kyle",
+                    border_color=_c("border"), color=_c("text"),
+                    label_style=ft.TextStyle(color=_c("sub")),
+                )
+                hurl_tf = ft.TextField(
+                    label=t("admin_image_url"),
+                    hint_text="https://...",
+                    border_color=_c("border"), color=_c("text"),
+                    label_style=ft.TextStyle(color=_c("sub")),
+                )
+                hstatus = ft.Text("", size=11, color=_c("sub"))
+
+                def _close_h(e=None):
+                    dlg_h.open = False
+                    page.update()
+                    render()
+
+                def do_save_hero_local(e):
+                    global _HERO_OVERRIDES
+                    name = (hname_tf.value or "").strip()
+                    url  = (hurl_tf.value or "").strip()
+                    if not name or not url:
+                        hstatus.value = "⚠ Rellena ambos campos"
+                        hstatus.color = _c("yellow")
+                        page.update()
+                        return
+                    _HERO_OVERRIDES[name] = url
+                    state["meta_imgs"][name] = url
+                    hstatus.value = t("admin_override_saved")
+                    hstatus.color = _c("green")
+                    page.update()
+
+                async def do_save_hero_github(e):
+                    global _HERO_OVERRIDES
+                    name = (hname_tf.value or "").strip()
+                    url  = (hurl_tf.value or "").strip()
+                    if name and url:
+                        _HERO_OVERRIDES[name] = url
+                        state["meta_imgs"][name] = url
+                    pat = state.get("admin_pat_session", "").strip()
+                    if not pat:
+                        hstatus.value = "⚠ " + t("admin_pat_label")
+                        hstatus.color = _c("yellow")
+                        page.update()
+                        return
+                    hstatus.value = t("checking")
+                    hstatus.color = _c("sub")
+                    page.update()
+                    ok = await asyncio.to_thread(
+                        _sync_push_github_file,
+                        "hero_images.json",
+                        dict(_HERO_OVERRIDES),
+                        pat,
+                        f"Admin: hero image override — {name}",
+                    )
+                    hstatus.value = (t("admin_push_success") if ok
+                                     else t("admin_push_fail"))
+                    hstatus.color = _c("green") if ok else _c("red")
+                    page.update()
+
+                dlg_h = ft.AlertDialog(
+                    title=ft.Text("✏️  " + t("admin_hero_title"), size=14,
+                                  color=_c("orange"),
+                                  weight=ft.FontWeight.BOLD),
+                    content=ft.Column([hname_tf, hurl_tf, hstatus],
+                                      tight=True, spacing=10),
+                    actions=[
+                        ft.TextButton(
+                            t("save"), on_click=do_save_hero_local,
+                            style=ft.ButtonStyle(foreground_color=_c("cyan")),
+                        ),
+                        ft.FilledButton(
+                            content=ft.Text(t("admin_push_github"),
+                                            color=_btn_text_color(_c("purple"))),
+                            bgcolor=_c("purple"),
+                            on_click=do_save_hero_github,
+                        ),
+                        ft.TextButton(
+                            t("cancel"), on_click=_close_h,
+                            style=ft.ButtonStyle(foreground_color=_c("sub")),
+                        ),
+                    ],
+                    bgcolor=_c("card"),
+                    on_dismiss=lambda e: None,
+                )
+                page.dialog = dlg_h
+                dlg_h.open = True
+                page.update()
+
+            # ── Push all current overrides to GitHub ──────────────────────
+            push_all_status = ft.Text("", size=11, color=_c("sub"))
+
+            async def push_all_to_github(e):
+                pat = state.get("admin_pat_session", "").strip()
+                if not pat:
+                    push_all_status.value = "⚠ Ingresa el PAT primero"
+                    push_all_status.color = _c("yellow")
+                    page.update()
+                    return
+                push_all_status.value = t("checking")
+                push_all_status.color = _c("sub")
+                page.update()
+                ok1 = await asyncio.to_thread(
+                    _sync_push_github_file, "hero_images.json",
+                    dict(_HERO_OVERRIDES), pat, "Admin: bulk hero overrides update",
+                )
+                ok2 = await asyncio.to_thread(
+                    _sync_push_github_file, "mission_names.json",
+                    dict(_MISSION_OVERRIDES), pat, "Admin: bulk mission overrides update",
+                )
+                if ok1 and ok2:
+                    push_all_status.value = t("admin_push_success")
+                    push_all_status.color = _c("green")
+                elif ok1 or ok2:
+                    push_all_status.value = "Parcial — " + t("admin_push_fail")
+                    push_all_status.color = _c("yellow")
+                else:
+                    push_all_status.value = t("admin_push_fail")
+                    push_all_status.color = _c("red")
+                page.update()
+
+            # ── Current overrides summary ──────────────────────────────────
+            mission_rows: list = []
+            for raw_k, clean_n in _MISSION_OVERRIDES.items():
+                def _make_del_m(rk=raw_k):
+                    def _del(e):
+                        global _MISSION_OVERRIDES
+                        _MISSION_OVERRIDES.pop(rk, None)
+                        render()
+                    return _del
+                mission_rows.append(ft.Row([
+                    ft.Text(f"  {raw_k}", size=10, color=_c("sub"), expand=True),
+                    ft.Icon(ft.Icons.ARROW_FORWARD, size=10, color=_c("border")),
+                    ft.Text(clean_n, size=10, color=_c("cyan"), expand=True),
+                    ft.IconButton(ft.Icons.CLOSE, icon_size=12,
+                                  icon_color=_c("red"),
+                                  on_click=_make_del_m(),
+                                  padding=_pad_sym(horizontal=0, vertical=0)),
+                ], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER))
+
+            hero_rows: list = []
+            for hero_n, hero_url in _HERO_OVERRIDES.items():
+                def _make_del_h(hn=hero_n):
+                    def _del(e):
+                        global _HERO_OVERRIDES
+                        _HERO_OVERRIDES.pop(hn, None)
+                        state["meta_imgs"].pop(hn, None)
+                        render()
+                    return _del
+                hero_rows.append(ft.Row([
+                    ft.Text(f"  {hero_n}", size=10, color=_c("sub"), expand=True),
+                    ft.Icon(ft.Icons.PHOTO, size=10, color=_c("border")),
+                    ft.Text(
+                        (hero_url[:28] + "…") if len(hero_url) > 28 else hero_url,
+                        size=9, color=_c("cyan"), expand=True,
+                    ),
+                    ft.IconButton(ft.Icons.CLOSE, icon_size=12,
+                                  icon_color=_c("red"),
+                                  on_click=_make_del_h(),
+                                  padding=_pad_sym(horizontal=0, vertical=0)),
+                ], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER))
+
+            rows.append(_card(
+                ft.Row([
+                    ft.Icon(ft.Icons.ADMIN_PANEL_SETTINGS,
+                            color=_c("purple"), size=18),
+                    _hdr(t("admin_section"), size=15, color=_c("purple")),
+                ], spacing=8),
+                _divider(),
+                # PAT field
+                pat_tf,
+                ft.Row([
+                    _btn("Guardar PAT", save_pat, color=_c("purple")),
+                    pat_status,
+                ], spacing=8, wrap=True),
+                _divider(),
+                # Mission overrides
+                ft.Row([
+                    ft.Icon(ft.Icons.MAP, size=14, color=_c("cyan")),
+                    _sub(f"{t('admin_mission_title')} ({len(_MISSION_OVERRIDES)})",
+                         size=12),
+                    ft.Container(expand=True),
+                    _btn(t("admin_add_mission"), open_add_mission,
+                         color=_c("surface")),
+                ], spacing=6,
+                   vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                *(mission_rows if mission_rows
+                  else [_sub(t("admin_overrides_empty"), size=10)]),
+                _divider(),
+                # Hero overrides
+                ft.Row([
+                    ft.Icon(ft.Icons.PERSON, size=14, color=_c("cyan")),
+                    _sub(f"{t('admin_hero_title')} ({len(_HERO_OVERRIDES)})",
+                         size=12),
+                    ft.Container(expand=True),
+                    _btn(t("admin_add_hero"), open_add_hero,
+                         color=_c("surface")),
+                ], spacing=6,
+                   vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                *(hero_rows if hero_rows
+                  else [_sub(t("admin_overrides_empty"), size=10)]),
+                _divider(),
+                # Push all
+                ft.Row([
+                    _btn(t("admin_push_github"), push_all_to_github,
+                         color=_c("purple"), icon=ft.Icons.CLOUD_UPLOAD),
+                    push_all_status,
+                ], spacing=8, wrap=True),
+                border_color=_c("purple"),
+            ))
 
         def set_theme(val):
             def _h(e):
@@ -3331,7 +4009,19 @@ async def main(page: ft.Page):
             screen = state["screen"]
             is_sub = screen in ("build_create", "build_edit", "hero_search")
 
-            if screen == "home":
+            if screen == "setup":
+                page.appbar         = None
+                page.navigation_bar = None
+                page.controls.clear()
+                page.add(ft.Container(
+                    content=_screen_setup(),
+                    bgcolor=_c("bg"),
+                    padding=_pad_sym(horizontal=12, vertical=8),
+                    expand=True,
+                ))
+                page.update()
+                return
+            elif screen == "home":
                 content = _screen_home()
                 title   = f"{APP_NAME} v{APP_VERSION}"
                 appbar  = _appbar(title)
@@ -3402,6 +4092,7 @@ async def main(page: ft.Page):
 
     # ── Startup ────────────────────────────────────────────────────────────────
     render()
+    page.run_task(_task_load_overrides)       # admin overrides — load first (fast)
     page.run_task(_task_load_alerts)
     page.run_task(_task_load_news)
     page.run_task(_task_check_update)
