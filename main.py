@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.8"
+APP_VERSION = "2.5.9"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -90,6 +90,9 @@ _BR_COSMETICS_URL   = "https://fortnite-api.com/v2/cosmetics/br"
 _STW_COSMETICS_URL  = "https://fortnite-api.com/v2/cosmetics/stw"
 # Community builds backend — JSON file in GitHub repo (no server needed)
 _COMMUNITY_BUILDS_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/community_builds.json"
+# Weekly STW data — SC type + FtS active categories (updated every Tuesday by author)
+# Fallback when Epic API client_credentials doesn't return missions[] data.
+_STW_WEEKLY_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/stw_weekly.json"
 
 _VBUCKS_TYPE = "AccountResource:currency_mtxswap"
 _REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
@@ -1877,6 +1880,7 @@ async def main(page: ft.Page):
         "builds_cls":       "all",
         "meta_imgs":            {},
         "community_builds":     [],
+        "stw_weekly":           {},   # fallback: sc_type, fts_active_cats from GitHub JSON
         "hero_search_results":  [],
         "hero_search_loading":  False,
         "hero_search_query":    "",
@@ -2127,6 +2131,24 @@ async def main(page: ft.Page):
         alerts, all_missions = (_result if isinstance(_result, tuple)
                                 else (_result, []))
         if alerts:
+            # ── Enrich FtS missions with categories from stw_weekly fallback ──
+            # If Epic API didn't give us category info (missions[] was empty),
+            # stw_weekly.json may tell us which categories are active this week.
+            # We use the list to annotate generic "Fight the Storm" alerts.
+            _weekly = state.get("stw_weekly", {})
+            _fts_cats = _weekly.get("fts_active_cats", [])  # e.g. [1, 3, 4]
+            if _fts_cats:
+                _fts_idx = 0
+                _fts_base = "Fight the Storm"
+                for _a in alerts:
+                    _aname = _a.get("name", "")
+                    if _aname in (_fts_base,
+                                  "Luchar contra la Tormenta") or (
+                            _fts_base.lower() in _aname.lower()
+                            and "(Cat" not in _aname):
+                        cat_n = _fts_cats[_fts_idx % len(_fts_cats)]
+                        _a["name"] = f"{_fts_base} (Cat {cat_n})"
+                        _fts_idx += 1
             state["alerts"]       = alerts
             state["all_missions"] = all_missions
             ts                    = datetime.now(timezone.utc).isoformat()
@@ -2261,6 +2283,24 @@ async def main(page: ft.Page):
             if isinstance(data, list):
                 state["community_builds"] = data
                 render()
+        except Exception:
+            pass
+
+    async def _task_load_stw_weekly():
+        """Fetch stw_weekly.json from GitHub — contains SC type + FtS active
+        categories for the current week.  Used as fallback when the Epic
+        client_credentials API doesn't return missions[] data.
+        Updated by the author every Tuesday after the weekly STW reset.
+        """
+        if not _REQ_OK:
+            return
+        try:
+            data = await asyncio.to_thread(
+                lambda: requests.get(_STW_WEEKLY_URL, timeout=8).json()
+            )
+            if isinstance(data, dict):
+                state["stw_weekly"] = data
+                render()   # SC card may now show the correct type
         except Exception:
             pass
 
@@ -2625,7 +2665,7 @@ async def main(page: ft.Page):
                             break
                     if sc_detected:
                         break
-                # Fallback: scan daily alerts for SC reward types.
+                # Fallback 1: scan daily alerts for SC reward types.
                 # The client_credentials API returns empty missions[] so m160 is
                 # always 0, but SC missions DO appear in missionAlerts with their
                 # Supercharger reward items — check there too.
@@ -2638,6 +2678,12 @@ async def main(page: ft.Page):
                                 break
                         if sc_detected:
                             break
+                # Fallback 2: use stw_weekly.json (GitHub-hosted, author-maintained).
+                # Contains the correct SC type for the current week regardless of API.
+                if not sc_detected:
+                    weekly_sc = state.get("stw_weekly", {}).get("sc_type", "")
+                    if weekly_sc in _SC_TYPE_INFO:
+                        sc_detected = weekly_sc
 
                 # ── SC type icons — colored diamond cards like the in-game ones ──
                 # Colors match the game: purple=Hero, blue=Survivor, orange=Weapon
@@ -3809,6 +3855,7 @@ async def main(page: ft.Page):
     page.run_task(_task_check_update)
     page.run_task(_task_load_meta_imgs)
     page.run_task(_task_load_community_builds)
+    page.run_task(_task_load_stw_weekly)
     page.run_task(_auto_refresh_loop)
     page.run_task(_task_clock_ticker)
 

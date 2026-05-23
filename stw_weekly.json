@@ -1,0 +1,9 @@
+{
+  "updated": "2026-05-23",
+  "sc_type": "Hero Supercharger",
+  "fts_active_cats": [1, 3, 4],
+  "note_es": "Actualiza este archivo cada martes cuando cambia el contenido semanal de STW. Verifica los datos en fortnitedb.com/stw",
+  "note_en": "Update this file every Tuesday when STW weekly content resets. Verify data at fortnitedb.com/stw",
+  "sc_types_valid": ["Hero Supercharger", "Survivor Supercharger", "Weapon Supercharger"],
+  "fts_cats_valid": [1, 2, 3, 4]
+}
