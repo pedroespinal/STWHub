@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.5.2"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -726,7 +726,8 @@ GUIDE = {
          "• Abre Inicio → pestaña ⚡ Supercargadores\n"
          "• Las misiones PL 160 aparecen con borde morado\n"
          "• El emoji indica el tipo de mision: 💾 Recuperar Datos, 📡 Radar Grid, "
-         "🏠 Refugio, 💣 Deliver Bomb, 🛡️ Atlas, etc.\n"
+         "🏠 Refugio, 💣 Entregar Bomba, 🛡️ Atlas, ⚔️ Luchar contra la Tormenta, "
+         "🎯 Cazar el Monstruo, 🌪️ Puertas de la Tormenta, etc.\n"
          "• Las misiones se agrupan por mundo (Twine primero)\n\n"
          "Consejos:\n"
          "• PL 160 = los mejores materiales del juego (Shadowshard, Obsidian)\n"
@@ -1074,6 +1075,11 @@ _ZONE_TOKENS = frozenset({
     "a", "b", "c", "d",                        # single-letter category tags
 })
 
+# Mission names that are dev/test generators — never shown to users.
+# "dudebro" stays in _GENERATOR_MAP so it can prevent the rtd false-match,
+# but missions whose resolved name is in this set are filtered from all views.
+_SKIP_MISSION_NAMES = frozenset({"dudebro"})
+
 # Clean mission type names keyed by generator substring (longest keys checked first).
 # Used by both _parse_generator and _parse_mission_type for reliable name output.
 _GENERATOR_MAP = {
@@ -1115,7 +1121,7 @@ _GENERATOR_MAP = {
     "cat2fts":             "Fight the Storm (Cat 2)",  # 2-Atlas defense
     "cat1fts":             "Fight the Storm (Cat 1)",  # 1-Atlas defense
     "fts":                 "Fight the Storm",           # unknown-cat fallback
-    "htm":                 "Hunt",                      # STW_Mission_Hunt
+    "htm":                 "Hunt the Monster",              # STW_Mission_Hunt
     # ── abbreviations used verbatim in Epic generator paths ───────────────
     "gate":        "Storm Gates",          # T3_R5_1Gate, 2Gates, 3Gates, 4Gates
     "etshelter":   "Evacuate the Shelter",
@@ -1768,6 +1774,38 @@ def _btn_text_color(bgcolor: str) -> str:
         return "#000000" if luminance > 148 else "#ffffff"
     except Exception:
         return "#ffffff"
+
+# ── Mission name translations (English → Spanish) ──────────────────────────────
+# Only names that are unclear or non-cognate in Spanish are included here.
+# English names that are obvious (Retrieve the Data, Deliver the Bomb, etc.)
+# are kept in English even in ES mode because STW players recognise them.
+_MISSION_NAME_ES: dict[str, str] = {
+    "Storm Gates":                    "Puertas de la Tormenta",
+    "Hunt the Monster":               "Cazar el Monstruo",
+    "Horde Bash":                     "Ataque de Horda",
+    "Storm Shield":                   "Escudo de la Tormenta",
+    "Blitz":                          "Blitz",
+    "Storm Alert":                    "Alerta de Tormenta",
+    "Defend Atlas":                   "Defender Atlas",
+    "Defend the Outpost":             "Defender el Puesto",
+    "Mutant Storm":                   "Tormenta Mutante",
+    "Fight the Storm (Cat 1)":        "Luchar contra la Tormenta (Cat. 1)",
+    "Fight the Storm (Cat 2)":        "Luchar contra la Tormenta (Cat. 2)",
+    "Fight the Storm (Cat 3)":        "Luchar contra la Tormenta (Cat. 3)",
+    "Fight the Storm (Cat 4)":        "Luchar contra la Tormenta (Cat. 4)",
+    "Fight the Storm":                "Luchar contra la Tormenta",
+    "Mini Boss":                      "Mini Jefe",
+    "Destroy Encampments":            "Destruir Campamentos",
+    "Radar Grid":                     "Cuadrícula de Radar",
+}
+
+
+def _mission_display_name(name: str, lang: str) -> str:
+    """Return the display-ready mission name in the given language."""
+    if lang == "es":
+        return _MISSION_NAME_ES.get(name, name)
+    return name
+
 
 def _zone_display(zone_en: str, lang: str) -> str:
     """Translate an English theater/zone name to the current UI language.
@@ -2642,8 +2680,9 @@ async def main(page: ft.Page):
                         if rw_lines else ft.Text("—", size=10, color=_c("sub"))
 
                     # ── right column: name / zone / element / rewards ──
+                    _disp_name = _mission_display_name(a.get("name", ""), lang)
                     right_col_children = [
-                        ft.Text(a.get("name", ""), size=12, color=_c("text"),
+                        ft.Text(_disp_name, size=12, color=_c("text"),
                                 weight=ft.FontWeight.BOLD),
                         ft.Text(zone_lbl, size=10, color=_c("cyan")),
                     ]
@@ -2684,67 +2723,61 @@ async def main(page: ft.Page):
                 rows.append(_card(_txt(t("no_missions"), color=_c("sub"))))
             else:
                 all_m   = state["all_missions"]
-                m160    = [m for m in all_m if m.get("pl", 0) >= 160]
+                # Filter dev/test missions from the display list
+                m160    = [m for m in all_m
+                           if m.get("pl", 0) >= 160
+                           and m.get("name", "").lower() not in _SKIP_MISSION_NAMES]
                 is_es   = (lang == "es")
 
-                # ── Supercharger reward card ───────────────────────────────────
-                # Try to detect the specific type from the 160 mission rewards
-                sc_name = "Supercargador" if is_es else "Supercharger"
-                sc_sub  = ""
-                for _m in m160:
-                    for _rw in _m.get("rewards", []):
-                        _tl = _rw.get("type", "").lower()
-                        if "supercharg" in _tl:
-                            _, _rl = _reward_label(_rw["type"])
-                            sc_name = (_rl.replace("Supercharger", "Supercargador")
-                                       .replace("Hero", "de Héroe")
-                                       .replace("Survivor", "de Superviviente")
-                                       .replace("Trap/Weapon", "de Trampa/Arma")
-                                       if is_es else _rl)
-                            break
-                    else:
-                        continue
-                    break
-
+                # ── Supercharger info card ─────────────────────────────────────
+                sc_title = ("Supercargadores Semanales" if is_es
+                            else "Weekly Superchargers")
+                sc_subtitle = (
+                    f"Misiones PL 160 disponibles: {len(m160)}" if is_es
+                    else f"PL 160 missions available: {len(m160)}"
+                )
+                _sc_badge = lambda emoji, label: ft.Container(
+                    content=ft.Row(
+                        [ft.Text(emoji, size=14),
+                         ft.Text(label, size=10, color=_c("sub"))],
+                        spacing=3,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                    ),
+                    bgcolor=_c("surface"),
+                    border_radius=10,
+                    padding=_pad_sym(horizontal=8, vertical=4),
+                )
                 rows.append(_card(
                     ft.Row([
-                        ft.Text("🔮", size=44),
+                        ft.Text("🔮", size=40),
                         ft.Column([
-                            ft.Text(
-                                sc_name,
-                                size=16, color=_c("purple"),
-                                weight=ft.FontWeight.BOLD,
-                            ),
-                            _sub(
-                                "Completa 10 misiones PL 160 para obtenerlo"
-                                if is_es else
-                                "Complete 10 PL 160 missions to earn it",
-                                size=11,
-                            ),
-                            # Show all three types so player knows what to expect
+                            ft.Text(sc_title, size=15, color=_c("purple"),
+                                    weight=ft.FontWeight.BOLD),
+                            _sub(sc_subtitle, size=10),
                             ft.Row([
-                                ft.Text("⭐", size=12),
-                                _sub("Hero  ", size=10),
-                                ft.Text("👷", size=12),
-                                _sub("Survivor  ", size=10),
-                                ft.Text("🔧", size=12),
-                                _sub("Trap / Weapon", size=10),
-                            ], spacing=3,
-                               vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                                _sc_badge("⭐", "Héroe" if is_es else "Hero"),
+                                _sc_badge("👷",
+                                          "Superviviente" if is_es else "Survivor"),
+                                _sc_badge("🔧",
+                                          "Trampa/Arma" if is_es else "Trap/Weapon"),
+                            ], spacing=5, wrap=True),
                             _sub(
-                                "Sube héroes, supervivientes y esquemas más allá del nv 131"
+                                "Completa 4 misiones del mismo tipo para recompensas bonus"
                                 if is_es else
-                                "Level heroes, survivors & schematics past level 131",
-                                size=10,
+                                "Complete 4 of the same type for bonus rewards",
+                                size=9,
                             ),
-                        ], expand=True, spacing=3),
-                    ], spacing=14,
+                        ], expand=True, spacing=4),
+                    ], spacing=12,
                        vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     border_color=_c("purple"),
                 ))
 
                 # ── PL 160 mission list ────────────────────────────────────────
-                src = m160 if m160 else all_m
+                # When all_m fallback is used, also filter dev missions there
+                src = (m160 if m160
+                       else [m for m in all_m
+                             if m.get("name", "").lower() not in _SKIP_MISSION_NAMES])
                 label_160 = (
                     (f"Misiones PL 160 ({len(m160)})" if is_es
                      else f"PL 160 Missions ({len(m160)})")
@@ -2773,8 +2806,9 @@ async def main(page: ft.Page):
                         width=60,
                     )
 
+                    _sc_disp_name = _mission_display_name(m.get("name", ""), lang)
                     sc_col_children = [
-                        ft.Text(m.get("name", ""), size=12, color=_c("text"),
+                        ft.Text(_sc_disp_name, size=12, color=_c("text"),
                                 weight=ft.FontWeight.BOLD),
                         ft.Text(zone_lbl, size=10, color=_c("cyan")),
                     ]
@@ -2970,9 +3004,7 @@ async def main(page: ft.Page):
                         ft.TextButton(
                             t("save"),
                             on_click=do_save_local,
-                            style=ft.ButtonStyle(
-                                color=ft.MaterialState.DEFAULT, foreground_color=_c("cyan")
-                            ),
+                            style=ft.ButtonStyle(foreground_color=_c("cyan")),
                         ),
                         ft.FilledButton(
                             content=ft.Text(

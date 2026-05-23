@@ -1,6 +1,6 @@
 # STW Hub — Guía de Compilación / Build Guide
 
-> **STW Hub v2.5.0** · Creado por: Pedro Espinal · Todos los derechos reservados © 2026
+> **STW Hub v2.5.2** · Creado por: Pedro Espinal · Todos los derechos reservados © 2026
 
 ---
 
@@ -13,7 +13,7 @@
 | APK mínimo        | Android 7.0 (API 24)              |
 | APK objetivo      | Android 13+ (API 35)              |
 | Package ID        | `com.pedroespinal.stwhub`         |
-| Versión           | 2.5.0 (build 21)                  |
+| Versión           | 2.5.2 (build 23)                  |
 
 ---
 
@@ -157,10 +157,12 @@ Verificable en la pestana **Configuracion > Acerca de** dentro de la app.
 
 | Version | Build | Cambios principales |
 |---------|-------|---------------------|
+| 2.5.2   | 23    | Fix dialog editar imagen heroe (admin builds), filtro Dudebro en SC, tarjeta SC rediseñada (3 tipos), HTM→Hunt the Monster, traducciones ES misiones (Storm Gates→Puertas de la Tormenta, etc.) |
+| 2.5.1   | 22    | PL badge explicito (PL NNN), elemento bajo zona, Fight the Storm Cat 1/2/3/4, nuevos emojis por tipo de mision |
 | 2.5.0   | 21    | Admin con codigo hash, nombres de misiones completos (126 generadores mapeados), camelCase split en generators, cosmeticos STW en Settings |
 | 2.4.0   | 20    | Sistema admin super-usuario, overrides GitHub, primera pantalla de configuracion, vista Supercargadores |
 | 1.0.0   | 1     | Version inicial |
 
 ---
 
-*STW Hub v2.5.0 · Creado por Pedro Espinal · Todos los derechos reservados © 2026*
+*STW Hub v2.5.2 · Creado por Pedro Espinal · Todos los derechos reservados © 2026*
