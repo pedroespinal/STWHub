@@ -2,8 +2,8 @@
 app_id       = "com.pedroespinal.stwhub"
 product_name = "STW Hub"
 description  = "Fortnite Save The World — Alertas, Builds y Noticias / Alerts, Builds & News"
-version      = "2.5.2"
-build_number = 23
+version      = "2.5.3"
+build_number = 24
 
 [tool.flet.android]
 adaptive_icon_background = "#07071a"

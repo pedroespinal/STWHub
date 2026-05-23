@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.2"
+APP_VERSION = "2.5.3"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -725,9 +725,9 @@ GUIDE = {
          "Como verlos en la app:\n"
          "• Abre Inicio → pestaña ⚡ Supercargadores\n"
          "• Las misiones PL 160 aparecen con borde morado\n"
-         "• El emoji indica el tipo de mision: 💾 Recuperar Datos, 📡 Radar Grid, "
-         "🏠 Refugio, 💣 Entregar Bomba, 🛡️ Atlas, ⚔️ Luchar contra la Tormenta, "
-         "🎯 Cazar el Monstruo, 🌪️ Puertas de la Tormenta, etc.\n"
+         "• El emoji indica el tipo de mision: 💾 Retrieve the Data, 📡 Radar Grid, "
+         "🏠 Evacuate the Shelter, 💣 Deliver the Bomb, 🛡️ Defender Atlas, "
+         "⚔️ Luchar contra la Tormenta (Cat. 1-4), 🎯 Hunt the Monster, etc.\n"
          "• Las misiones se agrupan por mundo (Twine primero)\n\n"
          "Consejos:\n"
          "• PL 160 = los mejores materiales del juego (Shadowshard, Obsidian)\n"
@@ -819,8 +819,9 @@ GUIDE = {
          "How to view them in the app:\n"
          "• Open Home → ⚡ Superchargers tab\n"
          "• PL 160 missions are highlighted with a purple border\n"
-         "• The emoji shows the mission type: 💾 Retrieve Data, 📡 Radar Grid, "
-         "🏠 Shelter, 💣 Deliver Bomb, 🛡️ Atlas, etc.\n"
+         "• The emoji shows the mission type: 💾 Retrieve the Data, 📡 Radar Grid, "
+         "🏠 Evacuate the Shelter, 💣 Deliver the Bomb, ⚔️ Fight the Storm (Cat 1-4), "
+         "🎯 Hunt the Monster, etc.\n"
          "• Missions are grouped by world (Twine Peaks first)\n\n"
          "Tips:\n"
          "• PL 160 = best materials in the game (Shadowshard, Obsidian)\n"
@@ -1087,8 +1088,15 @@ _GENERATOR_MAP = {
     "eliminateandcollect": "Eliminate & Collect",  # full name path
     "eliminate":           "Eliminate & Collect",
     "destroytheenc":       "Destroy Encampments",
-    "gategroup":           "Storm Gates",
-    "gate_group":          "Storm Gates",
+    # ── Fight the Storm — gate count = number of Atlas nodes to defend ──────
+    # Generators use "4Gates", "3Gates", "2Gates", "1Gate" in the path.
+    # "GateGroup" variants don't include a number; fall back to generic.
+    "4gates":              "Fight the Storm (Cat 4)",
+    "3gates":              "Fight the Storm (Cat 3)",
+    "2gates":              "Fight the Storm (Cat 2)",
+    "1gate":               "Fight the Storm (Cat 1)",
+    "gategroup":           "Fight the Storm",
+    "gate_group":          "Fight the Storm",
     "miniboss":            "Mini Boss",
     "mini_boss":           "Mini Boss",
     "retrievethedata":     "Retrieve the Data",        # full name path
@@ -1123,7 +1131,7 @@ _GENERATOR_MAP = {
     "fts":                 "Fight the Storm",           # unknown-cat fallback
     "htm":                 "Hunt the Monster",              # STW_Mission_Hunt
     # ── abbreviations used verbatim in Epic generator paths ───────────────
-    "gate":        "Storm Gates",          # T3_R5_1Gate, 2Gates, 3Gates, 4Gates
+    "gate":        "Fight the Storm",       # T3_R5_1Gate, 2Gates, 3Gates, 4Gates
     "etshelter":   "Evacuate the Shelter",
     "etsurvivors": "Rescue Survivors",
     "rtd":         "Retrieve the Data",
@@ -1379,9 +1387,13 @@ def _sync_fetch_alerts() -> tuple:
                     if norm_tid_m and norm_tid_m != tid_m:
                         mission_map[(norm_tid_m, tidx)] = (mname, pl, element)
                 if not skip_zone and gen and pl > 0:
-                    m_rewards: list = []
+                    # Collect rewards from ALL fields (no early break) so the
+                    # supercharger reward isn't missed if it sits in a later field.
+                    # Dedup by itemType to avoid counting the same reward twice.
+                    _rw_seen: dict[str, dict] = {}
                     for rw_field in ("missionRewards", "rewards",
-                                     "missionCompletionRewards", "completionRewards"):
+                                     "missionCompletionRewards", "completionRewards",
+                                     "bonusRewards", "weeklyRewards"):
                         rw_data = m.get(rw_field)
                         if isinstance(rw_data, dict):
                             rw_items = rw_data.get("items", [])
@@ -1392,10 +1404,9 @@ def _sync_fetch_alerts() -> tuple:
                         for rw in rw_items:
                             typ = rw.get("itemType", "") or rw.get("type", "")
                             qty = int(rw.get("quantity", 1) or 1)
-                            if typ:
-                                m_rewards.append({"type": typ, "quantity": qty})
-                        if m_rewards:
-                            break
+                            if typ and typ not in _rw_seen:
+                                _rw_seen[typ] = {"type": typ, "quantity": qty}
+                    m_rewards: list = list(_rw_seen.values())
                     all_missions.append({
                         "name":    mname or gen,
                         "zone":    lang_zone,
@@ -1780,11 +1791,12 @@ def _btn_text_color(bgcolor: str) -> str:
 # English names that are obvious (Retrieve the Data, Deliver the Bomb, etc.)
 # are kept in English even in ES mode because STW players recognise them.
 _MISSION_NAME_ES: dict[str, str] = {
-    "Storm Gates":                    "Puertas de la Tormenta",
+    # ── Names translated only when they're non-obvious in Spanish ─────────────
+    # Well-known English names (Retrieve the Data, Radar Grid, Deliver the Bomb…)
+    # are intentionally left in English — STW players recognise them across languages.
     "Hunt the Monster":               "Cazar el Monstruo",
     "Horde Bash":                     "Ataque de Horda",
     "Storm Shield":                   "Escudo de la Tormenta",
-    "Blitz":                          "Blitz",
     "Storm Alert":                    "Alerta de Tormenta",
     "Defend Atlas":                   "Defender Atlas",
     "Defend the Outpost":             "Defender el Puesto",
@@ -1796,7 +1808,6 @@ _MISSION_NAME_ES: dict[str, str] = {
     "Fight the Storm":                "Luchar contra la Tormenta",
     "Mini Boss":                      "Mini Jefe",
     "Destroy Encampments":            "Destruir Campamentos",
-    "Radar Grid":                     "Cuadrícula de Radar",
 }
 
 
@@ -3022,7 +3033,7 @@ async def main(page: ft.Page):
                     bgcolor=_c("card"),
                     on_dismiss=lambda e: None,
                 )
-                page.dialog = dlg
+                page.overlay.append(dlg)
                 dlg.open = True
                 page.update()
             return open_edit
@@ -3809,7 +3820,7 @@ async def main(page: ft.Page):
                     bgcolor=_c("card"),
                     on_dismiss=lambda e: None,
                 )
-                page.dialog = dlg_m
+                page.overlay.append(dlg_m)
                 dlg_m.open = True
                 page.update()
 
@@ -3902,7 +3913,7 @@ async def main(page: ft.Page):
                     bgcolor=_c("card"),
                     on_dismiss=lambda e: None,
                 )
-                page.dialog = dlg_h
+                page.overlay.append(dlg_h)
                 dlg_h.open = True
                 page.update()
 
