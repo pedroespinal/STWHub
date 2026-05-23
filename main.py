@@ -224,8 +224,11 @@ _GENESIS_APP    = "STW Hub"
 _GENESIS_SEAL   = "bdeedb31e7c0e361f24a71fa9f7a14eb584d1d867bbd0f36e5b755b122166aff"
 
 # ── Admin / Super-user constants ───────────────────────────────────────────────
-# NEVER MODIFY _ADMIN_TAG — this IS Pedro's super-user identifier
+# NEVER MODIFY these — _ADMIN_TAG is Pedro's identifier, _ADMIN_REPO is the repo
+# that the PAT must have push access to in order to verify identity.
+# Tag alone is NOT enough — PAT verification against GitHub is the second factor.
 _ADMIN_TAG           = "S053xY"
+_ADMIN_REPO          = "pedroespinal/STWHub"   # PAT must have push access here
 _HERO_IMAGES_URL     = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/hero_images.json"
 _MISSION_NAMES_URL   = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/mission_names.json"
 _GITHUB_CONTENTS_API = "https://api.github.com/repos/pedroespinal/STWHub/contents/"
@@ -395,6 +398,12 @@ T = {
         "admin_add_mission":    "+ Nombre de misión",
         "admin_add_hero":       "+ Foto de héroe",
         "admin_raw_placeholder":"ej: missiongen_retrieve",
+        "admin_verify_btn":     "Verificar identidad",
+        "admin_verify_hint":    "Ingresa tu PAT y presiona Verificar para activar el panel admin.",
+        "admin_verify_ok":      "✓ Identidad verificada — panel admin activo",
+        "admin_verify_fail":    "✗ PAT inválido o sin acceso. Solo el dueño del repo puede activar esto.",
+        "admin_verify_loading": "Verificando con GitHub...",
+        "admin_locked_hint":    "🔒 Tag de admin detectado. Ingresa tu PAT de GitHub para desbloquear.",
         "edit_hero_img_title":  "Cambiar imagen del héroe",
         "edit_hero_img_lbl":    "URL de imagen (http...)",
         "first_launch_title":   "¡Bienvenido! / Welcome!",
@@ -519,6 +528,12 @@ T = {
         "admin_add_mission":    "+ Mission name",
         "admin_add_hero":       "+ Hero image",
         "admin_raw_placeholder":"eg: missiongen_retrieve",
+        "admin_verify_btn":     "Verify identity",
+        "admin_verify_hint":    "Enter your PAT and press Verify to activate the admin panel.",
+        "admin_verify_ok":      "✓ Identity verified — admin panel active",
+        "admin_verify_fail":    "✗ Invalid PAT or no access. Only the repo owner can activate this.",
+        "admin_verify_loading": "Verifying with GitHub...",
+        "admin_locked_hint":    "🔒 Admin tag detected. Enter your GitHub PAT to unlock.",
         "edit_hero_img_title":  "Edit hero image",
         "edit_hero_img_lbl":    "Image URL (http...)",
         "first_launch_title":   "Welcome! / ¡Bienvenido!",
@@ -1618,6 +1633,29 @@ def _sync_push_github_file(filename: str, data: dict, pat: str,
     except Exception:
         return False
 
+def _sync_verify_admin_pat(pat: str) -> bool:
+    """Second-factor admin verification.
+    Returns True ONLY if the PAT belongs to an account with push (or admin)
+    access to _ADMIN_REPO.  Knowing the tag alone is never enough.
+    """
+    if not _REQ_OK or not pat.strip():
+        return False
+    try:
+        r = requests.get(
+            f"https://api.github.com/repos/{_ADMIN_REPO}",
+            headers={
+                "Authorization": f"token {pat.strip()}",
+                "Accept":        "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if r.status_code == 200:
+            perms = r.json().get("permissions", {})
+            return bool(perms.get("push") or perms.get("admin"))
+    except Exception:
+        pass
+    return False
+
 def _sync_search_heroes(query: str) -> list:
     """Search hero/character images — checks STW cosmetics first, then BR.
     STW heroes (Megabase Kyle, Dragon Scorch, etc.) live in the STW endpoint
@@ -1843,8 +1881,10 @@ async def main(page: ft.Page):
         "hero_search_query":    "",
         "hero_search_origin":   "build_create",
         "hero_search_field":    "hero",
-        # Admin state
+        # Admin state — both must be True to unlock admin panel
         "admin_pat_session":    "",    # GitHub PAT for current session (never saved to prefs)
+        "admin_verified":       False, # True only after PAT verified against GitHub API
+        "admin_verify_loading": False, # spinner while verifying
         "form_data": {
             "id": None, "name": "", "cls": "Soldier",
             "hero": "", "hero_img": "",
@@ -2775,7 +2815,8 @@ async def main(page: ft.Page):
 
     def _builds_meta():
         rows = []
-        is_admin = prefs.get("player_tag", "").strip() == _ADMIN_TAG
+        is_admin = (prefs.get("player_tag", "").strip() == _ADMIN_TAG
+                    and state.get("admin_verified", False))
 
         def set_cls(cls):
             def _h(e):
@@ -3488,9 +3529,70 @@ async def main(page: ft.Page):
     # ── SETTINGS screen ───────────────────────────────────────────────────────
     def _screen_settings():
         rows = []
-        is_admin = prefs.get("player_tag", "").strip() == _ADMIN_TAG
+        _has_admin_tag = prefs.get("player_tag", "").strip() == _ADMIN_TAG
+        is_admin = (_has_admin_tag and state.get("admin_verified", False))
 
-        # ── Admin panel (visible ONLY to Pedro) ───────────────────────────────
+        # ── PAT verification gate — shows when tag matches but not yet verified ─
+        if _has_admin_tag and not state.get("admin_verified", False):
+            gate_pat_tf = ft.TextField(
+                label=t("admin_pat_label"),
+                hint_text=t("admin_pat_hint"),
+                value="",
+                password=True,
+                can_reveal_password=True,
+                prefix_icon=ft.Icons.KEY,
+                border_color=_c("purple"),
+                color=_c("text"),
+                label_style=ft.TextStyle(color=_c("purple")),
+            )
+            gate_status = ft.Text(
+                t("admin_locked_hint"), size=11, color=_c("sub"),
+            )
+
+            async def do_verify(e):
+                pat = (gate_pat_tf.value or "").strip()
+                if not pat:
+                    gate_status.value = "⚠ " + t("admin_pat_hint")
+                    gate_status.color  = _c("yellow")
+                    page.update()
+                    return
+                state["admin_verify_loading"] = True
+                gate_status.value = t("admin_verify_loading")
+                gate_status.color = _c("sub")
+                page.update()
+                ok = await asyncio.to_thread(_sync_verify_admin_pat, pat)
+                state["admin_verify_loading"] = False
+                if ok:
+                    state["admin_verified"]    = True
+                    state["admin_pat_session"] = pat
+                    gate_status.value = t("admin_verify_ok")
+                    gate_status.color = _c("green")
+                    page.update()
+                    # Re-render so the full admin panel appears
+                    await asyncio.sleep(0.6)
+                    render()
+                else:
+                    gate_status.value = t("admin_verify_fail")
+                    gate_status.color = _c("red")
+                    page.update()
+
+            rows.append(_card(
+                ft.Row([
+                    ft.Icon(ft.Icons.LOCK, color=_c("purple"), size=18),
+                    _hdr("🔧 Admin", size=15, color=_c("purple")),
+                ], spacing=8),
+                _divider(),
+                ft.Text(t("admin_verify_hint"), size=11, color=_c("sub")),
+                gate_pat_tf,
+                ft.Row([
+                    _btn(t("admin_verify_btn"), do_verify,
+                         color=_c("purple"), icon=ft.Icons.VERIFIED_USER),
+                    gate_status,
+                ], spacing=8, wrap=True),
+                border_color=_c("purple"),
+            ))
+
+        # ── Admin panel (visible ONLY after PAT verification) ─────────────────
         if is_admin:
             pat_tf = ft.TextField(
                 label=t("admin_pat_label"),
@@ -3503,13 +3605,22 @@ async def main(page: ft.Page):
                 color=_c("text"),
                 label_style=ft.TextStyle(color=_c("purple")),
             )
-            pat_status = ft.Text("", size=11, color=_c("sub"))
+            pat_status = ft.Text(
+                t("admin_verify_ok"), size=11, color=_c("green"),
+            )
 
             def save_pat(e):
-                state["admin_pat_session"] = (pat_tf.value or "").strip()
-                pat_status.value = "✓ PAT guardado en sesión"
-                pat_status.color = _c("green")
-                page.update()
+                # Re-verify when PAT changes (security: don't downgrade to unverified)
+                new_pat = (pat_tf.value or "").strip()
+                if new_pat != state.get("admin_pat_session", ""):
+                    # Different PAT entered — needs re-verification; reset session
+                    state["admin_verified"]    = False
+                    state["admin_pat_session"] = ""
+                    render()
+                else:
+                    pat_status.value = t("admin_verify_ok")
+                    pat_status.color = _c("green")
+                    page.update()
 
             # ── Add mission name override ──────────────────────────────────
             def open_add_mission(e):
