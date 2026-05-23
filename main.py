@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.5.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -224,11 +224,12 @@ _GENESIS_APP    = "STW Hub"
 _GENESIS_SEAL   = "bdeedb31e7c0e361f24a71fa9f7a14eb584d1d867bbd0f36e5b755b122166aff"
 
 # ── Admin / Super-user constants ───────────────────────────────────────────────
-# NEVER MODIFY these — _ADMIN_TAG is Pedro's identifier, _ADMIN_REPO is the repo
-# that the PAT must have push access to in order to verify identity.
-# Tag alone is NOT enough — PAT verification against GitHub is the second factor.
+# NEVER MODIFY these — _ADMIN_TAG is Pedro's identifier.
+# Tag alone is NOT enough — admin code verification is the second factor.
 _ADMIN_TAG           = "S053xY"
-_ADMIN_REPO          = "pedroespinal/STWHub"   # PAT must have push access here
+_ADMIN_CODE_HASH     = "91863ba3563b4758b82ef8391c80a9abe721e36caa24fffa04989bd7bba259e5"
+# SHA-256 of "STWHub-S053xY-Admin26" — NEVER MODIFY
+_ADMIN_REPO          = "pedroespinal/STWHub"
 _HERO_IMAGES_URL     = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/hero_images.json"
 _MISSION_NAMES_URL   = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/mission_names.json"
 _GITHUB_CONTENTS_API = "https://api.github.com/repos/pedroespinal/STWHub/contents/"
@@ -398,12 +399,14 @@ T = {
         "admin_add_mission":    "+ Nombre de misión",
         "admin_add_hero":       "+ Foto de héroe",
         "admin_raw_placeholder":"ej: missiongen_retrieve",
-        "admin_verify_btn":     "Verificar identidad",
-        "admin_verify_hint":    "Ingresa tu PAT y presiona Verificar para activar el panel admin.",
-        "admin_verify_ok":      "✓ Identidad verificada — panel admin activo",
-        "admin_verify_fail":    "✗ PAT inválido o sin acceso. Solo el dueño del repo puede activar esto.",
-        "admin_verify_loading": "Verificando con GitHub...",
-        "admin_locked_hint":    "🔒 Tag de admin detectado. Ingresa tu PAT de GitHub para desbloquear.",
+        "admin_verify_btn":          "Activar admin",
+        "admin_verify_hint":         "Ingresa el código de administrador para desbloquear el panel.",
+        "admin_verify_code_label":   "Código de administrador",
+        "admin_verify_code_hint":    "Código de activación",
+        "admin_verify_ok":           "✓ Código correcto — panel admin activo",
+        "admin_verify_fail":         "✗ Código incorrecto.",
+        "admin_verify_loading":      "Verificando...",
+        "admin_locked_hint":         "🔒 Tag de admin detectado. Ingresa tu código para desbloquear.",
         "edit_hero_img_title":  "Cambiar imagen del héroe",
         "edit_hero_img_lbl":    "URL de imagen (http...)",
         "first_launch_title":   "¡Bienvenido! / Welcome!",
@@ -528,12 +531,14 @@ T = {
         "admin_add_mission":    "+ Mission name",
         "admin_add_hero":       "+ Hero image",
         "admin_raw_placeholder":"eg: missiongen_retrieve",
-        "admin_verify_btn":     "Verify identity",
-        "admin_verify_hint":    "Enter your PAT and press Verify to activate the admin panel.",
-        "admin_verify_ok":      "✓ Identity verified — admin panel active",
-        "admin_verify_fail":    "✗ Invalid PAT or no access. Only the repo owner can activate this.",
-        "admin_verify_loading": "Verifying with GitHub...",
-        "admin_locked_hint":    "🔒 Admin tag detected. Enter your GitHub PAT to unlock.",
+        "admin_verify_btn":          "Activate admin",
+        "admin_verify_hint":         "Enter the administrator code to unlock the panel.",
+        "admin_verify_code_label":   "Administrator code",
+        "admin_verify_code_hint":    "Activation code",
+        "admin_verify_ok":           "✓ Correct code — admin panel active",
+        "admin_verify_fail":         "✗ Incorrect code.",
+        "admin_verify_loading":      "Verifying...",
+        "admin_locked_hint":         "🔒 Admin tag detected. Enter your code to unlock.",
         "edit_hero_img_title":  "Edit hero image",
         "edit_hero_img_lbl":    "Image URL (http...)",
         "first_launch_title":   "Welcome! / ¡Bienvenido!",
@@ -1051,35 +1056,70 @@ def _mission_emoji(name: str) -> str:
 _ZONE_TOKENS = frozenset({
     "stonewood", "plankerton", "canny", "valley", "twine", "peaks",
     "sw", "cv", "tw", "pl", "sh", "wb",       # zone abbreviations
-    "fight", "category",                       # API internal noise
-    "vht", "vhd", "ltb", "lava", "shlt",      # difficulty/variant codes
+    "category",                                # API internal noise
+    "vht", "vhd", "lava", "shlt",             # difficulty/variant codes
     "active", "passive", "novice", "expert",   # difficulty states
     "normal", "hard", "easy", "phoenix",
+    "tutorial", "group", "pve",                # suffix noise
     "a", "b", "c", "d",                        # single-letter category tags
 })
 
 # Clean mission type names keyed by generator substring (longest keys checked first).
 # Used by both _parse_generator and _parse_mission_type for reliable name output.
 _GENERATOR_MAP = {
-    "eliminate":   "Eliminate & Collect",
-    "gategroup":   "Storm Gates",
-    "gate_group":  "Storm Gates",
-    "miniboss":    "Mini Boss",
-    "mini_boss":   "Mini Boss",
-    "retrieve":    "Retrieve Data",
-    "evacuate":    "Evacuate Shelter",
-    "resupply":    "Resupply",
-    "protect":     "Protect Home Base",
-    "deliver":     "Deliver Bomb",
-    "rescue":      "Rescue Survivors",
-    "mutant":      "Mutant Storm",
-    "repair":      "Repair the Shelter",
-    "atlas":       "Defend Atlas",
-    "radar":       "Radar Grid",
-    "ride":        "Ride the Lightning",
-    "horde":       "Horde Bash",
-    "ssd":         "Storm Shield",
-    "blitz":       "Blitz",
+    # ── standard mission types ─────────────────────────────────────────────
+    "eliminateandcollect": "Eliminate & Collect",  # full name path
+    "eliminate":           "Eliminate & Collect",
+    "destroytheenc":       "Destroy Encampments",
+    "gategroup":           "Storm Gates",
+    "gate_group":          "Storm Gates",
+    "miniboss":            "Mini Boss",
+    "mini_boss":           "Mini Boss",
+    "retrievethedata":     "Retrieve the Data",        # full name path
+    "retrieve":            "Retrieve the Data",
+    "evacuatethesurvivors":"Evacuate the Shelter",     # full name path
+    "evacuate":            "Evacuate the Shelter",
+    "resupply":            "Resupply",
+    "ridethe":             "Ride the Lightning",   # RideTheLightning
+    "protect":             "Protect Home Base",
+    "deliverthebomb":      "Deliver the Bomb",         # full name path
+    "deliver":             "Deliver the Bomb",
+    "rescue":              "Rescue Survivors",
+    "mutant":              "Mutant Storm",
+    "repairthecart":       "Repair the Shelter",   # cart variant
+    "repair":              "Repair the Shelter",
+    "refuelthebase":       "Refuel the Base",      # full name path
+    "refuel":              "Refuel the Base",
+    "atlas":               "Defend Atlas",
+    "radar":               "Radar Grid",
+    "buildtheradar":       "Radar Grid",           # BuildtheRadarGrid
+    "ride":                "Ride the Lightning",
+    "horde":               "Horde Bash",
+    "ssd":                 "Storm Shield",
+    "blitz":               "Blitz",
+    "launchtheballoon":    "Launch the Balloon",   # full name path
+    "balloon":             "Launch the Balloon",
+    "outpost":             "Defend the Outpost",
+    "cat1fts":             "Fight the Storm",      # Category-1 Fight the Storm
+    "fts":                 "Fight the Storm",
+    "htm":                 "Hunt",                 # STW_Mission_Hunt
+    # ── abbreviations used verbatim in Epic generator paths ───────────────
+    "gate":        "Storm Gates",          # T3_R5_1Gate, 2Gates, 3Gates, 4Gates
+    "etshelter":   "Evacuate the Shelter",
+    "etsurvivors": "Rescue Survivors",
+    "rtd":         "Retrieve the Data",
+    "rtl":         "Ride the Lightning",
+    "rts":         "Repair the Shelter",
+    "dtb":         "Deliver the Bomb",
+    "dte":         "Eliminate & Collect",
+    "pts":         "Protect Home Base",
+    "ltr":         "Resupply",
+    "ltb":         "Launch the Balloon",   # Stonewood supply mission
+    # ── event / seasonal missions ──────────────────────────────────────────
+    "walktheplank": "Walk the Plank",      # Yarrr pirate event
+    "hestia":       "Hestia",              # Hestia event
+    "dudebro":      "Dudebro",             # test/dev mission — prevents rtd false-match
+    # ── alert-type catch-all (checked last — short key) ──────────────────
     "storm":       "Storm Alert",
 }
 
@@ -1208,9 +1248,14 @@ def _parse_generator(raw: str) -> str:
                     s, flags=_re.IGNORECASE)
         s = _re.sub(r'[_](Novice|Expert|Active|Passive|Storm|Phoenix|Hard|Easy)\w*$',
                     '', s, flags=_re.IGNORECASE)
+        s = _re.sub(r'[_](Tutorial|Group|NoBonus|NoSecondary|PVE\w*|WR)$',
+                    '', s, flags=_re.IGNORECASE)
         s = _re.sub(r'[_]\d+$', '', s)
         if s == prev:
             break
+    # Split CamelCase so "BuildTheMemorial" → "Build The Memorial"
+    s = _re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', s)
+    s = _re.sub(r'(?<=[A-Z])(?=[A-Z][a-z])', ' ', s)
     s = s.replace("_", " ").strip()
     # Filter zone/world tokens from the result
     words = [w for w in s.split() if w.lower() not in _ZONE_TOKENS]
@@ -3542,15 +3587,15 @@ async def main(page: ft.Page):
         _has_admin_tag = prefs.get("player_tag", "").strip() == _ADMIN_TAG
         is_admin = (_has_admin_tag and state.get("admin_verified", False))
 
-        # ── PAT verification gate — shows when tag matches but not yet verified ─
+        # ── Admin code gate — shows when tag matches but not yet verified ─────
         if _has_admin_tag and not state.get("admin_verified", False):
-            gate_pat_tf = ft.TextField(
-                label=t("admin_pat_label"),
-                hint_text=t("admin_pat_hint"),
+            gate_code_tf = ft.TextField(
+                label=t("admin_verify_code_label"),
+                hint_text=t("admin_verify_code_hint"),
                 value="",
                 password=True,
                 can_reveal_password=True,
-                prefix_icon=ft.Icons.KEY,
+                prefix_icon=ft.Icons.LOCK_OPEN,
                 border_color=_c("purple"),
                 color=_c("text"),
                 label_style=ft.TextStyle(color=_c("purple")),
@@ -3559,27 +3604,19 @@ async def main(page: ft.Page):
                 t("admin_locked_hint"), size=11, color=_c("sub"),
             )
 
-            async def do_verify(e):
-                pat = (gate_pat_tf.value or "").strip()
-                if not pat:
-                    gate_status.value = "⚠ " + t("admin_pat_hint")
+            def do_verify(e):
+                entered = (gate_code_tf.value or "").strip()
+                if not entered:
+                    gate_status.value = "⚠ " + t("admin_verify_code_hint")
                     gate_status.color  = _c("yellow")
                     page.update()
                     return
-                state["admin_verify_loading"] = True
-                gate_status.value = t("admin_verify_loading")
-                gate_status.color = _c("sub")
-                page.update()
-                ok = await asyncio.to_thread(_sync_verify_admin_pat, pat)
-                state["admin_verify_loading"] = False
-                if ok:
-                    state["admin_verified"]    = True
-                    state["admin_pat_session"] = pat
+                h = hashlib.sha256(entered.encode("utf-8")).hexdigest()
+                if h == _ADMIN_CODE_HASH:
+                    state["admin_verified"] = True
                     gate_status.value = t("admin_verify_ok")
                     gate_status.color = _c("green")
                     page.update()
-                    # Re-render so the full admin panel appears
-                    await asyncio.sleep(0.6)
                     render()
                 else:
                     gate_status.value = t("admin_verify_fail")
@@ -3593,7 +3630,7 @@ async def main(page: ft.Page):
                 ], spacing=8),
                 _divider(),
                 ft.Text(t("admin_verify_hint"), size=11, color=_c("sub")),
-                gate_pat_tf,
+                gate_code_tf,
                 ft.Row([
                     _btn(t("admin_verify_btn"), do_verify,
                          color=_c("purple"), icon=ft.Icons.VERIFIED_USER),
@@ -3620,17 +3657,10 @@ async def main(page: ft.Page):
             )
 
             def save_pat(e):
-                # Re-verify when PAT changes (security: don't downgrade to unverified)
-                new_pat = (pat_tf.value or "").strip()
-                if new_pat != state.get("admin_pat_session", ""):
-                    # Different PAT entered — needs re-verification; reset session
-                    state["admin_verified"]    = False
-                    state["admin_pat_session"] = ""
-                    render()
-                else:
-                    pat_status.value = t("admin_verify_ok")
-                    pat_status.color = _c("green")
-                    page.update()
+                state["admin_pat_session"] = (pat_tf.value or "").strip()
+                pat_status.value = "✓ PAT guardado"
+                pat_status.color = _c("green")
+                page.update()
 
             # ── Add mission name override ──────────────────────────────────
             def open_add_mission(e):
@@ -4027,6 +4057,7 @@ async def main(page: ft.Page):
                 ))
             except Exception:
                 pass
+            render()
 
         rows.append(_card(notif_tf, _btn(t("save_settings"), save_settings)))
 
