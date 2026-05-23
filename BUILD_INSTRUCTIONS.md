@@ -1,6 +1,6 @@
 # STW Hub — Guía de Compilación / Build Guide
 
-> **STW Hub v2.5.2** · Creado por: Pedro Espinal · Todos los derechos reservados © 2026
+> **STW Hub v2.5.5** · Creado por: Pedro Espinal · Todos los derechos reservados © 2026
 
 ---
 
@@ -13,7 +13,7 @@
 | APK mínimo        | Android 7.0 (API 24)              |
 | APK objetivo      | Android 13+ (API 35)              |
 | Package ID        | `com.pedroespinal.stwhub`         |
-| Versión           | 2.5.2 (build 23)                  |
+| Versión           | 2.5.5 (build 26)                  |
 
 ---
 
@@ -40,7 +40,7 @@
 ```powershell
 chcp 65001 | Out-Null
 cd C:\STWHub
-flet build apk --artifact "STWHub-2-5-0"
+flet build apk --artifact "STWHub-2-5-5"
 ```
 
 El APK se genera en `build\apk\`.
@@ -73,7 +73,7 @@ os.chdir("stwhub")
 
 ```python
 # Celda 3 — Compilar APK
-!flet build apk --artifact "STWHub-2-5-0"
+!flet build apk --artifact "STWHub-2-5-5"
 ```
 
 ```python
@@ -157,7 +157,10 @@ Verificable en la pestana **Configuracion > Acerca de** dentro de la app.
 
 | Version | Build | Cambios principales |
 |---------|-------|---------------------|
-| 2.5.2   | 23    | Fix dialog editar imagen heroe (admin builds), filtro Dudebro en SC, tarjeta SC rediseñada (3 tipos), HTM→Hunt the Monster, traducciones ES misiones (Storm Gates→Puertas de la Tormenta, etc.) |
+| 2.5.5   | 26    | HTM→Hunt the Titan (Beta Storm Mission v32.10), ES: Cazar al Titán, Weapon Supercharger (era Trap/Weapon), badges SC tarjeta corregidos |
+| 2.5.4   | 25    | Cache invalidada por version de app, all_missions en cache offline, dedup rewards multi-campo |
+| 2.5.3   | 24    | Storm Gates→Fight the Storm Cat 1-4 (gate count=atlas), Radar Grid en ingles, filtro Dudebro SC |
+| 2.5.2   | 23    | Fix dialogs admin (overlay), tarjeta SC rediseñada (3 tipos), subtitulo SC corregido (4 misiones) |
 | 2.5.1   | 22    | PL badge explicito (PL NNN), elemento bajo zona, Fight the Storm Cat 1/2/3/4, nuevos emojis por tipo de mision |
 | 2.5.0   | 21    | Admin con codigo hash, nombres de misiones completos (126 generadores mapeados), camelCase split en generators, cosmeticos STW en Settings |
 | 2.4.0   | 20    | Sistema admin super-usuario, overrides GitHub, primera pantalla de configuracion, vista Supercargadores |
@@ -165,4 +168,4 @@ Verificable en la pestana **Configuracion > Acerca de** dentro de la app.
 
 ---
 
-*STW Hub v2.5.2 · Creado por Pedro Espinal · Todos los derechos reservados © 2026*
+*STW Hub v2.5.5 · Creado por Pedro Espinal · Todos los derechos reservados © 2026*

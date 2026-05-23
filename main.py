@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.4"
+APP_VERSION = "2.5.5"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -727,7 +727,7 @@ GUIDE = {
          "• Las misiones PL 160 aparecen con borde morado\n"
          "• El emoji indica el tipo de mision: 💾 Retrieve the Data, 📡 Radar Grid, "
          "🏠 Evacuate the Shelter, 💣 Deliver the Bomb, 🛡️ Defender Atlas, "
-         "⚔️ Luchar contra la Tormenta (Cat. 1-4), 🎯 Hunt the Monster, etc.\n"
+         "⚔️ Luchar contra la Tormenta (Cat. 1-4), 🎯 Hunt the Titan, etc.\n"
          "• Las misiones se agrupan por mundo (Twine primero)\n\n"
          "Consejos:\n"
          "• PL 160 = los mejores materiales del juego (Shadowshard, Obsidian)\n"
@@ -821,7 +821,7 @@ GUIDE = {
          "• PL 160 missions are highlighted with a purple border\n"
          "• The emoji shows the mission type: 💾 Retrieve the Data, 📡 Radar Grid, "
          "🏠 Evacuate the Shelter, 💣 Deliver the Bomb, ⚔️ Fight the Storm (Cat 1-4), "
-         "🎯 Hunt the Monster, etc.\n"
+         "🎯 Hunt the Titan, etc.\n"
          "• Missions are grouped by world (Twine Peaks first)\n\n"
          "Tips:\n"
          "• PL 160 = best materials in the game (Shadowshard, Obsidian)\n"
@@ -1129,7 +1129,7 @@ _GENERATOR_MAP = {
     "cat2fts":             "Fight the Storm (Cat 2)",  # 2-Atlas defense
     "cat1fts":             "Fight the Storm (Cat 1)",  # 1-Atlas defense
     "fts":                 "Fight the Storm",           # unknown-cat fallback
-    "htm":                 "Hunt the Monster",              # STW_Mission_Hunt
+    "htm":                 "Hunt the Titan",                # Beta Storm Mission, added v32.10
     # ── abbreviations used verbatim in Epic generator paths ───────────────
     "gate":        "Fight the Storm",       # T3_R5_1Gate, 2Gates, 3Gates, 4Gates
     "etshelter":   "Evacuate the Shelter",
@@ -1794,7 +1794,7 @@ _MISSION_NAME_ES: dict[str, str] = {
     # ── Names translated only when they're non-obvious in Spanish ─────────────
     # Well-known English names (Retrieve the Data, Radar Grid, Deliver the Bomb…)
     # are intentionally left in English — STW players recognise them across languages.
-    "Hunt the Monster":               "Cazar el Monstruo",
+    "Hunt the Titan":                 "Cazar al Titán",
     "Horde Bash":                     "Ataque de Horda",
     "Storm Shield":                   "Escudo de la Tormenta",
     "Storm Alert":                    "Alerta de Tormenta",
@@ -1847,7 +1847,7 @@ def _reward_label(item_type: str):
         if "people" in t_low or "worker" in t_low or "survivor" in t_low:
             return "🔮", "Survivor Supercharger"
         if "schematic" in t_low or "weapon" in t_low or "trap" in t_low:
-            return "🔮", "Trap/Weapon Supercharger"
+            return "🔮", "Weapon Supercharger"
         return "🔮", "Supercharger"
     # ── XP types ──
     if "phoenixxp" in t_low or "phoenix_xp" in t_low:
@@ -2779,7 +2779,7 @@ async def main(page: ft.Page):
                                 _sc_badge("👷",
                                           "Superviviente" if is_es else "Survivor"),
                                 _sc_badge("🔧",
-                                          "Trampa/Arma" if is_es else "Trap/Weapon"),
+                                          "Arma" if is_es else "Weapon"),
                             ], spacing=5, wrap=True),
                             _sub(
                                 "Completa 4 misiones del mismo tipo para recompensas bonus"
