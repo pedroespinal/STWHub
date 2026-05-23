@@ -359,8 +359,8 @@ T = {
         "world_heroes_rec": "Héroes recomendados",
         "player_tag_lbl": "Nickname en el juego",
         "player_tag_hint": "Tu tag en Fortnite (ej: S053xY)",
-        "cosmetics_loaded": "cosméticos BR cargados",
-        "cosmetics_loading": "Cosméticos BR: cargando...",
+        "cosmetics_loaded": "cosméticos cargados",
+        "cosmetics_loading": "Cosméticos: cargando...",
         "ingame_tag": "Tag en el juego",
         "alerts_tab": "Alertas",
         "superchargers": "Supercargadores",
@@ -489,8 +489,8 @@ T = {
         "world_heroes_rec": "Recommended heroes",
         "player_tag_lbl": "In-game nickname",
         "player_tag_hint": "Your Fortnite tag (eg: S053xY)",
-        "cosmetics_loaded": "BR cosmetics loaded",
-        "cosmetics_loading": "BR cosmetics: loading...",
+        "cosmetics_loaded": "cosmetics loaded",
+        "cosmetics_loading": "Cosmetics: loading...",
         "ingame_tag": "In-game tag",
         "alerts_tab": "Alerts",
         "superchargers": "Superchargers",
@@ -2261,6 +2261,16 @@ async def main(page: ft.Page):
                 render()
         except Exception:
             pass
+
+    async def _task_load_cosmetics():
+        """Pre-load BR + STW cosmetics caches at startup so Settings shows
+        the correct counts immediately, independently of _task_load_meta_imgs.
+        """
+        await asyncio.gather(
+            asyncio.to_thread(_sync_load_br_cosmetics),
+            asyncio.to_thread(_sync_load_stw_cosmetics),
+        )
+        render()   # refresh Settings cosmetics counter
 
     async def _task_load_overrides():
         """Load hero image and mission name overrides from GitHub on startup.
@@ -4052,13 +4062,26 @@ async def main(page: ft.Page):
         rows.append(_card(
             _hdr(t("about"), size=14),
             _sub(f"{APP_NAME}  v{APP_VERSION}"),
-            # Cosmetics cache status
+            # Cosmetics cache — show BR and STW counts separately so both are visible
             ft.Row([
-                ft.Icon(ft.Icons.CHECKROOM if cosm_n else ft.Icons.HOURGLASS_EMPTY,
-                        color=_c("green") if cosm_n else _c("sub"), size=16),
+                ft.Icon(
+                    ft.Icons.CHECKROOM if br_n else ft.Icons.HOURGLASS_EMPTY,
+                    color=_c("cyan") if br_n else _c("sub"), size=15,
+                ),
                 _sub(
-                    (f"BR {br_n:,} + STW {stw_n:,} {t('cosmetics_loaded')}"
-                     if cosm_n else t("cosmetics_loading")),
+                    f"BR: {br_n:,} {t('cosmetics_loaded')}"
+                    if br_n else "BR: " + t("cosmetics_loading"),
+                    size=11,
+                ),
+            ], spacing=6),
+            ft.Row([
+                ft.Icon(
+                    ft.Icons.SHIELD if stw_n else ft.Icons.HOURGLASS_EMPTY,
+                    color=_c("purple") if stw_n else _c("sub"), size=15,
+                ),
+                _sub(
+                    f"STW: {stw_n:,} {t('cosmetics_loaded')}"
+                    if stw_n else "STW: " + t("cosmetics_loading"),
                     size=11,
                 ),
             ], spacing=6),
@@ -4203,7 +4226,8 @@ async def main(page: ft.Page):
 
     # ── Startup ────────────────────────────────────────────────────────────────
     render()
-    page.run_task(_task_load_overrides)       # admin overrides — load first (fast)
+    page.run_task(_task_load_overrides)    # admin overrides — load first (fast)
+    page.run_task(_task_load_cosmetics)    # BR + STW cosmetics — shown in Settings
     page.run_task(_task_load_alerts)
     page.run_task(_task_load_news)
     page.run_task(_task_check_update)
