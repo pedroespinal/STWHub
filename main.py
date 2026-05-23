@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-STW Hub v2.0.0 — Fortnite: Save The World Hub
+STW Hub v2.5.7 — Fortnite: Save The World Hub
 Creado por: Pedro Espinal   Todos los derechos reservados (c) 2026
 Bilingual · Dark/Light · Auto-refresh · Builds with images · Genesis-sealed
 """
@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.6"
+APP_VERSION = "2.5.7"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1173,13 +1173,22 @@ def _parse_generator(raw: str) -> str:
     Checks _GENERATOR_MAP first for reliable clean names.
     """
     import re as _re
+    # ── Step 1: try the FULL raw path first ───────────────────────────────────
+    # Epic UE paths encode category info in the DIRECTORY segment BEFORE the dot,
+    # e.g. .../GateGroup_Cat4FtS/MissionGen_FightStorm.MissionGen_FightStorm
+    # Stripping at the last dot first would lose "GateGroup_Cat4FtS" before the
+    # map lookup, making compound keys like "gategroupcat4fts" unreachable.
+    # Check the FULL string first so every path segment is available to match.
+    mapped = _mission_name_from_raw(raw)
+    if mapped:
+        return mapped
     s = raw
-    # Strip UE asset paths
+    # Strip UE asset paths (dot-notation class path → filename)
     if "." in s:
         s = s.rsplit(".", 1)[-1]
     elif "/" in s:
         s = s.rsplit("/", 1)[-1]
-    # Fast path: map lookup on full raw (after path strip)
+    # Fast path: map lookup on filename segment (after path strip)
     mapped = _mission_name_from_raw(s)
     if mapped:
         return mapped
@@ -1699,10 +1708,12 @@ def _reward_label(item_type: str):
     if "currency_mtxswap" in t_low:
         return "💎", "V-Bucks"
     # ── Supercharger (charge fragment — lets you level past 131) ──
-    if "supercharg" in t_low:
+    # Epic uses both "supercharg…" names AND "…XpMultiplierCard5" token names.
+    if "supercharg" in t_low or "multipliercard" in t_low or "xpmultiplier" in t_low:
         if "hero" in t_low:
             return "🔮", "Hero Supercharger"
-        if "people" in t_low or "worker" in t_low or "survivor" in t_low:
+        if ("people" in t_low or "worker" in t_low or "survivor" in t_low
+                or "personnel" in t_low):
             return "🔮", "Survivor Supercharger"
         if "schematic" in t_low or "weapon" in t_low or "trap" in t_low:
             return "🔮", "Weapon Supercharger"
@@ -2589,6 +2600,19 @@ async def main(page: ft.Page):
                             break
                     if sc_detected:
                         break
+                # Fallback: scan daily alerts for SC reward types.
+                # The client_credentials API returns empty missions[] so m160 is
+                # always 0, but SC missions DO appear in missionAlerts with their
+                # Supercharger reward items — check there too.
+                if not sc_detected:
+                    for _a in state.get("alerts", []):
+                        for _rw in _a.get("rewards", []):
+                            _, _lbl = _reward_label(_rw.get("type", ""))
+                            if _lbl in _SC_TYPE_INFO:
+                                sc_detected = _lbl
+                                break
+                        if sc_detected:
+                            break
 
                 sc_title = ("Supercargadores Semanales" if is_es
                             else "Weekly Superchargers")
@@ -2640,8 +2664,9 @@ async def main(page: ft.Page):
                         ft.Text(sc_title, size=15, color=_c("purple"),
                                 weight=ft.FontWeight.BOLD),
                         _sub(
-                            "Solo 1 tipo activo esta semana:" if is_es
-                            else "Only 1 type active this week:",
+                            "Completa 4 misiones PL 160 del mismo tipo:"
+                            if is_es else
+                            "Complete 4 PL 160 missions of the same type:",
                             size=10,
                         ),
                         ft.Row([
@@ -2652,9 +2677,15 @@ async def main(page: ft.Page):
                                       "Arma" if is_es else "Weapon"),
                         ], spacing=5, wrap=True),
                         _sub(
-                            "Completa 4 del mismo tipo para recompensas bonus"
+                            "Verifica el tipo activo en: fortnitedb.com/stw"
                             if is_es else
-                            "Complete 4 of the same type for bonus rewards",
+                            "Check active type at: fortnitedb.com/stw",
+                            size=9,
+                        ),
+                        _sub(
+                            "Recompensas: PERK-UP! legendario, Cristal de Tormenta y más"
+                            if is_es else
+                            "Rewards: Legendary PERK-UP!, Storm Shard and more",
                             size=9,
                         ),
                     ], expand=True, spacing=4)
