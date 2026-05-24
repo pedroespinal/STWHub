@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.7.2"
+APP_VERSION = "2.7.3"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -106,7 +106,7 @@ _WORLD_NAMES = {
     "stonewood":  {"es": "Bosque Pedregoso", "en": "Stonewood"},
     "plankerton": {"es": "Villa Tablón",     "en": "Plankerton"},
     "canny":      {"es": "Valle Latoso",     "en": "Canny Valley"},
-    "twine":      {"es": "Cumbres",          "en": "Twine Peaks"},
+    "twine":      {"es": "Cumbres de Twine", "en": "Twine Peaks"},
 }
 # Substring keywords used to match alert zone_en → world tab
 _WORLD_KEYS  = {
@@ -1968,23 +1968,36 @@ def _btn_text_color(bgcolor: str) -> str:
 # English names that are obvious (Retrieve the Data, Deliver the Bomb, etc.)
 # are kept in English even in ES mode because STW players recognise them.
 _MISSION_NAME_ES: dict[str, str] = {
-    # ── Names translated only when they're non-obvious in Spanish ─────────────
-    # Well-known English names (Retrieve the Data, Radar Grid, Deliver the Bomb…)
-    # are intentionally left in English — STW players recognise them across languages.
-    "Hunt the Titan":                 "Cazar al Titán",
-    "Horde Bash":                     "Ataque de Horda",
-    "Storm Shield":                   "Escudo de la Tormenta",
-    "Storm Alert":                    "Alerta de Tormenta",
-    "Defend Atlas":                   "Defender Atlas",
-    "Defend the Outpost":             "Defender el Puesto",
-    "Mutant Storm":                   "Tormenta Mutante",
-    "Fight the Storm (Cat 1)":        "Luchar contra la Tormenta (Cat. 1)",
-    "Fight the Storm (Cat 2)":        "Luchar contra la Tormenta (Cat. 2)",
-    "Fight the Storm (Cat 3)":        "Luchar contra la Tormenta (Cat. 3)",
-    "Fight the Storm (Cat 4)":        "Luchar contra la Tormenta (Cat. 4)",
-    "Fight the Storm":                "Luchar contra la Tormenta",
-    "Mini Boss":                      "Mini Jefe",
-    "Destroy Encampments":            "Destruir Campamentos",
+    # ── Traducción completa de todos los tipos de misión ──────────────────────
+    "Fight the Storm (Cat 1)":  "Luchar contra la Tormenta (Cat. 1)",
+    "Fight the Storm (Cat 2)":  "Luchar contra la Tormenta (Cat. 2)",
+    "Fight the Storm (Cat 3)":  "Luchar contra la Tormenta (Cat. 3)",
+    "Fight the Storm (Cat 4)":  "Luchar contra la Tormenta (Cat. 4)",
+    "Fight the Storm":          "Luchar contra la Tormenta",
+    "Retrieve the Data":        "Recuperar los Datos",
+    "Evacuate the Shelter":     "Evacuar el Refugio",
+    "Rescue Survivors":         "Rescatar Sobrevivientes",
+    "Deliver the Bomb":         "Entregar la Bomba",
+    "Repair the Shelter":       "Reparar el Refugio",
+    "Refuel the Base":          "Reabastecer la Base",
+    "Protect Home Base":        "Proteger la Base",
+    "Ride the Lightning":       "Cabalgar el Rayo",
+    "Defend Atlas":             "Defender Atlas",
+    "Defend the Outpost":       "Defender el Puesto",
+    "Destroy Encampments":      "Destruir Campamentos",
+    "Eliminate & Collect":      "Eliminar y Recolectar",
+    "Radar Grid":               "Red de Radar",
+    "Launch the Balloon":       "Lanzar el Globo",
+    "Mutant Storm":             "Tormenta Mutante",
+    "Storm Shield":             "Escudo de la Tormenta",
+    "Storm Alert":              "Alerta de Tormenta",
+    "Horde Bash":               "Ataque de Horda",
+    "Mini Boss":                "Mini Jefe",
+    "Hunt the Titan":           "Cazar al Titán",
+    "Resupply":                 "Reabastecer",
+    "Blitz":                    "Misión Relámpago",
+    "Walk the Plank":           "Caminar por la Tabla",
+    "Mission":                  "Misión",
 }
 
 
@@ -3001,7 +3014,7 @@ async def main(page: ft.Page):
                 for wk in _WORLD_ORDER
             }
             def _wtab_lbl(wk):
-                base = f"{_WORLD_TAB[wk]['icon']} {_WORLD_TAB[wk][lang]}"
+                base = f"{_WORLD_TAB[wk]['icon']} {_WORLD_NAMES[wk][lang]}"
                 n = _world_counts.get(wk, 0)
                 return f"{base} ({n})" if n > 0 else base
 
@@ -3054,7 +3067,7 @@ async def main(page: ft.Page):
                         render()
                     return _h
                 rows.append(ft.Row(
-                    [_toggle_btn(f"{_WORLD_TAB[wk]['icon']} {_WORLD_TAB[wk][lang]}",
+                    [_toggle_btn(f"{_WORLD_TAB[wk]['icon']} {_WORLD_NAMES[wk][lang]}",
                                  hw == wk, set_hw(wk))
                      for wk in _WORLD_ORDER],
                     spacing=6, wrap=True,
