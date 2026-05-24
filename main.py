@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.6.0"
+APP_VERSION = "2.6.1"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -498,6 +498,8 @@ BUILDS = {
             "support_en": "BASE Kyle · Electro-pulse Penny · Trailblaster Buzz · Steel Wool Anthony · Power BASE Knox",
             "gadgets_es": "Hover Turret · Plasma Pulse",
             "gadgets_en": "Hover Turret · Plasma Pulse",
+            "team_perk_es": "Kinetic Overload — refleja daño eléctrico al bloquear golpes",
+            "team_perk_en": "Kinetic Overload — reflects electric damage when blocking hits",
             "weapons_es": "Hydraulic Shotgun · Siegebreaker",
             "weapons_en": "Hydraulic Shotgun · Siegebreaker",
             "skills": ["B.A.S.E.", "Plasma Pulse", "Bull Rush", "Decoy"],
@@ -514,6 +516,8 @@ BUILDS = {
             "support_en": "Power BASE Knox · Steel Wool Anthony · Electro-pulse Penny · Hotdog Stan · Megabase Kyle",
             "gadgets_es": "Hover Turret · Adrenaline Rush",
             "gadgets_en": "Hover Turret · Adrenaline Rush",
+            "team_perk_es": "Shock Tower — puntales eléctricos ralentizan y dañan husks en área",
+            "team_perk_en": "Shock Tower — electric pylons slow and damage husks in an area",
             "weapons_es": "Ground Pounder · Typewriter",
             "weapons_en": "Ground Pounder · Typewriter",
             "skills": ["Kinetic Overload", "Shockwave", "Bull Rush", "Plasma Pulse"],
@@ -532,6 +536,8 @@ BUILDS = {
             "support_en": "Dim Mak Mari · Deadly Blade Crash · Brawler Kyle · Fleetfoot Ken · Phase Scout Jess",
             "gadgets_es": "Smoke Bomb · Adrenaline Rush",
             "gadgets_en": "Smoke Bomb · Adrenaline Rush",
+            "team_perk_es": "Dragon Slash — el tajo aplica fuego a todos los enemigos en línea",
+            "team_perk_en": "Dragon Slash — slash applies fire to all enemies in a straight line",
             "weapons_es": "Nocturno (Dragon) · Spectral Blade",
             "weapons_en": "Nocturno (Dragon) · Spectral Blade",
             "skills": ["Dragon Slash", "Smoke Bomb", "Shadow Stance", "Crescent Kick"],
@@ -548,6 +554,8 @@ BUILDS = {
             "support_en": "Brawler Kyle · Deadly Blade Crash · Dire · Dim Mak Mari · Fleetfoot Ken",
             "gadgets_es": "Throwing Stars · Smoke Bomb",
             "gadgets_en": "Throwing Stars · Smoke Bomb",
+            "team_perk_es": "Smoke Screen — Smoke Bomb crea zona de daño persistente en área",
+            "team_perk_en": "Smoke Screen — Smoke Bomb creates a lingering damage zone in area",
             "weapons_es": "Hydra · Vacuum Tube Bow",
             "weapons_en": "Hydra · Vacuum Tube Bow",
             "skills": ["Throwing Stars", "Smoke Bomb", "Crescent Kick", "Shadow Stance"],
@@ -566,6 +574,8 @@ BUILDS = {
             "support_en": "Phase Scout Jess · Pathfinder Jess · Ranger Deadeye · Striker A.C. · Trailblaster Recon Scout",
             "gadgets_es": "T.E.D.D.Y. · Anti-Material Charge",
             "gadgets_en": "T.E.D.D.Y. · Anti-Material Charge",
+            "team_perk_es": "In the Zone — cada eliminación aumenta tu velocidad de movimiento",
+            "team_perk_en": "In the Zone — each elimination increases your movement speed",
             "weapons_es": "Razorblade · Siegebreaker",
             "weapons_en": "Razorblade · Siegebreaker",
             "skills": ["T.E.D.D.Y.", "Anti-Material Charge", "Seismic Smash", "In the Zone"],
@@ -582,6 +592,8 @@ BUILDS = {
             "support_en": "Ranger Deadeye · Pathfinder Jess · Enforcer Grizzly · Striker A.C. · Trailblaster Recon Scout",
             "gadgets_es": "T.E.D.D.Y. · Anti-Material Charge",
             "gadgets_en": "T.E.D.D.Y. · Anti-Material Charge",
+            "team_perk_es": "In the Zone — velocidad máxima de movimiento para llegar a misiones rápido",
+            "team_perk_en": "In the Zone — maximum movement speed to reach missions fast",
             "weapons_es": "Vacuum Tube Sniper · Grave Digger",
             "weapons_en": "Vacuum Tube Sniper · Grave Digger",
             "skills": ["T.E.D.D.Y.", "In the Zone", "Anti-Material Charge", "Seismic Smash"],
@@ -600,6 +612,8 @@ BUILDS = {
             "support_en": "Commando Ramirez · Sergeant Jonesy · Enforcer Grizzly · Urban Assault Headhunter · Shock Specialist A.C.",
             "gadgets_es": "Goin' Commando!!! · Hover Turret",
             "gadgets_en": "Goin' Commando!!! · Hover Turret",
+            "team_perk_es": "War Cry — aumenta daño y cadencia de fuego de todo el equipo",
+            "team_perk_en": "War Cry — increases damage and fire rate for the whole team",
             "weapons_es": "Nocturno · Siegebreaker · Ground Pounder",
             "weapons_en": "Nocturno · Siegebreaker · Ground Pounder",
             "skills": ["Frag Grenade", "Lefty and Righty", "War Cry", "Goin' Commando"],
@@ -616,6 +630,8 @@ BUILDS = {
             "support_en": "Urban Assault Headhunter · Commando Ramirez · Raider Headhunter · Shock Specialist A.C. · Trailblaster Buzz",
             "gadgets_es": "War Cry · Adrenaline Rush",
             "gadgets_en": "War Cry · Adrenaline Rush",
+            "team_perk_es": "War Cry — activa en área amplia, ideal para buff de equipo en 4 jugadores",
+            "team_perk_en": "War Cry — wide area activation, ideal team buff in 4-player matches",
             "weapons_es": "Typewriter · Hydra",
             "weapons_en": "Typewriter · Hydra",
             "skills": ["War Cry", "Frag Grenade", "Goin' Commando", "Shockwave"],
@@ -2891,9 +2907,10 @@ async def main(page: ft.Page):
                 desc    = b[f"desc_{lang}"]
                 purpose = b[f"purpose_{lang}"]
                 support = b.get(f"support_{lang}", b.get("support_en", ""))
-                gadgets = b.get(f"gadgets_{lang}", b.get("gadgets_en", ""))
-                weapons = b[f"weapons_{lang}"]
-                tags    = b.get("tags", [])
+                gadgets   = b.get(f"gadgets_{lang}", b.get("gadgets_en", ""))
+                team_perk = b.get(f"team_perk_{lang}", b.get("team_perk_en", ""))
+                weapons   = b[f"weapons_{lang}"]
+                tags      = b.get("tags", [])
                 hero_img_url = state["meta_imgs"].get(b["hero"], "")
                 cls_color = cls_colors.get(cls_name, _c("orange"))
 
@@ -2952,10 +2969,15 @@ async def main(page: ft.Page):
                     # ── Gadgets ───────────────────────────────────────────────
                     ft.Row([
                         ft.Icon(ft.Icons.GAMEPAD, size=13, color=_c("cyan")),
-                        ft.Text(
-                            ("Gadgets: " if lang=="en" else "Gadgets: ") + gadgets,
-                            size=11, color=_c("sub"), expand=True),
+                        ft.Text("Gadgets: " + gadgets,
+                                size=11, color=_c("sub"), expand=True),
                     ], spacing=6) if gadgets else ft.Text(""),
+                    # ── Team Perk ─────────────────────────────────────────────
+                    ft.Row([
+                        ft.Icon(ft.Icons.GROUPS, size=13, color=_c("green")),
+                        ft.Text("Team Perk: " + team_perk,
+                                size=11, color=_c("sub"), expand=True),
+                    ], spacing=6) if team_perk else ft.Text(""),
                     # ── Weapons ───────────────────────────────────────────────
                     ft.Row([
                         ft.Icon(ft.Icons.SPORTS_ESPORTS, size=13, color=_c("cyan")),
@@ -3122,10 +3144,12 @@ async def main(page: ft.Page):
             support_key  = "support_es" if lang_key == "es" else "support_en"
             support      = (b.get(support_key) or b.get("support_es")
                             or b.get("support_en", ""))
-            gadgets      = (b.get(f"gadgets_{lang_key}") or b.get("gadgets_es")
-                            or b.get("gadgets_en", ""))
-            weapon1  = b.get("weapon1", "")
-            weapon2  = b.get("weapon2", "")
+            gadgets   = (b.get(f"gadgets_{lang_key}") or b.get("gadgets_es")
+                         or b.get("gadgets_en", ""))
+            team_perk = (b.get(f"team_perk_{lang_key}") or b.get("team_perk_es")
+                         or b.get("team_perk_en", ""))
+            weapon1   = b.get("weapon1", "")
+            weapon2   = b.get("weapon2", "")
 
             # Split support into individual hero names (up to 5)
             sp_heroes = [h.strip() for h in support.split(" · ") if h.strip()]
@@ -3184,6 +3208,12 @@ async def main(page: ft.Page):
                     ft.Text("Gadgets: " + gadgets, size=11,
                             color=_c("sub"), expand=True),
                 ], spacing=6) if gadgets else ft.Text(""),
+                # ── Team Perk ─────────────────────────────────────────────────
+                ft.Row([
+                    ft.Icon(ft.Icons.GROUPS, size=13, color=_c("green")),
+                    ft.Text("Team Perk: " + team_perk, size=11,
+                            color=_c("sub"), expand=True),
+                ], spacing=6) if team_perk else ft.Text(""),
                 # ── Weapons ───────────────────────────────────────────────────
                 ft.Row([
                     ft.Icon(ft.Icons.SPORTS_ESPORTS, size=13, color=_c("cyan")),
