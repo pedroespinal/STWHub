@@ -41,7 +41,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.5.9"
+APP_VERSION = "2.6.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1949,8 +1949,8 @@ async def main(page: ft.Page):
         return ft.Text(text, size=size, weight=ft.FontWeight.BOLD,
                        color=color or _c("orange"))
 
-    def _sub(text, size=12):
-        return ft.Text(text, size=size, color=_c("sub"))
+    def _sub(text, size=12, color=None):
+        return ft.Text(text, size=size, color=color or _c("sub"))
 
     def _txt(text, size=14, color=None):
         return ft.Text(text, size=size, color=color or _c("text"))
@@ -2637,147 +2637,128 @@ async def main(page: ft.Page):
             if state["loading"]:
                 rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
                                             color=_c("orange")))
-            elif not state.get("all_missions"):
-                rows.append(_card(_txt(t("no_missions"), color=_c("sub"))))
-            else:
-                all_m   = state["all_missions"]
-                # Filter dev/test missions from the display list
-                m160    = [m for m in all_m
-                           if m.get("pl", 0) >= 160
-                           and m.get("name", "").lower() not in _SKIP_MISSION_NAMES]
-                is_es   = (lang == "es")
 
-                # ── Supercharger info card ─────────────────────────────────────
-                # Try to detect the active SC type from PL 160 mission rewards.
-                # With client_credentials the API usually returns no reward data,
-                # so the fallback gracefully shows the 3 possible types.
-                _SC_TYPE_INFO = {
-                    "Hero Supercharger":     ("⭐", "Héroe"        , "Hero"),
-                    "Survivor Supercharger": ("👷", "Superviviente", "Survivor"),
-                    "Weapon Supercharger":   ("🔧", "Arma"         , "Weapon"),
-                }
-                sc_detected: str | None = None
-                for _m160 in m160:
-                    for _rw in _m160.get("rewards", []):
+            # ── SC card ALWAYS rendered (not gated on all_missions) ────────────
+            # Epic client_credentials returns empty missions[] so all_missions is
+            # usually empty, but stw_weekly.json always has the correct SC type.
+            all_m = state.get("all_missions", [])
+            m160  = [m for m in all_m
+                     if m.get("pl", 0) >= 160
+                     and m.get("name", "").lower() not in _SKIP_MISSION_NAMES]
+            is_es = (lang == "es")
+
+            _SC_TYPE_INFO = {
+                "Hero Supercharger":     ("⭐", "Héroe",         "Hero"),
+                "Survivor Supercharger": ("👷", "Superviviente", "Survivor"),
+                "Weapon Supercharger":   ("🔧", "Arma",          "Weapon"),
+                "Core Re-perk":          ("⚙️", "Ventajista",    "Re-perk"),
+            }
+            _SC_DEFS = {
+                "Hero Supercharger":     ("#8800cc", "🦸", "HÉROE",         "HERO"),
+                "Survivor Supercharger": ("#0066cc", "👥", "SUPERVIVIENTE", "SURVIVOR"),
+                "Weapon Supercharger":   ("#cc5500", "⚔️", "ARMA",          "WEAPON"),
+                "Core Re-perk":          ("#006644", "⚙️", "VENTAJISTA",    "RE-PERK"),
+            }
+
+            sc_detected: str | None = None
+            # Level 1: PL 160 mission rewards
+            for _m160 in m160:
+                for _rw in _m160.get("rewards", []):
+                    _, _lbl = _reward_label(_rw.get("type", ""))
+                    if _lbl in _SC_TYPE_INFO:
+                        sc_detected = _lbl
+                        break
+                if sc_detected:
+                    break
+            # Level 2: daily alerts
+            if not sc_detected:
+                for _a in state.get("alerts", []):
+                    for _rw in _a.get("rewards", []):
                         _, _lbl = _reward_label(_rw.get("type", ""))
                         if _lbl in _SC_TYPE_INFO:
                             sc_detected = _lbl
                             break
                     if sc_detected:
                         break
-                # Fallback 1: scan daily alerts for SC reward types.
-                # The client_credentials API returns empty missions[] so m160 is
-                # always 0, but SC missions DO appear in missionAlerts with their
-                # Supercharger reward items — check there too.
-                if not sc_detected:
-                    for _a in state.get("alerts", []):
-                        for _rw in _a.get("rewards", []):
-                            _, _lbl = _reward_label(_rw.get("type", ""))
-                            if _lbl in _SC_TYPE_INFO:
-                                sc_detected = _lbl
-                                break
-                        if sc_detected:
-                            break
-                # Fallback 2: use stw_weekly.json (GitHub-hosted, author-maintained).
-                # Contains the correct SC type for the current week regardless of API.
-                if not sc_detected:
-                    weekly_sc = state.get("stw_weekly", {}).get("sc_type", "")
-                    if weekly_sc in _SC_TYPE_INFO:
-                        sc_detected = weekly_sc
+            # Level 3: stw_weekly.json — GitHub-hosted, updated every Tuesday
+            if not sc_detected:
+                weekly_sc = state.get("stw_weekly", {}).get("sc_type", "")
+                if weekly_sc in _SC_TYPE_INFO:
+                    sc_detected = weekly_sc
 
-                # ── SC type icons — colored diamond cards like the in-game ones ──
-                # Colors match the game: purple=Hero, blue=Survivor, orange=Weapon
-                _SC_DEFS = {
-                    "Hero Supercharger":     ("#8800cc", "🦸", "HÉROE"        , "HERO"),
-                    "Survivor Supercharger": ("#0066cc", "👥", "SUPERVIVIENTE", "SURVIVOR"),
-                    "Weapon Supercharger":   ("#cc5500", "⚔️", "ARMA"         , "WEAPON"),
-                }
-
-                def _sc_icon(key, big=False):
-                    bg, em, es_lbl, en_lbl = _SC_DEFS[key]
-                    lbl = es_lbl if is_es else en_lbl
-                    sz_em = 32 if big else 20
-                    sz_tx = 10 if big else 8
-                    pd    = _pad_sym(horizontal=14 if big else 10,
-                                     vertical=10 if big else 6)
-                    return ft.Container(
-                        content=ft.Column([
-                            ft.Text(em, size=sz_em,
-                                    text_align=ft.TextAlign.CENTER),
-                            ft.Text(lbl, size=sz_tx, color="#ffffff",
-                                    weight=ft.FontWeight.BOLD,
-                                    text_align=ft.TextAlign.CENTER),
-                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                           spacing=2, tight=True),
-                        bgcolor=bg,
-                        border_radius=12,
-                        padding=pd,
-                        border=_border_all(2, "#ffffff") if big else None,
-                        width=100 if big else 76,
-                    )
-
-                sc_title_text = ft.Text(
-                    "Supercargadores Semanales" if is_es else "Weekly Superchargers",
-                    size=15, color=_c("purple"), weight=ft.FontWeight.BOLD,
+            def _sc_icon(key, big=False):
+                bg, em, es_lbl, en_lbl = _SC_DEFS[key]
+                lbl   = es_lbl if is_es else en_lbl
+                sz_em = 32 if big else 20
+                sz_tx = 10 if big else 8
+                pd    = _pad_sym(horizontal=14 if big else 10,
+                                 vertical=10 if big else 6)
+                return ft.Container(
+                    content=ft.Column([
+                        ft.Text(em, size=sz_em, text_align=ft.TextAlign.CENTER),
+                        ft.Text(lbl, size=sz_tx, color="#ffffff",
+                                weight=ft.FontWeight.BOLD,
+                                text_align=ft.TextAlign.CENTER),
+                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                       spacing=2, tight=True),
+                    bgcolor=bg, border_radius=12, padding=pd,
+                    border=_border_all(2, "#ffffff") if big else None,
+                    width=100 if big else 76,
                 )
 
-                if sc_detected:
-                    # ── Detected: show the active type big and centered ───────
-                    sc_card_content = ft.Column([
-                        sc_title_text,
-                        ft.Container(height=4),
-                        _sc_icon(sc_detected, big=True),
-                        ft.Container(height=4),
-                        ft.Text(
-                            ("Esta semana: "
-                             + (_SC_DEFS[sc_detected][2] if is_es
-                                else _SC_DEFS[sc_detected][3])),
-                            size=13, color=_c("cyan"),
-                            weight=ft.FontWeight.BOLD,
-                        ),
-                        _sub(
-                            "Completa 10 misiones PL 160 para obtenerlo"
-                            if is_es else
-                            "Complete 10 PL 160 missions to earn it",
-                            size=10,
-                        ),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                       spacing=3)
-                else:
-                    # ── Unknown: show all 3 types, ask user to check ──────────
-                    sc_card_content = ft.Column([
-                        sc_title_text,
-                        _sub(
-                            "Solo 1 tipo activo esta semana:"
-                            if is_es else "Only 1 type active this week:",
-                            size=10,
-                        ),
-                        ft.Container(height=2),
-                        ft.Row(
-                            [_sc_icon(k) for k in _SC_DEFS],
-                            spacing=8, wrap=True,
-                            alignment=ft.MainAxisAlignment.CENTER,
-                        ),
-                        ft.Container(height=4),
-                        _sub(
-                            "Verifica cual es el activo en fortnitedb.com/stw"
-                            if is_es else
-                            "Check which is active at fortnitedb.com/stw",
-                            size=9,
-                        ),
-                        _sub(
-                            "Recompensa: PERK-UP! legendario, Cristal de Tormenta y mas"
-                            if is_es else
-                            "Reward: Legendary PERK-UP!, Storm Shard and more",
-                            size=9,
-                        ),
-                    ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                       spacing=3)
+            sc_title_text = ft.Text(
+                "Supercargador Semanal" if is_es else "Weekly Supercharger",
+                size=15, color=_c("purple"), weight=ft.FontWeight.BOLD,
+            )
 
-                rows.append(_card(
-                    sc_card_content,
-                    border_color=_c("purple"),
-                ))
+            if sc_detected:
+                sc_card_content = ft.Column([
+                    sc_title_text,
+                    ft.Container(height=4),
+                    _sc_icon(sc_detected, big=True),
+                    ft.Container(height=4),
+                    ft.Text(
+                        ("Esta semana: "
+                         + (_SC_DEFS[sc_detected][2] if is_es
+                            else _SC_DEFS[sc_detected][3])),
+                        size=13, color=_c("cyan"), weight=ft.FontWeight.BOLD,
+                    ),
+                    _sub(
+                        "Completa 10 misiones PL 160 para obtenerlo"
+                        if is_es else
+                        "Complete 10 PL 160 missions to earn it",
+                        size=10,
+                    ),
+                    _sub("fortnitedb.com/stw", size=9),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=3)
+            else:
+                sc_card_content = ft.Column([
+                    sc_title_text,
+                    _sub(
+                        "Solo 1 tipo activo esta semana:"
+                        if is_es else "Only 1 type active this week:",
+                        size=10,
+                    ),
+                    ft.Container(height=2),
+                    ft.Row([_sc_icon(k) for k in _SC_DEFS],
+                           spacing=8, wrap=True,
+                           alignment=ft.MainAxisAlignment.CENTER),
+                    ft.Container(height=4),
+                    _sub(
+                        "Verifica cual en fortnitedb.com/stw"
+                        if is_es else
+                        "Check which is active at fortnitedb.com/stw",
+                        size=9,
+                    ),
+                    _sub(
+                        "Recompensa: PERK-UP! legendario, Cristal de Tormenta y mas"
+                        if is_es else
+                        "Reward: Legendary PERK-UP!, Storm Shard and more",
+                        size=9,
+                    ),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=3)
+
+            rows.append(_card(sc_card_content, border_color=_c("purple")))
 
         rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
