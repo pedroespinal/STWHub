@@ -1,0 +1,32 @@
+name: Auto-process Community Build Submission
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  process:
+    # Only runs when the issue title starts with [COMMUNITY BUILD]
+    if: startsWith(github.event.issue.title, '[COMMUNITY BUILD]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Process build submission
+        env:
+          ISSUE_BODY:   ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE:  ${{ github.event.issue.title }}
+          GH_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
+          REPO:         ${{ github.repository }}
+        run: python .github/scripts/process_build.py

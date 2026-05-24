@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.7.4"
+APP_VERSION = "2.8.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -96,6 +96,9 @@ _COMMUNITY_BUILDS_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/m
 _STW_WEEKLY_URL  = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/stw_weekly.json"
 # Static weapon database (bundled + GitHub fallback)
 _WEAPONS_URL     = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/weapons.json"
+# Fine-grained PAT — Issues: Write ONLY on pedroespinal/STWHub
+# Risk if extracted from APK: can only create issues, cannot modify code or files
+_GH_ISSUES_TOKEN = "PLACEHOLDER_REPLACE_WITH_TOKEN"
 
 _VBUCKS_TYPE = "AccountResource:currency_mtxswap"
 _REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
@@ -386,8 +389,11 @@ T = {
         "first_launch_continue":"Continuar",
         "first_launch_skip":    "Omitir",
         # ── Community share ──
-        "share_build":          "Compartir con Comunidad",
-        "share_build_info":     "Se abrira GitHub en tu navegador. Necesitas una cuenta GitHub para enviar.",
+        "share_build":          "Subir a Comunidad",
+        "share_build_sending":  "Enviando build...",
+        "share_build_ok":       "¡Build enviado! Aparecerá en Comunidad en segundos.",
+        "share_build_dup":      "Ya existe una build con ese nombre y clase.",
+        "share_build_err":      "Error al enviar. Intenta de nuevo.",
         # ── Alert screen ──
         "compact_mode":         "Compacto",
         "mission_all":          "Todas",
@@ -522,8 +528,11 @@ T = {
         "first_launch_continue":"Continue",
         "first_launch_skip":    "Skip",
         # ── Community share ──
-        "share_build":          "Share with Community",
-        "share_build_info":     "GitHub will open in your browser. A GitHub account is needed to submit.",
+        "share_build":          "Upload to Community",
+        "share_build_sending":  "Sending build...",
+        "share_build_ok":       "Build submitted! It will appear in Community in seconds.",
+        "share_build_dup":      "A build with that name and class already exists.",
+        "share_build_err":      "Error sending. Please try again.",
         # ── Alert screen ──
         "compact_mode":         "Compact",
         "mission_all":          "All",
@@ -1211,6 +1220,74 @@ def _build_github_issue_url(b: dict) -> str:
         return f"{base}?title={_url_quote(title)}&body={_url_quote(body)}"
     except Exception:
         return f"https://github.com/{GITHUB_REPO}/issues/new"
+
+def _sync_submit_community_build(b: dict) -> str:
+    """POST build as GitHub Issue via API. Returns 'ok', 'dup', or 'err'."""
+    if not _REQ_OK:
+        return "err"
+    try:
+        skills: list = []
+        try:   skills = json.loads(b.get("skills", "[]"))
+        except Exception: pass
+        tags: list = []
+        try:   tags = json.loads(b.get("tags", "[]"))
+        except Exception: pass
+
+        name = b.get("name", "")
+        cls  = b.get("cls",  "")
+        title = f"[COMMUNITY BUILD] {name} — {cls}"
+        build_json = json.dumps({
+            "id":           "community_PENDING",
+            "name":         name,
+            "cls":          cls,
+            "hero":         b.get("hero", ""),
+            "hero_img":     "",
+            "weapon1":      b.get("weapon1", ""),
+            "weapon2":      b.get("weapon2", ""),
+            "support_es":   "",  "support_en":   "",
+            "gadgets_es":   "",  "gadgets_en":   "",
+            "team_perk_es": "",  "team_perk_en": "",
+            "skills":       skills,
+            "desc_es":      b.get("desc", ""),
+            "desc_en":      b.get("desc", ""),
+            "purpose_es":   b.get("purpose", ""),
+            "purpose_en":   b.get("purpose", ""),
+            "tags":         tags,
+            "author":       "Community",
+            "votes":        0,
+        }, indent=2, ensure_ascii=False)
+
+        body = (
+            "## Nueva Build / New Community Build\n\n"
+            f"**STW Hub:** v{APP_VERSION}  \n"
+            f"**Creado:** {b.get('created', '')}  \n\n"
+            "---\n\n"
+            "```json\n"
+            f"{build_json}\n"
+            "```\n\n"
+            "---\n"
+            "_Enviado desde STW Hub._"
+        )
+
+        resp = requests.post(
+            f"https://api.github.com/repos/{GITHUB_REPO}/issues",
+            json={"title": title, "body": body,
+                  "labels": ["community-build"]},
+            headers={
+                "Authorization":        f"Bearer {_GH_ISSUES_TOKEN}",
+                "Accept":               "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            timeout=15,
+        )
+        if resp.status_code == 201:
+            return "ok"
+        if resp.status_code == 422:
+            return "dup"
+        return "err"
+    except Exception:
+        return "err"
+
 
 # ── Network sync helpers ───────────────────────────────────────────────────────
 def _sync_epic_token():
@@ -3575,6 +3652,35 @@ async def main(page: ft.Page):
                     render()
                 return _h
 
+            def do_submit(build=b):
+                def _h(e):
+                    async def _run():
+                        page.show_dialog(ft.SnackBar(
+                            content=ft.Text(t("share_build_sending"),
+                                            color="#ffffff"),
+                            bgcolor=_c("surface")))
+                        result = await asyncio.to_thread(
+                            _sync_submit_community_build, build)
+                        if result == "ok":
+                            page.show_dialog(ft.SnackBar(
+                                content=ft.Text(t("share_build_ok"),
+                                                color="#ffffff"),
+                                bgcolor=_c("green")))
+                            # Reload community builds so user sees it appear
+                            page.run_task(_task_load_community_builds)
+                        elif result == "dup":
+                            page.show_dialog(ft.SnackBar(
+                                content=ft.Text(t("share_build_dup"),
+                                                color="#ffffff"),
+                                bgcolor=_c("orange")))
+                        else:
+                            page.show_dialog(ft.SnackBar(
+                                content=ft.Text(t("share_build_err"),
+                                                color="#ffffff"),
+                                bgcolor=_c("red")))
+                    page.run_task(_run)
+                return _h
+
             hero_img_url = b.get("hero_img", "")
             rows.append(_card(
                 ft.Row([
@@ -3590,7 +3696,7 @@ async def main(page: ft.Page):
                         ft.IconButton(ft.Icons.DELETE, on_click=do_delete(),
                                       icon_color=_c("red"), icon_size=18),
                         ft.IconButton(ft.Icons.UPLOAD_OUTLINED,
-                                      url=_build_github_issue_url(b),
+                                      on_click=do_submit(),
                                       icon_color=_c("green"), icon_size=18,
                                       tooltip=t("share_build")),
                     ], spacing=0),
