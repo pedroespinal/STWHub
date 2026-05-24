@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.6.2"
+APP_VERSION = "2.6.3"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1951,7 +1951,9 @@ async def main(page: ft.Page):
     state = {
         "screen":           "setup" if _first_launch else "home",
         "vbucks_only":      False,
-        "world_filter":     prefs.get("world_filter", "all"),
+        "world_filter":     prefs.get("world_filter", "twine")
+                            if prefs.get("world_filter", "twine") in _WORLD_ORDER
+                            else "twine",
         "guide_world":      "stonewood",
         "region":           prefs.get("region", "NAE"),
         "notif_hour":       prefs.get("notif_hour", 8),
@@ -2550,20 +2552,21 @@ async def main(page: ft.Page):
             async def _r(): await _task_load_alerts(force=True)
             page.run_task(_r)
 
-        def on_world(e):
-            selected = e.control.value or ""
-            if not selected or selected.startswith("🌍"):
-                wkey = "all"
-            else:
-                wkey = next(
-                    (k for k, names in _WORLD_NAMES.items()
-                     if selected in names.values()),
-                    "all",
-                )
-            state["world_filter"] = wkey
-            prefs["world_filter"] = wkey
-            _save_prefs(prefs)
-            render()
+        # World tab icons and short labels (bilingual)
+        _WORLD_TAB = {
+            "stonewood":  {"icon": "🪵", "es": "SW",      "en": "SW"},
+            "plankerton": {"icon": "🏗",  "es": "PL",      "en": "PL"},
+            "canny":      {"icon": "🌵", "es": "Valle",   "en": "CV"},
+            "twine":      {"icon": "❄️", "es": "Cumbres", "en": "TP"},
+        }
+
+        def set_world(wk):
+            def _h(e):
+                state["world_filter"] = wk
+                prefs["world_filter"] = wk
+                _save_prefs(prefs)
+                render()
+            return _h
 
         def switch_home_tab(tab):
             def _h(e):
@@ -2591,15 +2594,8 @@ async def main(page: ft.Page):
             _toggle_btn("⚡ " + t("superchargers"), not is_alerts_tab, switch_home_tab("superchargers")),
         ], spacing=8))
 
-        lang = LANG[0]
-        _all_lbl = "🌍 " + ("Todos" if lang == "es" else "All")
-        _wf_key  = state["world_filter"]
-        _wf_disp = _all_lbl if _wf_key == "all" \
-            else _WORLD_NAMES.get(_wf_key, {}).get(lang, _wf_key)
-        # Use localized names as option keys — guaranteed to display correctly in Flet 0.85.1
-        world_options = [ft.dropdown.Option(_all_lbl)]
-        for wk in _WORLD_ORDER:
-            world_options.append(ft.dropdown.Option(_WORLD_NAMES[wk][lang]))
+        lang    = LANG[0]
+        _wf_key = state["world_filter"]
 
         if is_alerts_tab:
             # ── ALERTAS DIARIAS ────────────────────────────────────────────────
@@ -2614,17 +2610,15 @@ async def main(page: ft.Page):
                 ),
                 _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
             ], spacing=8, wrap=True))
-            rows.append(ft.Row([
-                ft.Icon(ft.Icons.PUBLIC, size=16, color=_c("cyan")),
-                ft.Text(t("world_filter") + ":", size=12, color=_c("sub")),
-                ft.Dropdown(
-                    value=_wf_disp,
-                    options=world_options,
-                    on_select=on_world,
-                    text_size=12,
-                    border_color=_c("border"), color=_c("text"),
-                ),
-            ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER))
+            # ── World tabs (replaces dropdown) ────────────────────────────────
+            rows.append(ft.Row(
+                [_toggle_btn(
+                    f"{_WORLD_TAB[wk]['icon']} {_WORLD_TAB[wk][lang]}",
+                    _wf_key == wk,
+                    set_world(wk),
+                ) for wk in _WORLD_ORDER],
+                spacing=6,
+            ))
 
             if state["using_cache"] and state["last_refresh"]:
                 rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
@@ -2637,11 +2631,11 @@ async def main(page: ft.Page):
             elif not state["alerts"]:
                 rows.append(_card(_txt(t("no_alerts"), color=_c("sub"))))
             else:
-                wf = state["world_filter"]
-                shown = [a for a in state["alerts"]
-                         if (not state["vbucks_only"] or a.get("vbucks"))
-                         and (wf == "all" or
-                              _WORLD_KEYS.get(wf, "") in a.get("zone_en", "").lower())]
+                wf      = state["world_filter"]
+                wf_key  = _WORLD_KEYS.get(wf, "")
+                shown   = [a for a in state["alerts"]
+                           if (not state["vbucks_only"] or a.get("vbucks"))
+                           and wf_key in a.get("zone_en", "").lower()]
                 _ELEM_NAME = {"fire": "Fire", "water": "Ice", "nature": "Lightning"}
                 for a in shown[:35]:
                     pl         = a.get("pl", 0)
