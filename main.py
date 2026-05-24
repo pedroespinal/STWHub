@@ -16,6 +16,7 @@ import base64
 import traceback
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import quote as _url_quote
 
 try:
     import requests
@@ -41,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.6.1"
+APP_VERSION = "2.6.2"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -382,6 +383,9 @@ T = {
         "first_launch_info":    "Ingresa tu tag para aparecer en el pie de la app.",
         "first_launch_continue":"Continuar",
         "first_launch_skip":    "Omitir",
+        # ── Community share ──
+        "share_build":          "Compartir con Comunidad",
+        "share_build_info":     "Se abrira GitHub en tu navegador. Necesitas una cuenta GitHub para enviar.",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -485,6 +489,9 @@ T = {
         "first_launch_info":    "Enter your tag to appear in the app footer.",
         "first_launch_continue":"Continue",
         "first_launch_skip":    "Skip",
+        # ── Community share ──
+        "share_build":          "Share with Community",
+        "share_build_info":     "GitHub will open in your browser. A GitHub account is needed to submit.",
     },
 }
 
@@ -962,6 +969,72 @@ def _db_delete_build(bid: int):
             con.commit()
     except Exception:
         pass
+
+def _build_github_issue_url(b: dict) -> str:
+    """Return a pre-filled GitHub Issue URL for a user build submission.
+
+    No PAT needed — this just opens the browser with the issue form pre-filled.
+    Pedro reviews the issue, then manually adds the build to community_builds.json.
+    """
+    try:
+        skills: list = []
+        try:
+            skills = json.loads(b.get("skills", "[]"))
+        except Exception:
+            pass
+        tags: list = []
+        try:
+            tags = json.loads(b.get("tags", "[]"))
+        except Exception:
+            pass
+
+        name = b.get("name", "")
+        cls  = b.get("cls", "")
+
+        title = f"[COMMUNITY BUILD] {name} — {cls}"
+
+        build_json = json.dumps({
+            "id":           "community_PENDING",
+            "name":         name,
+            "cls":          cls,
+            "hero":         b.get("hero", ""),
+            "hero_img":     "",
+            "weapon1":      b.get("weapon1", ""),
+            "weapon2":      b.get("weapon2", ""),
+            "support_es":   "",
+            "support_en":   "",
+            "gadgets_es":   "",
+            "gadgets_en":   "",
+            "team_perk_es": "",
+            "team_perk_en": "",
+            "skills":       skills,
+            "desc_es":      b.get("desc", ""),
+            "desc_en":      b.get("desc", ""),
+            "purpose_es":   b.get("purpose", ""),
+            "purpose_en":   b.get("purpose", ""),
+            "tags":         tags,
+            "author":       "Community",
+            "votes":        0,
+        }, indent=2, ensure_ascii=False)
+
+        body = (
+            "## Nueva Build / New Community Build\n\n"
+            f"**STW Hub:** v{APP_VERSION}  \n"
+            f"**Creado:** {b.get('created', '')}  \n\n"
+            "---\n\n"
+            "Copia el JSON en `community_builds.json` "
+            "(asigna un id definitivo y completa los campos vacios):\n\n"
+            "```json\n"
+            f"{build_json}\n"
+            "```\n\n"
+            "---\n"
+            "_Enviado desde STW Hub — revisado y aprobado por Pedro Espinal._"
+        )
+
+        base = f"https://github.com/{GITHUB_REPO}/issues/new"
+        return f"{base}?title={_url_quote(title)}&body={_url_quote(body)}"
+    except Exception:
+        return f"https://github.com/{GITHUB_REPO}/issues/new"
 
 # ── Network sync helpers ───────────────────────────────────────────────────────
 def _sync_epic_token():
@@ -3092,6 +3165,10 @@ async def main(page: ft.Page):
                                       icon_color=_c("cyan"), icon_size=18),
                         ft.IconButton(ft.Icons.DELETE, on_click=do_delete(),
                                       icon_color=_c("red"), icon_size=18),
+                        ft.IconButton(ft.Icons.UPLOAD_OUTLINED,
+                                      url=_build_github_issue_url(b),
+                                      icon_color=_c("green"), icon_size=18,
+                                      tooltip=t("share_build")),
                     ], spacing=0),
                 ], spacing=10,
                    vertical_alignment=ft.CrossAxisAlignment.START),
