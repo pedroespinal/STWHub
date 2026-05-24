@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.7.3"
+APP_VERSION = "2.7.4"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1981,7 +1981,7 @@ _MISSION_NAME_ES: dict[str, str] = {
     "Repair the Shelter":       "Reparar el Refugio",
     "Refuel the Base":          "Reabastecer la Base",
     "Protect Home Base":        "Proteger la Base",
-    "Ride the Lightning":       "Cabalgar el Rayo",
+    "Ride the Lightning":       "Montar el Rayo",
     "Defend Atlas":             "Defender Atlas",
     "Defend the Outpost":       "Defender el Puesto",
     "Destroy Encampments":      "Destruir Campamentos",
