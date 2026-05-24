@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.6.3"
+APP_VERSION = "2.7.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -93,7 +93,9 @@ _STW_COSMETICS_URL  = "https://fortnite-api.com/v2/cosmetics/stw"
 _COMMUNITY_BUILDS_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/community_builds.json"
 # Weekly STW data — SC type + FtS active categories (updated every Tuesday by author)
 # Fallback when Epic API client_credentials doesn't return missions[] data.
-_STW_WEEKLY_URL = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/stw_weekly.json"
+_STW_WEEKLY_URL  = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/stw_weekly.json"
+# Static weapon database (bundled + GitHub fallback)
+_WEAPONS_URL     = "https://raw.githubusercontent.com/pedroespinal/STWHub/main/weapons.json"
 
 _VBUCKS_TYPE = "AccountResource:currency_mtxswap"
 _REGIONS     = ["NAE", "NAW", "EU", "BR", "OC", "AS"]
@@ -386,6 +388,36 @@ T = {
         # ── Community share ──
         "share_build":          "Compartir con Comunidad",
         "share_build_info":     "Se abrira GitHub en tu navegador. Necesitas una cuenta GitHub para enviar.",
+        # ── Alert screen ──
+        "compact_mode":         "Compacto",
+        "mission_all":          "Todas",
+        "mission_survive":      "Sobrevivir",
+        "mission_retrieve":     "Recuperar",
+        "mission_rescue":       "Rescatar",
+        "mission_defend":       "Defender",
+        "mission_encampment":   "Campamento",
+        "favorites":            "Favoritos",
+        "fav_added":            "Añadido a favoritos",
+        "fav_removed":          "Eliminado de favoritos",
+        "no_favorites":         "Sin alertas favoritas aun.\nToca ⭐ en una alerta para guardarla.",
+        "history_title":        "Historial de alertas",
+        "history_empty":        "Sin historial para este mundo.",
+        "history_days":         "Ultimos 7 dias",
+        "share_alert":          "Compartir alerta",
+        "copied":               "Copiado al portapapeles",
+        # ── Weapons DB ──
+        "weapons_db":           "Armas top",
+        "weapons_db_title":     "Base de datos de Armas",
+        "no_weapon_data":       "Sin datos de armas disponibles.",
+        # ── PL Calculator ──
+        "pl_calc":              "Calcular Poder",
+        "pl_calc_title":        "Calculadora de Nivel de Poder",
+        "pl_hero":              "Nivel del Heroe",
+        "pl_weapon":            "Nivel del Arma",
+        "pl_survivors":         "Supervivientes (promedio)",
+        "pl_research":          "Investigacion",
+        "pl_result":            "Tu Nivel de Poder estimado",
+        "calculate":            "Calcular",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -492,6 +524,36 @@ T = {
         # ── Community share ──
         "share_build":          "Share with Community",
         "share_build_info":     "GitHub will open in your browser. A GitHub account is needed to submit.",
+        # ── Alert screen ──
+        "compact_mode":         "Compact",
+        "mission_all":          "All",
+        "mission_survive":      "Survive",
+        "mission_retrieve":     "Retrieve",
+        "mission_rescue":       "Rescue",
+        "mission_defend":       "Defend",
+        "mission_encampment":   "Encampment",
+        "favorites":            "Favorites",
+        "fav_added":            "Added to favorites",
+        "fav_removed":          "Removed from favorites",
+        "no_favorites":         "No favorite alerts yet.\nTap ⭐ on an alert to save it.",
+        "history_title":        "Alert History",
+        "history_empty":        "No history for this world.",
+        "history_days":         "Last 7 days",
+        "share_alert":          "Share alert",
+        "copied":               "Copied to clipboard",
+        # ── Weapons DB ──
+        "weapons_db":           "Top Weapons",
+        "weapons_db_title":     "Weapons Database",
+        "no_weapon_data":       "No weapon data available.",
+        # ── PL Calculator ──
+        "pl_calc":              "Calc Power",
+        "pl_calc_title":        "Power Level Calculator",
+        "pl_hero":              "Hero Level",
+        "pl_weapon":            "Weapon Level",
+        "pl_survivors":         "Survivors (average)",
+        "pl_research":          "Research",
+        "pl_result":            "Your estimated Power Level",
+        "calculate":            "Calculate",
     },
 }
 
@@ -904,9 +966,112 @@ def _init_db():
                     created     TEXT NOT NULL DEFAULT ''
                 )
             """)
+            # Alert favorites — keyed by a stable "zone|name" identifier
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS alert_favorites (
+                    fav_key TEXT PRIMARY KEY,
+                    label   TEXT NOT NULL DEFAULT '',
+                    added   TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            # Alert history — one JSON snapshot per day, per world
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS alert_history (
+                    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date    TEXT NOT NULL,
+                    world   TEXT NOT NULL DEFAULT 'all',
+                    data    TEXT NOT NULL DEFAULT '[]',
+                    UNIQUE(date, world)
+                )
+            """)
             con.commit()
     except Exception:
         pass
+
+# ── Favorites helpers ─────────────────────────────────────────────────────────
+def _fav_key(alert: dict) -> str:
+    return f"{alert.get('zone_en','')[:30]}|{alert.get('name','')[:30]}"
+
+def _db_get_favorites() -> set:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            rows = con.execute("SELECT fav_key FROM alert_favorites").fetchall()
+            return {r[0] for r in rows}
+    except Exception:
+        return set()
+
+def _db_toggle_favorite(alert: dict):
+    key = _fav_key(alert)
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            exists = con.execute(
+                "SELECT 1 FROM alert_favorites WHERE fav_key=?", (key,)
+            ).fetchone()
+            if exists:
+                con.execute("DELETE FROM alert_favorites WHERE fav_key=?", (key,))
+            else:
+                label = f"{alert.get('name','')} — {alert.get('zone_en','')}"
+                con.execute(
+                    "INSERT INTO alert_favorites(fav_key,label,added) VALUES(?,?,?)",
+                    (key, label, datetime.now(timezone.utc).date().isoformat()),
+                )
+            con.commit()
+            return not bool(exists)   # True = now favorited
+    except Exception:
+        return False
+
+# ── Alert history helpers ──────────────────────────────────────────────────────
+def _load_weapons() -> list:
+    """Load weapon database. Tries bundled file first, then GitHub."""
+    try:
+        local = Path(__file__).parent / "weapons.json"
+        if local.exists():
+            with open(local, encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    if _REQ_OK:
+        try:
+            r = requests.get(_WEAPONS_URL, timeout=8)
+            if r.status_code == 200:
+                return r.json()
+        except Exception:
+            pass
+    return []
+
+def _db_save_history(alerts: list):
+    """Persist today's alert snapshot per world. Purge entries > 7 days old."""
+    try:
+        today = datetime.now(timezone.utc).date().isoformat()
+        worlds = _WORLD_ORDER
+        with sqlite3.connect(str(DB_FILE)) as con:
+            for wk in worlds:
+                wk_key = _WORLD_KEYS.get(wk, "")
+                subset = [a for a in alerts
+                          if wk_key in a.get("zone_en", "").lower()]
+                con.execute(
+                    "INSERT OR REPLACE INTO alert_history(date,world,data) VALUES(?,?,?)",
+                    (today, wk, json.dumps(subset, ensure_ascii=False)),
+                )
+            # Keep only last 7 days
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).date().isoformat()
+            con.execute("DELETE FROM alert_history WHERE date < ?", (cutoff,))
+            con.commit()
+    except Exception:
+        pass
+
+def _db_get_history(world: str, days: int = 7) -> list[dict]:
+    """Return list of {date, data} dicts for the last `days` days."""
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
+        with sqlite3.connect(str(DB_FILE)) as con:
+            rows = con.execute(
+                "SELECT date, data FROM alert_history WHERE world=? AND date > ? ORDER BY date DESC",
+                (world, cutoff),
+            ).fetchall()
+            return [{"date": r[0], "data": json.loads(r[1])} for r in rows]
+    except Exception:
+        return []
 
 def _db_all_builds() -> list:
     try:
@@ -1064,6 +1229,23 @@ def _theater_name(display, lang="en") -> str:
     if isinstance(display, dict):
         return display.get(lang) or display.get("en") or next(iter(display.values()), "")
     return str(display) if display else ""
+
+_MISSION_TYPES = {
+    # filter_key: (keywords_in_name, emoji, label_es, label_en)
+    "survive":     (("fight the storm", "fight the", "storm king", "stand"),   "⚔️",  "Sobrevivir",  "Survive"),
+    "retrieve":    (("retrieve", "data", "recover", "ride", "lightning", "rtd"), "💾", "Recuperar",   "Retrieve"),
+    "rescue":      (("rescue", "survivor", "evacuate", "shelter"),              "👥",  "Rescatar",    "Rescue"),
+    "defend":      (("atlas", "defend", "protect", "outpost", "deliver", "bomb"), "🛡️","Defender",    "Defend"),
+    "encampment":  (("encampment", "destroy", "eliminate", "hunt"),             "💥",  "Campamento",  "Encampment"),
+}
+
+def _mission_type_key(name: str) -> str:
+    """Classify a mission name into a filter bucket."""
+    n = name.lower()
+    for key, (keywords, *_) in _MISSION_TYPES.items():
+        if any(k in n for k in keywords):
+            return key
+    return "all"
 
 def _mission_emoji(name: str) -> str:
     """Return a representative emoji for a mission type name."""
@@ -1897,15 +2079,35 @@ def _sync_check_update():
 
 # ── UTC countdown ──────────────────────────────────────────────────────────────
 def _utc_reset_str() -> str:
+    """Human-readable countdown: '3h 42m', '18m 05s', '45s'."""
     try:
-        now = datetime.now(timezone.utc)
-        nxt = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        diff = nxt - now
-        h, rem = divmod(int(diff.total_seconds()), 3600)
-        m, s   = divmod(rem, 60)
-        return f"{h:02d}:{m:02d}:{s:02d}"
+        now     = datetime.now(timezone.utc)
+        nxt     = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        total_s = int((nxt - now).total_seconds())
+        h, rem  = divmod(total_s, 3600)
+        m, s    = divmod(rem, 60)
+        if h >= 1:
+            return f"⏱ {h}h {m:02d}m"
+        elif m >= 1:
+            return f"⏱ {m}m {s:02d}s"
+        else:
+            return f"⏱ {s}s"
     except Exception:
-        return "--:--:--"
+        return "⏱ --"
+
+def _utc_reset_color() -> str:
+    """Green → yellow (< 60 min) → red (< 15 min)."""
+    try:
+        now   = datetime.now(timezone.utc)
+        nxt   = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        mins  = int((nxt - now).total_seconds()) // 60
+        if mins <= 15:
+            return "#ff3355"
+        if mins <= 60:
+            return "#ffd700"
+        return "#00e5ff"
+    except Exception:
+        return "#00e5ff"
 
 # ═════════════════════════════════════════════════════════════════════════════════
 # MAIN
@@ -1955,6 +2157,11 @@ async def main(page: ft.Page):
                             if prefs.get("world_filter", "twine") in _WORLD_ORDER
                             else "twine",
         "guide_world":      "stonewood",
+        "guide_tab":        "worlds",  # worlds | weapons | plcalc
+        "weapons":          _load_weapons(),
+        "weapon_filter":    "all",     # all | tag (beginner/endgame/melee/ranged/aoe)
+        "pl_inputs":        {"hero": 0, "weapon": 0, "survivors": 0, "research": 0},
+        "pl_result":        None,
         "region":           prefs.get("region", "NAE"),
         "notif_hour":       prefs.get("notif_hour", 8),
         "alerts":           [],
@@ -1969,6 +2176,12 @@ async def main(page: ft.Page):
         "update_dismissed": False,
         "builds_tab":       "meta",
         "builds_cls":       "all",
+        "compact_mode":     prefs.get("compact_mode", False),
+        "mission_filter":   "all",   # all | survive | retrieve | rescue | defend | encampment
+        "alert_subtab":     "active",  # active | favorites | history
+        "alert_favorites":  _db_get_favorites(),
+        "history_world":    prefs.get("world_filter", "twine")
+                            if prefs.get("world_filter", "twine") in _WORLD_ORDER else "twine",
         "meta_imgs":            {},
         "community_builds":     [],
         "stw_weekly":           {},   # fallback: sc_type, fts_active_cats from GitHub JSON
@@ -2250,6 +2463,8 @@ async def main(page: ft.Page):
             cache["alerts_ts"]    = ts
             cache["app_version"]  = APP_VERSION    # stamp version → invalidates on next update
             _save_cache(cache)
+            # Persist to history (background — non-blocking)
+            asyncio.get_event_loop().run_in_executor(None, _db_save_history, alerts)
         else:
             if all_missions:
                 state["all_missions"] = all_missions
@@ -2419,7 +2634,9 @@ async def main(page: ft.Page):
             await asyncio.sleep(1)
             if state["screen"] == "home" and _clock_ctrl.get("ref"):
                 try:
-                    _clock_ctrl["ref"].value = f"⏱ {_utc_reset_str()}"
+                    ctrl        = _clock_ctrl["ref"]
+                    ctrl.value  = _utc_reset_str()
+                    ctrl.color  = _utc_reset_color()
                     page.update()
                 except Exception:
                     pass
@@ -2504,6 +2721,140 @@ async def main(page: ft.Page):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
 
+    # ── Alert card builder (shared by home + favorites + history) ─────────────
+    def _alert_card(a: dict, lang: str, is_fav: bool = False,
+                    compact: bool = False) -> ft.Container:
+        pl         = a.get("pl", 0)
+        element    = a.get("element", "")
+        elem_emoji = _ELEMENT_EMOJI.get(element, "")
+        pl_color   = _ELEMENT_COLOR.get(element) or _c("orange")
+        pl_label   = (f"{elem_emoji} {pl}" if elem_emoji else (f"PL {pl}" if pl else "?"))
+        has_vbucks = a.get("vbucks", False)
+        memoji     = _mission_emoji(a.get("name", ""))
+        zone_lbl   = _zone_display(a.get("zone_en", a.get("zone", "")), lang)
+        _disp_name = _mission_display_name(a.get("name", ""), lang)
+        _ELEM_NAME = {"fire": "Fire", "water": "Ice", "nature": "Lightning"}
+        fk         = _fav_key(a)
+
+        pl_badge = ft.Container(
+            content=ft.Text(pl_label, size=10, color="#ffffff",
+                            weight=ft.FontWeight.BOLD),
+            bgcolor=pl_color if pl else _c("border"),
+            border_radius=4,
+            padding=_pad_sym(horizontal=6, vertical=2),
+            width=60,
+        )
+
+        # ── Action buttons (fav + share) ──
+        def toggle_fav(e, _a=a, _fk=fk):
+            now_fav = _db_toggle_favorite(_a)
+            if now_fav:
+                state["alert_favorites"].add(_fk)
+            else:
+                state["alert_favorites"].discard(_fk)
+            page.show_dialog(ft.SnackBar(
+                content=ft.Text(t("fav_added") if now_fav else t("fav_removed"),
+                                color="#ffffff"),
+                bgcolor=_c("green") if now_fav else _c("border"),
+            ))
+            render()
+
+        def share_alert(e, _a=a):
+            rw_str = "  ".join(
+                f"{_reward_label(rw['type'])[1]} ×{rw['quantity']}"
+                for rw in _a.get("rewards", [])
+            )
+            txt = (f"{_mission_display_name(_a.get('name',''), lang)}\n"
+                   f"PL {_a.get('pl','')} · {_zone_display(_a.get('zone_en',''), lang)}\n"
+                   f"{rw_str}\n"
+                   f"STW Hub v{APP_VERSION}")
+            try:
+                page.set_clipboard(txt)
+                page.show_dialog(ft.SnackBar(
+                    content=ft.Text(t("copied"), color="#ffffff"),
+                    bgcolor=_c("green"),
+                ))
+            except Exception:
+                pass
+
+        action_row = ft.Row([
+            ft.IconButton(
+                ft.Icons.STAR if is_fav else ft.Icons.STAR_BORDER,
+                on_click=toggle_fav,
+                icon_color=_c("yellow") if is_fav else _c("sub"),
+                icon_size=16,
+            ),
+            ft.IconButton(
+                ft.Icons.IOS_SHARE,
+                on_click=share_alert,
+                icon_color=_c("cyan"),
+                icon_size=16,
+            ),
+        ], spacing=0, tight=True)
+
+        if compact:
+            # ── Compact view: single dense row ───────────────────────────────
+            rw_brief = " · ".join(
+                f"{_reward_label(rw['type'])[0]}×{rw['quantity']}"
+                for rw in a.get("rewards", [])[:3]
+            )
+            return _card(
+                ft.Row([
+                    ft.Text(memoji, size=16),
+                    pl_badge,
+                    ft.Column([
+                        ft.Text(_disp_name, size=11, color=_c("text"),
+                                weight=ft.FontWeight.W_600),
+                        ft.Text(f"{zone_lbl}  {rw_brief}", size=9, color=_c("sub")),
+                    ], expand=True, spacing=1, tight=True),
+                    action_row,
+                ], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                padding=_pad_sym(horizontal=8, vertical=4),
+                border_color=_c("gold") if has_vbucks else None,
+            )
+
+        # ── Normal view ───────────────────────────────────────────────────────
+        rw_lines = []
+        for rw in a.get("rewards", []):
+            re_emoji, re_lbl = _reward_label(rw["type"])
+            re_qty = rw["quantity"]
+            if rw.get("vbucks"):
+                rw_lines.append(ft.Container(
+                    content=ft.Text(f"{re_emoji} {re_lbl} ×{re_qty}",
+                                    size=11, color="#000000",
+                                    weight=ft.FontWeight.BOLD),
+                    bgcolor=_c("gold"), border_radius=6,
+                    padding=_pad_sym(horizontal=6, vertical=2),
+                ))
+            else:
+                rw_lines.append(ft.Text(f"{re_emoji} {re_lbl} ×{re_qty}",
+                                        size=11, color=_c("sub")))
+        rw_col = ft.Column(rw_lines, spacing=2, tight=True) \
+            if rw_lines else ft.Text("—", size=10, color=_c("sub"))
+
+        right_children = [
+            ft.Text(_disp_name, size=12, color=_c("text"),
+                    weight=ft.FontWeight.BOLD),
+            ft.Text(zone_lbl, size=10, color=_c("cyan")),
+        ]
+        if element and element in _ELEM_NAME:
+            right_children.append(ft.Text(
+                f"{elem_emoji} {_ELEM_NAME[element]}", size=9, color=pl_color))
+        right_children.append(rw_col)
+
+        return _card(
+            ft.Row([
+                ft.Text(memoji, size=22),
+                pl_badge,
+                ft.Container(width=2, height=48,
+                              bgcolor=_c("gold") if has_vbucks else _c("border")),
+                ft.Column(right_children, spacing=2, expand=True, tight=True),
+                action_row,
+            ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            padding=8, margin=2,
+            border_color=_c("gold") if has_vbucks else None,
+        )
+
     # ── HOME screen ────────────────────────────────────────────────────────────
     def _screen_home():
         rows = []
@@ -2578,7 +2929,7 @@ async def main(page: ft.Page):
                 render()
             return _h
 
-        _clock_text = ft.Text(f"⏱ {_utc_reset_str()}", size=12, color=_c("cyan"))
+        _clock_text = ft.Text(_utc_reset_str(), size=12, color=_utc_reset_color())
         _clock_ctrl["ref"] = _clock_text
 
         is_alerts_tab = state.get("home_tab", "alerts") == "alerts"
@@ -2610,13 +2961,22 @@ async def main(page: ft.Page):
                 ),
                 _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
             ], spacing=8, wrap=True))
-            # ── World tabs (replaces dropdown) ────────────────────────────────
+            # ── World tabs with alert counts ──────────────────────────────────
+            _vb_f = state.get("vbucks_only", False)
+            _world_counts = {
+                wk: sum(1 for a in state.get("alerts", [])
+                        if _WORLD_KEYS.get(wk, "") in a.get("zone_en", "").lower()
+                        and (not _vb_f or a.get("vbucks")))
+                for wk in _WORLD_ORDER
+            }
+            def _wtab_lbl(wk):
+                base = f"{_WORLD_TAB[wk]['icon']} {_WORLD_TAB[wk][lang]}"
+                n = _world_counts.get(wk, 0)
+                return f"{base} ({n})" if n > 0 else base
+
             rows.append(ft.Row(
-                [_toggle_btn(
-                    f"{_WORLD_TAB[wk]['icon']} {_WORLD_TAB[wk][lang]}",
-                    _wf_key == wk,
-                    set_world(wk),
-                ) for wk in _WORLD_ORDER],
+                [_toggle_btn(_wtab_lbl(wk), _wf_key == wk, set_world(wk))
+                 for wk in _WORLD_ORDER],
                 spacing=6,
             ))
 
@@ -2625,91 +2985,117 @@ async def main(page: ft.Page):
             elif state["last_refresh"]:
                 rows.append(_sub(f"{t('last_refresh')}: {state['last_refresh']}"))
 
-            if state["loading"]:
-                rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
-                                            color=_c("orange")))
-            elif not state["alerts"]:
-                rows.append(_card(_txt(t("no_alerts"), color=_c("sub"))))
-            else:
-                wf      = state["world_filter"]
-                wf_key  = _WORLD_KEYS.get(wf, "")
-                shown   = [a for a in state["alerts"]
-                           if (not state["vbucks_only"] or a.get("vbucks"))
-                           and wf_key in a.get("zone_en", "").lower()]
-                _ELEM_NAME = {"fire": "Fire", "water": "Ice", "nature": "Lightning"}
-                for a in shown[:35]:
-                    pl         = a.get("pl", 0)
-                    element    = a.get("element", "")
-                    elem_emoji = _ELEMENT_EMOJI.get(element, "")
-                    pl_color   = _ELEMENT_COLOR.get(element) or _c("orange")
-                    pl_label   = (f"{elem_emoji} {pl}" if elem_emoji
-                                  else (f"PL {pl}" if pl else "?"))
-                    has_vbucks = a.get("vbucks", False)
-                    memoji     = _mission_emoji(a.get("name", ""))
-                    zone_lbl   = _zone_display(
-                        a.get("zone_en", a.get("zone", "")), lang)
+            # ── Sub-tabs: Activas | ⭐ Favoritos | 📅 Historial ─────────────────
+            _ast = state.get("alert_subtab", "active")
+            def set_ast(tab):
+                def _h(e):
+                    state["alert_subtab"] = tab
+                    render()
+                return _h
 
-                    # ── PL badge ──
-                    pl_badge = ft.Container(
-                        content=ft.Text(pl_label, size=10, color="#ffffff",
-                                        weight=ft.FontWeight.BOLD),
-                        bgcolor=pl_color if pl else _c("border"),
-                        border_radius=4,
-                        padding=_pad_sym(horizontal=6, vertical=2),
-                        width=60,
-                    )
-                    # ── Reward lines ──
-                    rw_lines = []
-                    for rw in a.get("rewards", []):
-                        re_emoji, re_lbl = _reward_label(rw["type"])
-                        re_qty = rw["quantity"]
-                        if rw.get("vbucks"):
-                            rw_lines.append(ft.Container(
-                                content=ft.Text(
-                                    f"{re_emoji} {re_lbl} ×{re_qty}",
-                                    size=11, color="#000000",
-                                    weight=ft.FontWeight.BOLD),
-                                bgcolor=_c("gold"), border_radius=6,
-                                padding=_pad_sym(horizontal=6, vertical=2),
-                            ))
+            rows.append(ft.Row([
+                _toggle_btn("📋 " + ("Activas"  if lang=="es" else "Active"),
+                            _ast == "active",    set_ast("active")),
+                _toggle_btn("⭐ " + t("favorites"),
+                            _ast == "favorites", set_ast("favorites")),
+                _toggle_btn("📅 " + ("Historial" if lang=="es" else "History"),
+                            _ast == "history",   set_ast("history")),
+            ], spacing=6))
+
+            # ────────────────────────────────────────────────────────────────────
+            if _ast == "favorites":
+                # ── FAVORITES TAB ────────────────────────────────────────────────
+                favs = state.get("alert_favorites", set())
+                fav_alerts = [a for a in state.get("alerts", [])
+                              if _fav_key(a) in favs]
+                if not fav_alerts:
+                    rows.append(_card(_txt(t("no_favorites"), color=_c("sub"))))
+                else:
+                    for a in fav_alerts:
+                        rows.append(_alert_card(a, lang, is_fav=True))
+
+            elif _ast == "history":
+                # ── HISTORY TAB ───────────────────────────────────────────────────
+                hw = state.get("history_world", _wf_key)
+                def set_hw(wk):
+                    def _h(e):
+                        state["history_world"] = wk
+                        render()
+                    return _h
+                rows.append(ft.Row(
+                    [_toggle_btn(f"{_WORLD_TAB[wk]['icon']} {_WORLD_TAB[wk][lang]}",
+                                 hw == wk, set_hw(wk))
+                     for wk in _WORLD_ORDER],
+                    spacing=6,
+                ))
+                hist = _db_get_history(hw)
+                if not hist:
+                    rows.append(_card(_txt(t("history_empty"), color=_c("sub"))))
+                else:
+                    for entry in hist:
+                        rows.append(ft.Container(
+                            content=ft.Text(f"📅 {entry['date']}",
+                                            size=12, color=_c("cyan"),
+                                            weight=ft.FontWeight.W_600),
+                            padding=_pad_only(top=8, bottom=2),
+                        ))
+                        if not entry["data"]:
+                            rows.append(_sub("—"))
                         else:
-                            rw_lines.append(ft.Text(
-                                f"{re_emoji} {re_lbl} ×{re_qty}",
-                                size=11, color=_c("sub")))
+                            for a in entry["data"][:10]:
+                                rows.append(_alert_card(a, lang, compact=True))
 
-                    rw_col = ft.Column(rw_lines, spacing=2, tight=True) \
-                        if rw_lines else ft.Text("—", size=10, color=_c("sub"))
+            else:
+                # ── ACTIVE ALERTS TAB ────────────────────────────────────────────
+                # Mission type filter + compact toggle
+                _mf = state.get("mission_filter", "all")
+                def set_mf(mf):
+                    def _h(e):
+                        state["mission_filter"] = mf
+                        render()
+                    return _h
+                def toggle_compact(e):
+                    state["compact_mode"] = not state.get("compact_mode", False)
+                    prefs["compact_mode"] = state["compact_mode"]
+                    _save_prefs(prefs)
+                    render()
 
-                    # ── right column: name / zone / element / rewards ──
-                    _disp_name = _mission_display_name(a.get("name", ""), lang)
-                    right_col_children = [
-                        ft.Text(_disp_name, size=12, color=_c("text"),
-                                weight=ft.FontWeight.BOLD),
-                        ft.Text(zone_lbl, size=10, color=_c("cyan")),
-                    ]
-                    if element and element in _ELEM_NAME:
-                        right_col_children.append(
-                            ft.Text(f"{elem_emoji} {_ELEM_NAME[element]}",
-                                    size=9, color=pl_color)
-                        )
-                    right_col_children.append(rw_col)
+                _mf_chips = [("all", "🗺️ " + t("mission_all"))]
+                for mk, (_, emoji, lbl_es, lbl_en) in _MISSION_TYPES.items():
+                    _mf_chips.append((mk, f"{emoji} {lbl_es if lang=='es' else lbl_en}"))
 
-                    # ── Card: [emoji] [PL] │ [name / zone / element / rewards] ──
-                    rows.append(_card(
-                        ft.Row([
-                            ft.Text(memoji, size=22),
-                            pl_badge,
-                            ft.Container(   # vertical divider
-                                width=2, height=48,
-                                bgcolor=_c("gold") if has_vbucks else _c("border"),
-                            ),
-                            ft.Column(right_col_children,
-                                      spacing=2, expand=True, tight=True),
-                        ], spacing=6,
-                           vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                        padding=8, margin=2,
-                        border_color=_c("gold") if has_vbucks else None,
-                    ))
+                rows.append(ft.Row([
+                    *[_toggle_btn(lbl, _mf == mk, set_mf(mk))
+                      for mk, lbl in _mf_chips],
+                    ft.IconButton(
+                        ft.Icons.VIEW_COMPACT if not state.get("compact_mode") else ft.Icons.VIEW_AGENDA,
+                        on_click=toggle_compact,
+                        icon_color=_c("cyan"), icon_size=18,
+                        tooltip=t("compact_mode"),
+                    ),
+                ], spacing=4, wrap=True))
+
+                if state["loading"]:
+                    rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
+                                                color=_c("orange")))
+                elif not state["alerts"]:
+                    rows.append(_card(_txt(t("no_alerts"), color=_c("sub"))))
+                else:
+                    wf      = state["world_filter"]
+                    wf_key  = _WORLD_KEYS.get(wf, "")
+                    shown   = [a for a in state["alerts"]
+                               if (not state["vbucks_only"] or a.get("vbucks"))
+                               and wf_key in a.get("zone_en", "").lower()
+                               and (_mf == "all" or _mission_type_key(a.get("name","")) == _mf)]
+                    # Favorites pinned at top
+                    favs   = state.get("alert_favorites", set())
+                    pinned = [a for a in shown if _fav_key(a) in favs]
+                    rest   = [a for a in shown if _fav_key(a) not in favs]
+                    compact = state.get("compact_mode", False)
+                    for a in (pinned + rest)[:40]:
+                        rows.append(_alert_card(a, lang,
+                                                is_fav=_fav_key(a) in favs,
+                                                compact=compact))
 
         else:
             # ── SUPERCARGADORES SEMANALES ──────────────────────────────────────
@@ -3014,7 +3400,7 @@ async def main(page: ft.Page):
                             ft.Icon(ft.Icons.PEOPLE, size=13, color=_c("purple")),
                             ft.Text(
                                 "Equipo de Apoyo" if lang=="es" else "Support Team",
-                                size=11, color=_c("purple"),
+                                size=11, color=_c("text"),
                                 weight=ft.FontWeight.W_600),
                         ], spacing=4),
                         ft.Column([
@@ -3255,7 +3641,7 @@ async def main(page: ft.Page):
                         ft.Icon(ft.Icons.PEOPLE, size=13, color=_c("purple")),
                         ft.Text(
                             "Equipo de Apoyo" if lang_key=="es" else "Support Team",
-                            size=11, color=_c("purple"),
+                            size=11, color=_c("text"),
                             weight=ft.FontWeight.W_600),
                     ], spacing=4),
                     ft.Column([
@@ -3561,10 +3947,11 @@ async def main(page: ft.Page):
     def _screen_guide():
         lang      = LANG[0]
         cur_world = state.get("guide_world", "stonewood")
+        guide_tab = state.get("guide_tab", "worlds")
 
-        def set_world(w):
+        def set_gtab(tab):
             def _h(e):
-                state["guide_world"] = w
+                state["guide_tab"] = tab
                 render()
             return _h
 
@@ -3575,65 +3962,210 @@ async def main(page: ft.Page):
         }
 
         rows = []
-        # ── World tab bar ──────────────────────────────────────────────────
-        rows.append(ft.Row(
-            [_toggle_btn(
-                f"{world_icons.get(w,'')} {_WORLD_NAMES[w][lang]}",
-                cur_world == w,
-                set_world(w),
-             ) for w in _WORLD_ORDER],
-            spacing=6, wrap=True,
-        ))
+        rows.append(_hdr(t("guide_title")))
+
+        # ── Guide top tabs ─────────────────────────────────────────────────
+        rows.append(ft.Row([
+            _toggle_btn("🌍 " + ("Mundos"  if lang=="es" else "Worlds"),
+                        guide_tab == "worlds",  set_gtab("worlds")),
+            _toggle_btn("⚔️ "  + t("weapons_db"),
+                        guide_tab == "weapons", set_gtab("weapons")),
+            _toggle_btn("📊 " + t("pl_calc"),
+                        guide_tab == "plcalc",  set_gtab("plcalc")),
+        ], spacing=6))
         rows.append(_divider())
 
-        # ── World info card ────────────────────────────────────────────────
-        wdata = GUIDE_WORLDS[cur_world][lang]
-        rows.append(_card(
-            ft.Row([
-                ft.Text(world_icons.get(cur_world, "🌍"), size=22),
-                _hdr(_WORLD_NAMES[cur_world][lang], size=15),
-                ft.Container(
-                    content=ft.Text(wdata["pl"], size=11,
-                                    color=_btn_text_color(_c("orange")),
-                                    weight=ft.FontWeight.BOLD),
-                    bgcolor=_c("orange"), border_radius=8,
-                    padding=_pad_sym(horizontal=8, vertical=2),
-                ),
-            ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-            _txt(wdata["desc"], size=12),
-            _divider(),
-            ft.Text(f"💡 {t('world_tips')}", size=12, color=_c("yellow"),
-                    weight=ft.FontWeight.W_600),
-            *[ft.Row([
-                ft.Icon(ft.Icons.ARROW_RIGHT, size=14, color=_c("orange")),
-                ft.Text(tip, size=11, color=_c("text"), expand=True),
-              ], spacing=4) for tip in wdata["tips"]],
-            _divider(),
-            ft.Row([
-                ft.Icon(ft.Icons.PEOPLE, size=14, color=_c("purple")),
-                ft.Text(wdata["heroes"], size=11, color=_c("sub"), expand=True),
-            ], spacing=6),
-            border_color=_c("cyan"),
-        ))
+        # ══════════════════════════════════════════════════════════════════════
+        if guide_tab == "weapons":
+            # ── WEAPON DATABASE ───────────────────────────────────────────────
+            rows.append(_hdr(t("weapons_db_title"), size=14))
+            weapons = state.get("weapons", [])
+            if not weapons:
+                rows.append(_card(_sub(t("no_weapon_data"))))
+            else:
+                _wf = state.get("weapon_filter", "all")
+                # Collect unique tags
+                all_tags = sorted({tg for w in weapons for tg in w.get("tags", [])})
+                def set_wf(tf):
+                    def _h(e):
+                        state["weapon_filter"] = tf
+                        render()
+                    return _h
+                rows.append(ft.Row(
+                    [_toggle_btn("🗂 " + ("Todo" if lang=="es" else "All"),
+                                 _wf == "all", set_wf("all"))]
+                    + [_toggle_btn(tg.capitalize(), _wf == tg, set_wf(tg))
+                       for tg in all_tags],
+                    spacing=4, wrap=True,
+                ))
+                filtered = [w for w in weapons
+                            if _wf == "all" or _wf in w.get("tags", [])]
+                _tier_color = {
+                    "Legendary": "#ffcc00",
+                    "Epic":      "#a855f7",
+                    "Rare":      "#3b82f6",
+                    "Uncommon":  "#22c55e",
+                }
+                for w in filtered:
+                    tier_col = _tier_color.get(w.get("tier",""), _c("sub"))
+                    type_str = w.get(f"type_{lang}", w.get("type_en", ""))
+                    rows.append(_card(
+                        ft.Row([
+                            ft.Text(w.get("emoji","⚔️"), size=24),
+                            ft.Column([
+                                ft.Row([
+                                    ft.Text(w["name"], size=13, color=_c("text"),
+                                            weight=ft.FontWeight.BOLD),
+                                    ft.Container(
+                                        content=ft.Text(w.get("tier",""), size=9,
+                                                        color="#000000",
+                                                        weight=ft.FontWeight.BOLD),
+                                        bgcolor=tier_col, border_radius=4,
+                                        padding=_pad_sym(horizontal=5, vertical=1),
+                                    ),
+                                ], spacing=6),
+                                ft.Text(f"{type_str}  ·  {w.get('element','')}",
+                                        size=10, color=_c("cyan")),
+                                ft.Row([
+                                    ft.Text(f"DPS {w.get('dps',0)}",
+                                            size=10, color=_c("orange"),
+                                            weight=ft.FontWeight.W_600),
+                                ] + ([ft.Text(f"  Mag {w['mag']}  RoF {w['rof']}/s",
+                                             size=10, color=_c("sub"))]
+                                     if w.get("mag") else []),
+                                spacing=4),
+                            ], expand=True, spacing=2),
+                        ], spacing=10,
+                           vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                        _sub(w.get(f"desc_{lang}", w.get("desc_en","")), size=11),
+                        ft.Row([_tag_chip(tg) for tg in w.get("tags",[])],
+                               wrap=True, spacing=4),
+                    ))
 
-        # ── General guide sections ─────────────────────────────────────────
-        for title_s, body_s in GUIDE[lang]:
-            rows.append(ft.ExpansionTile(
-                title=ft.Text(title_s, size=14, weight=ft.FontWeight.BOLD,
-                              color=_c("cyan")),
-                controls=[
-                    ft.Container(
-                        content=ft.Text(body_s, size=12, color=_c("text")),
-                        padding=_pad_only(left=8, right=8, bottom=10),
-                    )
-                ],
-                bgcolor=_c("card"),
-                collapsed_bgcolor=_c("card"),
-                icon_color=_c("orange"),
-                collapsed_icon_color=_c("orange"),
-                text_color=_c("cyan"),
-                controls_padding=0,
+        # ══════════════════════════════════════════════════════════════════════
+        elif guide_tab == "plcalc":
+            # ── POWER LEVEL CALCULATOR ─────────────────────────────────────────
+            rows.append(_hdr(t("pl_calc_title"), size=14))
+            inp = state["pl_inputs"]
+
+            def make_pl_field(key, label):
+                return ft.TextField(
+                    label=label,
+                    value=str(inp.get(key, 0) or ""),
+                    keyboard_type=ft.KeyboardType.NUMBER,
+                    on_change=lambda e, k=key: inp.update({k: int(e.control.value or 0)}),
+                    border_color=_c("border"), color=_c("text"),
+                    label_style=ft.TextStyle(color=_c("sub")),
+                )
+
+            hero_f      = make_pl_field("hero",      t("pl_hero"))
+            weapon_f    = make_pl_field("weapon",    t("pl_weapon"))
+            survivor_f  = make_pl_field("survivors", t("pl_survivors"))
+            research_f  = make_pl_field("research",  t("pl_research"))
+
+            def do_calc(e):
+                h  = inp.get("hero",      0)
+                w  = inp.get("weapon",    0)
+                s  = inp.get("survivors", 0)
+                r  = inp.get("research",  0)
+                # Formula: weighted average (heroes 25%, weapon 25%, survivors 40%, research 10%)
+                if any(v > 0 for v in (h, w, s, r)):
+                    result = round(h*0.25 + w*0.25 + s*0.40 + r*0.10)
+                    state["pl_result"] = result
+                    render()
+
+            result_val = state.get("pl_result")
+            result_color = (
+                "#ff3355" if result_val and result_val >= 160 else
+                "#ffd700" if result_val and result_val >= 100 else
+                "#00ff88"
+            ) if result_val else _c("sub")
+
+            rows.append(_card(
+                hero_f, weapon_f, survivor_f, research_f,
+                ft.Container(height=4),
+                _btn(t("calculate"), do_calc, color=_c("orange")),
+                ft.Container(height=4) if result_val else ft.Text(""),
+                ft.Row([
+                    ft.Icon(ft.Icons.SHIELD, size=18, color=result_color),
+                    ft.Text(
+                        f"{t('pl_result')}: {result_val}" if result_val
+                        else t("pl_calc_title"),
+                        size=14, color=result_color,
+                        weight=ft.FontWeight.BOLD),
+                ], spacing=8) if result_val else ft.Text(""),
             ))
+            rows.append(_sub(
+                "Fórmula: Héroe 25% + Arma 25% + Supervivientes 40% + Investigación 10%"
+                if lang=="es" else
+                "Formula: Hero 25% + Weapon 25% + Survivors 40% + Research 10%",
+                size=10,
+            ))
+
+        # ══════════════════════════════════════════════════════════════════════
+        else:
+            # ── WORLDS TAB (original content) ─────────────────────────────────
+            def set_world(w):
+                def _h(e):
+                    state["guide_world"] = w
+                    render()
+                return _h
+
+            rows.append(ft.Row(
+                [_toggle_btn(
+                    f"{world_icons.get(w,'')} {_WORLD_NAMES[w][lang]}",
+                    cur_world == w,
+                    set_world(w),
+                 ) for w in _WORLD_ORDER],
+                spacing=6, wrap=True,
+            ))
+
+            wdata = GUIDE_WORLDS[cur_world][lang]
+            rows.append(_card(
+                ft.Row([
+                    ft.Text(world_icons.get(cur_world, "🌍"), size=22),
+                    _hdr(_WORLD_NAMES[cur_world][lang], size=15),
+                    ft.Container(
+                        content=ft.Text(wdata["pl"], size=11,
+                                        color=_btn_text_color(_c("orange")),
+                                        weight=ft.FontWeight.BOLD),
+                        bgcolor=_c("orange"), border_radius=8,
+                        padding=_pad_sym(horizontal=8, vertical=2),
+                    ),
+                ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                _txt(wdata["desc"], size=12),
+                _divider(),
+                ft.Text(f"💡 {t('world_tips')}", size=12, color=_c("yellow"),
+                        weight=ft.FontWeight.W_600),
+                *[ft.Row([
+                    ft.Icon(ft.Icons.ARROW_RIGHT, size=14, color=_c("orange")),
+                    ft.Text(tip, size=11, color=_c("text"), expand=True),
+                  ], spacing=4) for tip in wdata["tips"]],
+                _divider(),
+                ft.Row([
+                    ft.Icon(ft.Icons.PEOPLE, size=14, color=_c("purple")),
+                    ft.Text(wdata["heroes"], size=11, color=_c("sub"), expand=True),
+                ], spacing=6),
+                border_color=_c("cyan"),
+            ))
+
+            for title_s, body_s in GUIDE[lang]:
+                rows.append(ft.ExpansionTile(
+                    title=ft.Text(title_s, size=14, weight=ft.FontWeight.BOLD,
+                                  color=_c("cyan")),
+                    controls=[
+                        ft.Container(
+                            content=ft.Text(body_s, size=12, color=_c("text")),
+                            padding=_pad_only(left=8, right=8, bottom=10),
+                        )
+                    ],
+                    bgcolor=_c("card"),
+                    collapsed_bgcolor=_c("card"),
+                    icon_color=_c("orange"),
+                    collapsed_icon_color=_c("orange"),
+                    text_color=_c("cyan"),
+                    controls_padding=0,
+                ))
 
         rows.append(_footer())
         return ft.Column(rows, spacing=6, scroll=ft.ScrollMode.AUTO, expand=True)
