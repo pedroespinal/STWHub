@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.7.0"
+APP_VERSION = "2.7.1"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -1021,8 +1021,26 @@ def _db_toggle_favorite(alert: dict):
         return False
 
 # ── Alert history helpers ──────────────────────────────────────────────────────
+def _load_stw_weekly_local() -> dict:
+    """Load stw_weekly.json from disk immediately (no network).
+    Used to pre-populate state at startup so SC card shows instantly.
+    The async task _task_load_stw_weekly() refreshes it from GitHub later.
+    """
+    try:
+        local = Path(__file__).parent / "stw_weekly.json"
+        if local.exists():
+            with open(local, encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict) and data.get("sc_type"):
+                    return data
+    except Exception:
+        pass
+    return {}
+
 def _load_weapons() -> list:
-    """Load weapon database. Tries bundled file first, then GitHub."""
+    """Load weapon database from bundled file ONLY — no network (startup-safe).
+    An async task will fetch from GitHub later if the list is empty.
+    """
     try:
         local = Path(__file__).parent / "weapons.json"
         if local.exists():
@@ -1030,13 +1048,6 @@ def _load_weapons() -> list:
                 return json.load(f)
     except Exception:
         pass
-    if _REQ_OK:
-        try:
-            r = requests.get(_WEAPONS_URL, timeout=8)
-            if r.status_code == 200:
-                return r.json()
-        except Exception:
-            pass
     return []
 
 def _db_save_history(alerts: list):
@@ -2184,7 +2195,7 @@ async def main(page: ft.Page):
                             if prefs.get("world_filter", "twine") in _WORLD_ORDER else "twine",
         "meta_imgs":            {},
         "community_builds":     [],
-        "stw_weekly":           {},   # fallback: sc_type, fts_active_cats from GitHub JSON
+        "stw_weekly":           _load_stw_weekly_local(),  # pre-loaded from disk; refreshed async from GitHub
         "hero_search_results":  [],
         "hero_search_loading":  False,
         "hero_search_query":    "",
@@ -2463,8 +2474,11 @@ async def main(page: ft.Page):
             cache["alerts_ts"]    = ts
             cache["app_version"]  = APP_VERSION    # stamp version → invalidates on next update
             _save_cache(cache)
-            # Persist to history (background — non-blocking)
-            asyncio.get_event_loop().run_in_executor(None, _db_save_history, alerts)
+            # Persist to history (non-blocking, correct async approach)
+            try:
+                await asyncio.to_thread(_db_save_history, alerts)
+            except Exception:
+                pass
         else:
             if all_missions:
                 state["all_missions"] = all_missions
@@ -2578,6 +2592,23 @@ async def main(page: ft.Page):
             state["meta_imgs"][name] = found
 
         render()
+
+    async def _task_load_weapons_async():
+        """Fetch weapons.json from GitHub when bundled file was not found (Android)."""
+        if state["weapons"]:   # already loaded from bundled file — skip
+            return
+        if not _REQ_OK:
+            return
+        try:
+            data = await asyncio.to_thread(
+                lambda: requests.get(_WEAPONS_URL, timeout=8).json()
+            )
+            if isinstance(data, list) and data:
+                state["weapons"] = data
+                if state.get("guide_tab") == "weapons":
+                    render()
+        except Exception:
+            pass
 
     async def _task_load_community_builds():
         if not _REQ_OK:
@@ -2903,12 +2934,12 @@ async def main(page: ft.Page):
             async def _r(): await _task_load_alerts(force=True)
             page.run_task(_r)
 
-        # World tab icons and short labels (bilingual)
+        # World tab icons — 2-letter codes always (consistent width in all languages)
         _WORLD_TAB = {
-            "stonewood":  {"icon": "🪵", "es": "SW",      "en": "SW"},
-            "plankerton": {"icon": "🏗",  "es": "PL",      "en": "PL"},
-            "canny":      {"icon": "🌵", "es": "Valle",   "en": "CV"},
-            "twine":      {"icon": "❄️", "es": "Cumbres", "en": "TP"},
+            "stonewood":  {"icon": "🪵", "es": "SW", "en": "SW"},
+            "plankerton": {"icon": "🏗",  "es": "PL", "en": "PL"},
+            "canny":      {"icon": "🌵", "es": "CV", "en": "CV"},
+            "twine":      {"icon": "❄️", "es": "TP", "en": "TP"},
         }
 
         def set_world(wk):
@@ -2977,7 +3008,7 @@ async def main(page: ft.Page):
             rows.append(ft.Row(
                 [_toggle_btn(_wtab_lbl(wk), _wf_key == wk, set_world(wk))
                  for wk in _WORLD_ORDER],
-                spacing=6,
+                spacing=6, wrap=True,
             ))
 
             if state["using_cache"] and state["last_refresh"]:
@@ -3026,7 +3057,7 @@ async def main(page: ft.Page):
                     [_toggle_btn(f"{_WORLD_TAB[wk]['icon']} {_WORLD_TAB[wk][lang]}",
                                  hw == wk, set_hw(wk))
                      for wk in _WORLD_ORDER],
-                    spacing=6,
+                    spacing=6, wrap=True,
                 ))
                 hist = _db_get_history(hw)
                 if not hist:
@@ -4470,6 +4501,7 @@ async def main(page: ft.Page):
     page.run_task(_task_load_meta_imgs)
     page.run_task(_task_load_community_builds)
     page.run_task(_task_load_stw_weekly)
+    page.run_task(_task_load_weapons_async)
     page.run_task(_auto_refresh_loop)
     page.run_task(_task_clock_ticker)
 
