@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.7.1"
+APP_VERSION = "2.7.2"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -4003,7 +4003,7 @@ async def main(page: ft.Page):
                         guide_tab == "weapons", set_gtab("weapons")),
             _toggle_btn("📊 " + t("pl_calc"),
                         guide_tab == "plcalc",  set_gtab("plcalc")),
-        ], spacing=6))
+        ], spacing=6, wrap=True))
         rows.append(_divider())
 
         # ══════════════════════════════════════════════════════════════════════
@@ -4017,6 +4017,44 @@ async def main(page: ft.Page):
                 _wf = state.get("weapon_filter", "all")
                 # Collect unique tags
                 all_tags = sorted({tg for w in weapons for tg in w.get("tags", [])})
+                # ── Bilingual label dicts (shared by filter row + cards) ──────
+                _tier_lbl = {
+                    "Legendary": {"es": "Legendario",      "en": "Legendary"},
+                    "Epic":      {"es": "Épico",            "en": "Epic"},
+                    "Rare":      {"es": "Raro",             "en": "Rare"},
+                    "Uncommon":  {"es": "Infrecuente",      "en": "Uncommon"},
+                }
+                _elem_lbl = {
+                    "Shadow":   {"es": "Sombra",      "en": "Shadow"},
+                    "Physical": {"es": "Físico",      "en": "Physical"},
+                    "Fire":     {"es": "Fuego",       "en": "Fire"},
+                    "Nature":   {"es": "Naturaleza",  "en": "Nature"},
+                    "Energy":   {"es": "Energía",     "en": "Energy"},
+                    "Water":    {"es": "Agua",        "en": "Water"},
+                    "Wind":     {"es": "Viento",      "en": "Wind"},
+                }
+                _tag_lbl = {
+                    "dps":         {"es": "DPS",             "en": "DPS"},
+                    "versatile":   {"es": "Versátil",        "en": "Versatile"},
+                    "endgame":     {"es": "Late Game",       "en": "Late Game"},
+                    "beginner":    {"es": "Principiante",    "en": "Beginner"},
+                    "burst":       {"es": "Ráfaga",          "en": "Burst"},
+                    "close-range": {"es": "Corto Alcance",   "en": "Close Range"},
+                    "melee":       {"es": "Cuerpo a Cuerpo", "en": "Melee"},
+                    "ninja":       {"es": "Ninja",           "en": "Ninja"},
+                    "fire":        {"es": "Fuego",           "en": "Fire"},
+                    "ranged":      {"es": "A Distancia",     "en": "Ranged"},
+                    "outlander":   {"es": "Outlander",       "en": "Outlander"},
+                    "precision":   {"es": "Precisión",       "en": "Precision"},
+                    "sustained":   {"es": "Sostenido",       "en": "Sustained"},
+                    "soldier":     {"es": "Soldado",         "en": "Soldier"},
+                    "constructor": {"es": "Constructor",     "en": "Constructor"},
+                    "aoe":         {"es": "Área",            "en": "AoE"},
+                    "speed":       {"es": "Velocidad",       "en": "Speed"},
+                    "rtd":         {"es": "RTD",             "en": "RTD"},
+                    "lightning":   {"es": "Rayo",            "en": "Lightning"},
+                }
+                def _tlbl(tg): return _tag_lbl.get(tg, {}).get(lang, tg.capitalize())
                 def set_wf(tf):
                     def _h(e):
                         state["weapon_filter"] = tf
@@ -4025,7 +4063,7 @@ async def main(page: ft.Page):
                 rows.append(ft.Row(
                     [_toggle_btn("🗂 " + ("Todo" if lang=="es" else "All"),
                                  _wf == "all", set_wf("all"))]
-                    + [_toggle_btn(tg.capitalize(), _wf == tg, set_wf(tg))
+                    + [_toggle_btn(_tlbl(tg), _wf == tg, set_wf(tg))
                        for tg in all_tags],
                     spacing=4, wrap=True,
                 ))
@@ -4038,7 +4076,11 @@ async def main(page: ft.Page):
                     "Uncommon":  "#22c55e",
                 }
                 for w in filtered:
-                    tier_col = _tier_color.get(w.get("tier",""), _c("sub"))
+                    tier_key = w.get("tier", "")
+                    tier_col = _tier_color.get(tier_key, _c("sub"))
+                    tier_str = _tier_lbl.get(tier_key, {}).get(lang, tier_key)
+                    elem_key = w.get("element", "")
+                    elem_str = _elem_lbl.get(elem_key, {}).get(lang, elem_key)
                     type_str = w.get(f"type_{lang}", w.get("type_en", ""))
                     rows.append(_card(
                         ft.Row([
@@ -4048,14 +4090,14 @@ async def main(page: ft.Page):
                                     ft.Text(w["name"], size=13, color=_c("text"),
                                             weight=ft.FontWeight.BOLD),
                                     ft.Container(
-                                        content=ft.Text(w.get("tier",""), size=9,
+                                        content=ft.Text(tier_str, size=9,
                                                         color="#000000",
                                                         weight=ft.FontWeight.BOLD),
                                         bgcolor=tier_col, border_radius=4,
                                         padding=_pad_sym(horizontal=5, vertical=1),
                                     ),
                                 ], spacing=6),
-                                ft.Text(f"{type_str}  ·  {w.get('element','')}",
+                                ft.Text(f"{type_str}  ·  {elem_str}",
                                         size=10, color=_c("cyan")),
                                 ft.Row([
                                     ft.Text(f"DPS {w.get('dps',0)}",
@@ -4069,7 +4111,8 @@ async def main(page: ft.Page):
                         ], spacing=10,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         _sub(w.get(f"desc_{lang}", w.get("desc_en","")), size=11),
-                        ft.Row([_tag_chip(tg) for tg in w.get("tags",[])],
+                        ft.Row([_tag_chip(_tag_lbl.get(tg,{}).get(lang, tg.capitalize()))
+                                for tg in w.get("tags",[])],
                                wrap=True, spacing=4),
                     ))
 
