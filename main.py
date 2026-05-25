@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.8.4"
+APP_VERSION = "2.9.0"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -118,6 +118,88 @@ _WORLD_KEYS  = {
     "canny":      "canny",
     "twine":      "twine",
 }
+# ── Hero recommendations by mission type (Batch 2) ────────────────────────────
+_HERO_MISSION_GUIDE = [
+    {
+        "key": "survive",
+        "emoji": "🌊",
+        "es": "Sobrevivir la Horda",
+        "en": "Survive the Storm",
+        "class_color": "#cc5500",
+        "class_es": "Constructor",
+        "class_en": "Constructor",
+        "heroes": "Megabase Kyle · BASE Kyle",
+        "tip_es": "B.A.S.E. mantiene husks alejados del objetivo. Construye túneles con trampas antes de iniciar la misión.",
+        "tip_en": "B.A.S.E. keeps husks from reaching the objective. Build trap tunnels before starting the mission.",
+        "gadgets": "Hover Turret · Plasma Pulse",
+    },
+    {
+        "key": "retrieve",
+        "emoji": "📡",
+        "es": "Recuperar los Datos",
+        "en": "Retrieve the Data",
+        "class_color": "#cc2200",
+        "class_es": "Soldado",
+        "class_en": "Soldier",
+        "heroes": "Ramirez · Urban Assault Headhunter",
+        "tip_es": "Construye una base rápida alrededor del radar al llegar. Mantén la zona despejada de husks.",
+        "tip_en": "Quickly build a base around the radar on arrival. Keep the area cleared of husks.",
+        "gadgets": "Hover Turret · Shock Tower",
+    },
+    {
+        "key": "rescue",
+        "emoji": "🆘",
+        "es": "Rescatar Supervivientes",
+        "en": "Rescue Survivors",
+        "class_color": "#007700",
+        "class_es": "Explorador",
+        "class_en": "Outlander",
+        "heroes": "Pathfinder Jess · Shock Specialist",
+        "tip_es": "Los supervivientes tienen poca vida. Muévete rápido y elimina los husks cercanos antes de hablarles.",
+        "tip_en": "Survivors have low HP. Move fast and eliminate nearby husks before talking to them.",
+        "gadgets": "Hover Turret · Battle Cry",
+    },
+    {
+        "key": "defend",
+        "emoji": "🏠",
+        "es": "Defender el Refugio",
+        "en": "Defend the Shelter",
+        "class_color": "#cc5500",
+        "class_es": "Constructor",
+        "class_en": "Constructor",
+        "heroes": "BASE Kyle · Megabase Kyle",
+        "tip_es": "Refuerza las paredes del refugio con metal. Coloca trampas en todos los accesos posibles.",
+        "tip_en": "Reinforce shelter walls with metal. Place traps at every possible entrance.",
+        "gadgets": "Plasma Pulse · Hover Turret",
+    },
+    {
+        "key": "encampment",
+        "emoji": "⚡",
+        "es": "Destruir Campamentos",
+        "en": "Destroy Encampments",
+        "class_color": "#cc2200",
+        "class_es": "Soldado",
+        "class_en": "Soldier",
+        "heroes": "Urban Assault Headhunter · Sergeant Jonesy",
+        "tip_es": "Elimina TODOS los husks antes de destruir el campamento o se regenerará con más vida.",
+        "tip_en": "Kill ALL husks before destroying the camp or it will regenerate with more HP.",
+        "gadgets": "Adrenaline Rush · Smoke Screen",
+    },
+    {
+        "key": "fts",
+        "emoji": "⛈️",
+        "es": "Luchar contra la Tormenta",
+        "en": "Fight the Storm",
+        "class_color": "#660099",
+        "class_es": "Constructor + Soldado",
+        "class_en": "Constructor + Soldier",
+        "heroes": "Megabase Kyle + Urban Assault Headhunter",
+        "tip_es": "Constructor levanta la defensa del objetivo, Soldado hace el DPS. Coordina con el equipo antes de iniciar.",
+        "tip_en": "Constructor builds the objective defense, Soldier provides DPS. Coordinate with your team first.",
+        "gadgets": "Hover Turret · Plasma Pulse",
+    },
+]
+
 GUIDE_WORLDS = {
     "stonewood": {
         "es": {
@@ -433,6 +515,13 @@ T = {
         "pl_min_all":           "Todo PL",
         "vb_in_world":          "V-Bucks en",
         "vb_total_today":       "total hoy",
+        # ── Batch 2 ──
+        "heroes_tab":           "Héroes",
+        "heroes_guide_title":   "Héroes por Tipo de Misión",
+        "heroes_guide_sub":     "Recomendaciones generales · adapta según tu colección",
+        "vb_hist_title":        "V-Bucks últimos 7 días",
+        "vb_hist_empty":        "Sin historial de V-Bucks aún.",
+        "vb_hist_none":         "Sin V-Bucks",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -581,6 +670,13 @@ T = {
         "pl_min_all":           "All PL",
         "vb_in_world":          "V-Bucks in",
         "vb_total_today":       "total today",
+        # ── Batch 2 ──
+        "heroes_tab":           "Heroes",
+        "heroes_guide_title":   "Heroes by Mission Type",
+        "heroes_guide_sub":     "General recommendations · adapt to your collection",
+        "vb_hist_title":        "V-Bucks last 7 days",
+        "vb_hist_empty":        "No V-Bucks history yet.",
+        "vb_hist_none":         "No V-Bucks",
     },
 }
 
@@ -1108,6 +1204,33 @@ def _db_get_history(world: str, days: int = 7) -> list[dict]:
                 (world, cutoff),
             ).fetchall()
             return [{"date": r[0], "data": json.loads(r[1])} for r in rows]
+    except Exception:
+        return []
+
+def _db_get_vbucks_history(days: int = 7) -> list[dict]:
+    """Return per-day V-Bucks totals across all worlds for the last `days` days."""
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
+        with sqlite3.connect(str(DB_FILE)) as con:
+            rows = con.execute(
+                "SELECT date, data FROM alert_history WHERE date > ? ORDER BY date DESC",
+                (cutoff,),
+            ).fetchall()
+        by_date: dict = {}
+        for date_str, data_json in rows:
+            try:
+                alerts = json.loads(data_json)
+            except Exception:
+                continue
+            if date_str not in by_date:
+                by_date[date_str] = 0
+            for a in alerts:
+                if a.get("vbucks"):
+                    for rw in a.get("rewards", []):
+                        if rw.get("vbucks"):
+                            by_date[date_str] += rw.get("quantity", 0)
+        return [{"date": d, "vbucks": v}
+                for d, v in sorted(by_date.items(), reverse=True)]
     except Exception:
         return []
 
@@ -2276,7 +2399,7 @@ async def main(page: ft.Page):
                             if prefs.get("world_filter", "twine") in _WORLD_ORDER
                             else "twine",
         "guide_world":      "stonewood",
-        "guide_tab":        "worlds",  # worlds | weapons | plcalc
+        "guide_tab":        "worlds",  # worlds | weapons | plcalc | heroes
         "weapons":          _load_weapons(),
         "weapon_filter":    "all",     # all | tag (beginner/endgame/melee/ranged/aoe)
         "pl_inputs":        {"hero": 0, "weapon": 0, "survivors": 0, "research": 0},
@@ -3226,6 +3349,37 @@ async def main(page: ft.Page):
                     bgcolor=_c("surface"),
                 )
                 rows.append(ft.Row([_hist_dd], spacing=6))
+
+                # ── V-Bucks history summary (all worlds, last 7 days) ─────────
+                _vb_hist = _db_get_vbucks_history(days=7)
+                if _vb_hist:
+                    _vb_rows = []
+                    for _vbh in _vb_hist:
+                        _amt = _vbh["vbucks"]
+                        _vb_rows.append(ft.Row([
+                            ft.Text(f"📅 {_vbh['date']}",
+                                    size=11, color=_c("sub"), expand=True),
+                            ft.Text(
+                                f"💰 {_amt}" if _amt > 0 else t("vb_hist_none"),
+                                size=11,
+                                color=_c("vbucks") if _amt > 0 else _c("sub"),
+                                weight=ft.FontWeight.W_500 if _amt > 0
+                                       else ft.FontWeight.NORMAL,
+                            ),
+                        ], spacing=4))
+                    rows.append(_card(
+                        ft.Row([
+                            ft.Icon(ft.Icons.MONETIZATION_ON,
+                                    size=14, color=_c("vbucks")),
+                            ft.Text(t("vb_hist_title"), size=12,
+                                    color=_c("vbucks"),
+                                    weight=ft.FontWeight.W_600),
+                        ], spacing=4),
+                        ft.Container(height=4),
+                        *_vb_rows,
+                    ))
+                    rows.append(ft.Container(height=4))
+
                 hist = _db_get_history(hw)
                 if not hist:
                     rows.append(_card(_txt(t("history_empty"), color=_c("sub"))))
@@ -4275,6 +4429,8 @@ async def main(page: ft.Page):
                         guide_tab == "weapons", set_gtab("weapons")),
             _toggle_btn("📊 " + t("pl_calc"),
                         guide_tab == "plcalc",  set_gtab("plcalc")),
+            _toggle_btn("🦸 " + t("heroes_tab"),
+                        guide_tab == "heroes",  set_gtab("heroes")),
         ], spacing=6, wrap=True))
         rows.append(_divider())
 
@@ -4447,6 +4603,55 @@ async def main(page: ft.Page):
                 "Formula: Hero 25% + Weapon 25% + Survivors 40% + Research 10%",
                 size=10,
             ))
+
+        # ══════════════════════════════════════════════════════════════════════
+        elif guide_tab == "heroes":
+            # ── HEROES BY MISSION TYPE ────────────────────────────────────────
+            rows.append(_hdr(t("heroes_guide_title"), size=14))
+            rows.append(_sub(t("heroes_guide_sub"), size=10))
+            rows.append(ft.Container(height=4))
+
+            _CLASS_COLORS = {
+                "Constructor": "#cc5500",
+                "Soldier":     "#cc2200",
+                "Outlander":   "#007700",
+                "Ninja":       "#660099",
+            }
+            for entry in _HERO_MISSION_GUIDE:
+                _name   = entry["es"] if lang == "es" else entry["en"]
+                _cls    = entry["class_es"] if lang == "es" else entry["class_en"]
+                _tip    = entry["tip_es"]   if lang == "es" else entry["tip_en"]
+                _clr    = entry["class_color"]
+                rows.append(_card(
+                    # Header: emoji + mission name
+                    ft.Row([
+                        ft.Text(entry["emoji"], size=20),
+                        ft.Text(_name, size=13, color=_c("orange"),
+                                weight=ft.FontWeight.BOLD, expand=True),
+                        ft.Container(
+                            content=ft.Text(_cls, size=9, color="#ffffff",
+                                            weight=ft.FontWeight.BOLD),
+                            bgcolor=_clr, border_radius=6,
+                            padding=_pad_sym(horizontal=8, vertical=3),
+                        ),
+                    ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    ft.Container(height=2),
+                    # Heroes
+                    ft.Row([
+                        ft.Icon(ft.Icons.PERSON, size=14, color=_c("cyan")),
+                        ft.Text(entry["heroes"], size=12, color=_c("cyan"),
+                                weight=ft.FontWeight.W_500),
+                    ], spacing=4),
+                    ft.Container(height=2),
+                    # Tip
+                    ft.Text(_tip, size=11, color=_c("text")),
+                    ft.Container(height=2),
+                    # Gadgets
+                    ft.Row([
+                        ft.Icon(ft.Icons.BUILD, size=12, color=_c("sub")),
+                        ft.Text(entry["gadgets"], size=10, color=_c("sub")),
+                    ], spacing=4),
+                ))
 
         # ══════════════════════════════════════════════════════════════════════
         else:
