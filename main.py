@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.9.0"
+APP_VERSION = "2.9.1"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -118,7 +118,8 @@ _WORLD_KEYS  = {
     "canny":      "canny",
     "twine":      "twine",
 }
-# ── Hero recommendations by mission type (Batch 2) ────────────────────────────
+# ── Hero recommendations by mission type (Batch 2, complete builds v2.9.1) ─────
+# Each entry: 1 principal + 5 apoyos + team perk + gadgets  (full STW build)
 _HERO_MISSION_GUIDE = [
     {
         "key": "survive",
@@ -128,9 +129,18 @@ _HERO_MISSION_GUIDE = [
         "class_color": "#cc5500",
         "class_es": "Constructor",
         "class_en": "Constructor",
-        "heroes": "Megabase Kyle · BASE Kyle",
-        "tip_es": "B.A.S.E. mantiene husks alejados del objetivo. Construye túneles con trampas antes de iniciar la misión.",
-        "tip_en": "B.A.S.E. keeps husks from reaching the objective. Build trap tunnels before starting the mission.",
+        "main_hero": "Megabase Kyle",
+        "support_heroes": [
+            "BASE Kyle",
+            "Power BASE Knox",
+            "Electro-pulse Penny",
+            "Trailblaster Buzz",
+            "Steel Wool Anthony",
+        ],
+        "team_perk_es": "Kinetic Overload — pulso eléctrico al bloquear con B.A.S.E.",
+        "team_perk_en": "Kinetic Overload — electrical pulse when blocking with B.A.S.E.",
+        "tip_es": "B.A.S.E. mantiene husks alejados del objetivo. Construye túneles con trampas antes de iniciar.",
+        "tip_en": "B.A.S.E. keeps husks from the objective. Build trap tunnels before starting.",
         "gadgets": "Hover Turret · Plasma Pulse",
     },
     {
@@ -141,9 +151,18 @@ _HERO_MISSION_GUIDE = [
         "class_color": "#cc2200",
         "class_es": "Soldado",
         "class_en": "Soldier",
-        "heroes": "Ramirez · Urban Assault Headhunter",
+        "main_hero": "Urban Assault Headhunter",
+        "support_heroes": [
+            "Sergeant Jonesy",
+            "Master Grenadier Ramirez",
+            "Rescue Trooper Ramirez",
+            "Special Forces Banshee",
+            "Hydraulic BASE Knox",
+        ],
+        "team_perk_es": "Raider's Revenge — bono de daño por cada eliminación",
+        "team_perk_en": "Raider's Revenge — damage bonus for each kill",
         "tip_es": "Construye una base rápida alrededor del radar al llegar. Mantén la zona despejada de husks.",
-        "tip_en": "Quickly build a base around the radar on arrival. Keep the area cleared of husks.",
+        "tip_en": "Quickly build a base around the radar on arrival. Keep the zone cleared.",
         "gadgets": "Hover Turret · Shock Tower",
     },
     {
@@ -154,10 +173,19 @@ _HERO_MISSION_GUIDE = [
         "class_color": "#007700",
         "class_es": "Explorador",
         "class_en": "Outlander",
-        "heroes": "Pathfinder Jess · Shock Specialist",
-        "tip_es": "Los supervivientes tienen poca vida. Muévete rápido y elimina los husks cercanos antes de hablarles.",
-        "tip_en": "Survivors have low HP. Move fast and eliminate nearby husks before talking to them.",
-        "gadgets": "Hover Turret · Battle Cry",
+        "main_hero": "Pathfinder Jess",
+        "support_heroes": [
+            "Phase Scout Jess",
+            "Recon Scout Jess",
+            "Ranger Deadeye",
+            "Jonesy the First",
+            "Special Forces Banshee",
+        ],
+        "team_perk_es": "Warcry — aumenta daño y velocidad de movimiento del equipo",
+        "team_perk_en": "Warcry — increases team damage and movement speed",
+        "tip_es": "Los supervivientes tienen poca vida. Muévete rápido y elimina los husks cercanos primero.",
+        "tip_en": "Survivors have low HP. Move fast and eliminate nearby husks first.",
+        "gadgets": "Adrenaline Rush · Hover Turret",
     },
     {
         "key": "defend",
@@ -167,9 +195,18 @@ _HERO_MISSION_GUIDE = [
         "class_color": "#cc5500",
         "class_es": "Constructor",
         "class_en": "Constructor",
-        "heroes": "BASE Kyle · Megabase Kyle",
-        "tip_es": "Refuerza las paredes del refugio con metal. Coloca trampas en todos los accesos posibles.",
-        "tip_en": "Reinforce shelter walls with metal. Place traps at every possible entrance.",
+        "main_hero": "BASE Kyle",
+        "support_heroes": [
+            "Megabase Kyle",
+            "Power BASE Knox",
+            "Electro-pulse Penny",
+            "Trailblaster Buzz",
+            "Steel Wool Anthony",
+        ],
+        "team_perk_es": "Kinetic Overload — pulso eléctrico al bloquear con B.A.S.E.",
+        "team_perk_en": "Kinetic Overload — electrical pulse when blocking with B.A.S.E.",
+        "tip_es": "Refuerza las paredes del refugio con metal antes de que lleguen los husks. Usa trampas en todos los accesos.",
+        "tip_en": "Reinforce shelter walls with metal before husks arrive. Place traps at every entrance.",
         "gadgets": "Plasma Pulse · Hover Turret",
     },
     {
@@ -180,7 +217,16 @@ _HERO_MISSION_GUIDE = [
         "class_color": "#cc2200",
         "class_es": "Soldado",
         "class_en": "Soldier",
-        "heroes": "Urban Assault Headhunter · Sergeant Jonesy",
+        "main_hero": "Urban Assault Headhunter",
+        "support_heroes": [
+            "Sergeant Jonesy",
+            "Master Grenadier Ramirez",
+            "Rescue Trooper Ramirez",
+            "Special Forces Banshee",
+            "Hydraulic BASE Knox",
+        ],
+        "team_perk_es": "Raider's Revenge — bono de daño por cada eliminación",
+        "team_perk_en": "Raider's Revenge — damage bonus for each kill",
         "tip_es": "Elimina TODOS los husks antes de destruir el campamento o se regenerará con más vida.",
         "tip_en": "Kill ALL husks before destroying the camp or it will regenerate with more HP.",
         "gadgets": "Adrenaline Rush · Smoke Screen",
@@ -191,11 +237,20 @@ _HERO_MISSION_GUIDE = [
         "es": "Luchar contra la Tormenta",
         "en": "Fight the Storm",
         "class_color": "#660099",
-        "class_es": "Constructor + Soldado",
-        "class_en": "Constructor + Soldier",
-        "heroes": "Megabase Kyle + Urban Assault Headhunter",
-        "tip_es": "Constructor levanta la defensa del objetivo, Soldado hace el DPS. Coordina con el equipo antes de iniciar.",
-        "tip_en": "Constructor builds the objective defense, Soldier provides DPS. Coordinate with your team first.",
+        "class_es": "Constructor",
+        "class_en": "Constructor",
+        "main_hero": "Megabase Kyle",
+        "support_heroes": [
+            "BASE Kyle",
+            "Power BASE Knox",
+            "Urban Assault Headhunter",
+            "Sergeant Jonesy",
+            "Hydraulic BASE Knox",
+        ],
+        "team_perk_es": "Kinetic Overload — defensa máxima del objetivo con B.A.S.E.",
+        "team_perk_en": "Kinetic Overload — maximum objective defense with B.A.S.E.",
+        "tip_es": "Constructor mantiene la defensa del objetivo, el resto hace DPS masivo. Coordina antes de iniciar.",
+        "tip_en": "Constructor defends the objective, rest focuses on DPS. Coordinate before starting.",
         "gadgets": "Hover Turret · Plasma Pulse",
     },
 ]
@@ -522,6 +577,19 @@ T = {
         "vb_hist_title":        "V-Bucks últimos 7 días",
         "vb_hist_empty":        "Sin historial de V-Bucks aún.",
         "vb_hist_none":         "Sin V-Bucks",
+        # ── Batch 3 ──
+        "materials_tab":        "Materiales",
+        "materials_title":      "Tracker de Materiales",
+        "material_name_hint":   "Nombre (ej: Madera, Malachite...)",
+        "material_target_hint": "Meta (cantidad)",
+        "material_add":         "Agregar",
+        "material_empty":       "Sin materiales. Usa + para agregar uno.",
+        "material_done":        "¡Completado!",
+        "material_remaining":   "faltan",
+        "material_presets":     "Añadir predefinido:",
+        "share_img":            "Imagen",
+        "share_img_saved":      "Imagen guardada en tu dispositivo",
+        "share_img_error":      "Error al generar imagen",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -677,6 +745,19 @@ T = {
         "vb_hist_title":        "V-Bucks last 7 days",
         "vb_hist_empty":        "No V-Bucks history yet.",
         "vb_hist_none":         "No V-Bucks",
+        # ── Batch 3 ──
+        "materials_tab":        "Materials",
+        "materials_title":      "Materials Tracker",
+        "material_name_hint":   "Name (eg: Wood, Malachite...)",
+        "material_target_hint": "Goal (amount)",
+        "material_add":         "Add",
+        "material_empty":       "No materials. Use + to add one.",
+        "material_done":        "Done!",
+        "material_remaining":   "remaining",
+        "material_presets":     "Add preset:",
+        "share_img":            "Image",
+        "share_img_saved":      "Image saved to your device",
+        "share_img_error":      "Error generating image",
     },
 }
 
@@ -1089,6 +1170,16 @@ def _init_db():
                     created     TEXT NOT NULL DEFAULT ''
                 )
             """)
+            # Material tracker — user-defined farming goals
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS material_list (
+                    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                    emoji   TEXT NOT NULL DEFAULT '📦',
+                    name    TEXT NOT NULL DEFAULT '',
+                    target  INTEGER NOT NULL DEFAULT 100,
+                    current INTEGER NOT NULL DEFAULT 0
+                )
+            """)
             # Alert favorites — keyed by a stable "zone|name" identifier
             con.execute("""
                 CREATE TABLE IF NOT EXISTS alert_favorites (
@@ -1233,6 +1324,43 @@ def _db_get_vbucks_history(days: int = 7) -> list[dict]:
                 for d, v in sorted(by_date.items(), reverse=True)]
     except Exception:
         return []
+
+def _db_get_materials() -> list:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.row_factory = sqlite3.Row
+            return [dict(r) for r in
+                    con.execute("SELECT * FROM material_list ORDER BY id ASC").fetchall()]
+    except Exception:
+        return []
+
+def _db_add_material(emoji: str, name: str, target: int) -> None:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute(
+                "INSERT INTO material_list(emoji,name,target,current) VALUES(?,?,?,0)",
+                (emoji, name, target),
+            )
+            con.commit()
+    except Exception:
+        pass
+
+def _db_update_material_current(mid: int, current: int) -> None:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute("UPDATE material_list SET current=? WHERE id=?",
+                        (max(0, current), mid))
+            con.commit()
+    except Exception:
+        pass
+
+def _db_delete_material(mid: int) -> None:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute("DELETE FROM material_list WHERE id=?", (mid,))
+            con.commit()
+    except Exception:
+        pass
 
 def _db_all_builds() -> list:
     try:
@@ -3741,6 +3869,8 @@ async def main(page: ft.Page):
                         set_tab("my")),
             _toggle_btn(t("community_builds"),  state["builds_tab"] == "community",
                         set_tab("community")),
+            _toggle_btn("📦 " + t("materials_tab"), state["builds_tab"] == "materials",
+                        set_tab("materials")),
         ], spacing=8, wrap=True))
         rows.append(_divider())
 
@@ -3748,6 +3878,8 @@ async def main(page: ft.Page):
             rows.extend(_builds_meta())
         elif state["builds_tab"] == "community":
             rows.extend(_builds_community())
+        elif state["builds_tab"] == "materials":
+            rows.extend(_builds_materials())
         else:
             rows.extend(_builds_my())
 
@@ -3959,6 +4091,36 @@ async def main(page: ft.Page):
                     render()
                 return _h
 
+            def do_share_img(build=b):
+                def _h(e):
+                    path = _generate_build_image(build)
+                    if path:
+                        _dlg = ft.AlertDialog(
+                            title=ft.Text(t("share_img"), color=_c("orange")),
+                            content=ft.Column([
+                                ft.Image(src=path, width=320, height=240,
+                                         fit=ft.BoxFit.CONTAIN),
+                                _sub(t("share_img_saved"), size=10),
+                            ], tight=True, spacing=6),
+                            modal=True,
+                        )
+                        def _close_dlg(e, d=_dlg):
+                            d.open = False
+                            page.update()
+                        _dlg.actions = [ft.FilledButton(
+                            content=ft.Text("OK", color="#ffffff"),
+                            on_click=_close_dlg,
+                            bgcolor=_c("orange"),
+                            style=ft.ButtonStyle(
+                                shape=ft.RoundedRectangleBorder(radius=8)),
+                        )]
+                        page.show_dialog(_dlg)
+                    else:
+                        page.show_dialog(ft.SnackBar(
+                            content=ft.Text(t("share_img_error"), color="#ffffff"),
+                            bgcolor=_c("red")))
+                return _h
+
             def do_submit(build=b):
                 def _h(e):
                     async def _run():
@@ -4002,6 +4164,10 @@ async def main(page: ft.Page):
                                       icon_color=_c("cyan"), icon_size=18),
                         ft.IconButton(ft.Icons.DELETE, on_click=do_delete(),
                                       icon_color=_c("red"), icon_size=18),
+                        ft.IconButton(ft.Icons.IMAGE_OUTLINED,
+                                      on_click=do_share_img(),
+                                      icon_color=_c("yellow"), icon_size=18,
+                                      tooltip=t("share_img")),
                         ft.IconButton(ft.Icons.UPLOAD_OUTLINED,
                                       on_click=do_submit(),
                                       icon_color=_c("green"), icon_size=18,
@@ -4028,6 +4194,241 @@ async def main(page: ft.Page):
                     if b.get("desc") else ft.Text(""),
                 ft.Row([_tag_chip(tg) for tg in tags], wrap=True, spacing=4)
                     if tags else ft.Text(""),
+            ))
+        return rows
+
+    # ── Generate shareable build image (Pillow) ──────────────────────────────────
+    def _generate_build_image(b: dict) -> str | None:
+        """Render a build card as PNG. Returns saved path or None on error."""
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            W, H = 400, 320
+            BG   = (7,  7, 26)
+            CARD = (18, 18, 40)
+            ORG  = (255, 140, 0)
+            CYN  = (0, 220, 220)
+            SUB  = (140, 140, 180)
+            WHT  = (255, 255, 255)
+            GOLD = (255, 215, 0)
+
+            img  = Image.new("RGB", (W, H), BG)
+            draw = ImageDraw.Draw(img)
+
+            # Card background
+            draw.rounded_rectangle([8, 8, W-8, H-8], radius=16, fill=CARD)
+
+            # Title bar
+            draw.rounded_rectangle([8, 8, W-8, 52], radius=16, fill=(30, 20, 60))
+
+            y = 16
+            # Class badge
+            cls   = b.get("cls", "")
+            _clr  = {"Constructor": (180, 80, 0), "Soldier": (180, 30, 0),
+                     "Outlander": (0, 110, 0), "Ninja": (90, 0, 140)}.get(cls, (60, 60, 120))
+            draw.rounded_rectangle([14, y, 14+len(cls)*7+12, y+22], radius=6, fill=_clr)
+            draw.text((20, y+3), cls, fill=WHT)
+
+            # Build name
+            name = b.get("name", "")[:28]
+            draw.text((14, 58), name, fill=ORG)
+
+            # Hero
+            hero = b.get("hero", "")
+            if hero:
+                draw.text((14, 82), f"🦸 {hero}", fill=CYN)
+
+            # Weapon
+            w1 = b.get("weapon1", "")
+            if w1:
+                draw.text((14, 104), f"⚔️ {w1}", fill=WHT)
+
+            # Skills/perks
+            try:
+                skills = json.loads(b.get("skills", "[]"))
+            except Exception:
+                skills = []
+            y_sk = 128
+            for sk in skills[:4]:
+                draw.rounded_rectangle([14, y_sk, 14+len(sk)*6+12, y_sk+18],
+                                       radius=4, fill=(40, 20, 80))
+                draw.text((20, y_sk+1), sk[:22], fill=SUB)
+                y_sk += 22
+
+            # Description
+            desc = b.get("desc", "")[:60]
+            if desc:
+                draw.text((14, max(y_sk+4, 196)), desc, fill=SUB)
+
+            # Tags
+            try:
+                tags = json.loads(b.get("tags", "[]"))
+            except Exception:
+                tags = []
+            x_tg = 14
+            for tg in tags[:5]:
+                draw.rounded_rectangle([x_tg, H-42, x_tg+len(tg)*6+12, H-24],
+                                       radius=4, fill=(20, 40, 80))
+                draw.text((x_tg+6, H-41), tg, fill=GOLD)
+                x_tg += len(tg)*6 + 18
+
+            # Footer
+            draw.text((14, H-18),
+                      f"STW Hub v{APP_VERSION} · Pedro Espinal",
+                      fill=SUB)
+
+            out = DATA_DIR / "share_build.png"
+            img.save(str(out))
+            return str(out)
+        except Exception:
+            return None
+
+    # ── Materials tracker ─────────────────────────────────────────────────────────
+    def _builds_materials():
+        rows   = []
+        lang   = LANG[0]
+        mats   = _db_get_materials()
+
+        rows.append(ft.Row([
+            _hdr(t("materials_title")),
+        ]))
+
+        # ── Preset quick-add buttons ─────────────────────────────────────────
+        _PRESETS = [
+            ("🪵", "Madera" if lang=="es" else "Wood"),
+            ("🧱", "Ladrillo" if lang=="es" else "Brick"),
+            ("⚙️", "Metal"),
+            ("🔩", "Tuercas" if lang=="es" else "Nuts & Bolts"),
+            ("💎", "Malachite"),
+            ("🌿", "Fibrous Herb"),
+            ("🔮", "Twine Fiber"),
+            ("🪨", "Coal"),
+        ]
+
+        def add_preset(emoji, name):
+            def _h(e):
+                _db_add_material(emoji, name, 500)
+                render()
+            return _h
+
+        rows.append(_sub(t("material_presets"), size=10))
+        rows.append(ft.Row(
+            [ft.FilledButton(
+                content=ft.Text(f"{em} {nm}", size=10, color="#ffffff"),
+                on_click=add_preset(em, nm),
+                bgcolor=_c("surface"),
+                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+             ) for em, nm in _PRESETS],
+            wrap=True, spacing=4,
+        ))
+
+        # ── Add custom material form ─────────────────────────────────────────
+        _new_emoji  = ft.TextField(value="📦", width=52, text_size=16,
+                                   border_color=_c("border"), color=_c("text"),
+                                   text_align=ft.TextAlign.CENTER)
+        _new_name   = ft.TextField(hint_text=t("material_name_hint"), expand=True,
+                                   text_size=12, border_color=_c("border"),
+                                   color=_c("text"),
+                                   label_style=ft.TextStyle(color=_c("sub")))
+        _new_target = ft.TextField(value="500", width=70, text_size=12,
+                                   keyboard_type=ft.KeyboardType.NUMBER,
+                                   border_color=_c("border"), color=_c("text"),
+                                   hint_text=t("material_target_hint"))
+
+        def add_custom(e):
+            nm = _new_name.value.strip()
+            if not nm:
+                return
+            try:
+                tgt = int(_new_target.value or 500)
+            except Exception:
+                tgt = 500
+            _db_add_material(_new_emoji.value or "📦", nm, max(1, tgt))
+            render()
+
+        rows.append(_card(
+            ft.Row([_new_emoji, _new_name, _new_target], spacing=6),
+            ft.Row([
+                _btn(t("material_add"), add_custom, icon=ft.Icons.ADD),
+            ]),
+        ))
+
+        # ── Material list ─────────────────────────────────────────────────────
+        if not mats:
+            rows.append(_card(_sub(t("material_empty"))))
+            return rows
+
+        for m in mats:
+            mid     = m["id"]
+            tgt     = max(1, m["target"])
+            cur     = m["current"]
+            left    = max(0, tgt - cur)
+            pct     = min(1.0, cur / tgt)
+            is_done = left == 0
+
+            # Progress text bar: 10-char block
+            filled  = int(pct * 10)
+            bar_txt = "█" * filled + "░" * (10 - filled)
+            pct_lbl = f"{int(pct*100)}%"
+
+            status_color = _c("green") if is_done else (
+                _c("cyan") if pct >= 0.5 else _c("orange"))
+
+            def inc_cur(mid=mid, cur=cur, tgt=tgt):
+                def _h(e):
+                    _db_update_material_current(mid, min(tgt, cur + 50))
+                    render()
+                return _h
+
+            def dec_cur(mid=mid, cur=cur):
+                def _h(e):
+                    _db_update_material_current(mid, max(0, cur - 50))
+                    render()
+                return _h
+
+            def del_mat(mid=mid):
+                def _h(e):
+                    _db_delete_material(mid)
+                    render()
+                return _h
+
+            rows.append(_card(
+                ft.Row([
+                    ft.Text(m["emoji"], size=22),
+                    ft.Column([
+                        ft.Text(m["name"], size=12, color=_c("text"),
+                                weight=ft.FontWeight.W_600),
+                        ft.Row([
+                            ft.Text(bar_txt, size=11,
+                                    color=status_color,
+                                    font_family="monospace"),
+                            ft.Text(pct_lbl, size=10, color=status_color),
+                        ], spacing=6),
+                    ], expand=True, spacing=2),
+                    ft.Column([
+                        ft.Text(
+                            t("material_done") if is_done
+                            else f"{cur}/{tgt}",
+                            size=11, color=status_color,
+                            weight=ft.FontWeight.W_600,
+                        ),
+                        ft.Text(
+                            "" if is_done
+                            else f"−{left} {t('material_remaining')}",
+                            size=9, color=_c("sub"),
+                        ),
+                    ], spacing=1, horizontal_alignment=ft.CrossAxisAlignment.END),
+                ], spacing=8, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                ft.Row([
+                    ft.IconButton(ft.Icons.REMOVE, on_click=dec_cur(),
+                                  icon_color=_c("orange"), icon_size=16,
+                                  tooltip="-50"),
+                    ft.IconButton(ft.Icons.ADD, on_click=inc_cur(),
+                                  icon_color=_c("cyan"), icon_size=16,
+                                  tooltip="+50"),
+                    ft.Container(expand=True),
+                    ft.IconButton(ft.Icons.DELETE_OUTLINE, on_click=del_mat(),
+                                  icon_color=_c("red"), icon_size=16),
+                ], spacing=0),
             ))
         return rows
 
@@ -4617,13 +5018,19 @@ async def main(page: ft.Page):
                 "Outlander":   "#007700",
                 "Ninja":       "#660099",
             }
+            _lbl_main    = "Principal:" if lang == "es" else "Main:"
+            _lbl_support = "Apoyos:"   if lang == "es" else "Supports:"
+            _lbl_perk    = "Team Perk:" if lang == "es" else "Team Perk:"
+
             for entry in _HERO_MISSION_GUIDE:
-                _name   = entry["es"] if lang == "es" else entry["en"]
-                _cls    = entry["class_es"] if lang == "es" else entry["class_en"]
-                _tip    = entry["tip_es"]   if lang == "es" else entry["tip_en"]
-                _clr    = entry["class_color"]
+                _name  = entry["es"]        if lang == "es" else entry["en"]
+                _cls   = entry["class_es"]  if lang == "es" else entry["class_en"]
+                _tip   = entry["tip_es"]    if lang == "es" else entry["tip_en"]
+                _perk  = entry["team_perk_es"] if lang == "es" else entry["team_perk_en"]
+                _clr   = entry["class_color"]
+                _sups  = " · ".join(entry["support_heroes"])
                 rows.append(_card(
-                    # Header: emoji + mission name
+                    # ── Header ───────────────────────────────────────────────
                     ft.Row([
                         ft.Text(entry["emoji"], size=20),
                         ft.Text(_name, size=13, color=_c("orange"),
@@ -4635,18 +5042,30 @@ async def main(page: ft.Page):
                             padding=_pad_sym(horizontal=8, vertical=3),
                         ),
                     ], spacing=6, vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                    ft.Container(height=2),
-                    # Heroes
+                    _divider(),
+                    # ── Principal ────────────────────────────────────────────
                     ft.Row([
-                        ft.Icon(ft.Icons.PERSON, size=14, color=_c("cyan")),
-                        ft.Text(entry["heroes"], size=12, color=_c("cyan"),
-                                weight=ft.FontWeight.W_500),
+                        ft.Icon(ft.Icons.STAR, size=13, color=_c("gold")),
+                        ft.Text(_lbl_main, size=11, color=_c("sub")),
+                        ft.Text(entry["main_hero"], size=12, color=_c("cyan"),
+                                weight=ft.FontWeight.W_600),
                     ], spacing=4),
-                    ft.Container(height=2),
-                    # Tip
+                    # ── Apoyos ───────────────────────────────────────────────
+                    ft.Row([
+                        ft.Icon(ft.Icons.PEOPLE, size=13, color=_c("sub")),
+                        ft.Text(_lbl_support, size=11, color=_c("sub")),
+                    ], spacing=4),
+                    ft.Text(_sups, size=11, color=_c("text")),
+                    # ── Team Perk ─────────────────────────────────────────────
+                    ft.Row([
+                        ft.Icon(ft.Icons.FLASH_ON, size=13, color=_c("yellow")),
+                        ft.Text(_lbl_perk, size=11, color=_c("sub")),
+                    ], spacing=4),
+                    ft.Text(_perk, size=11, color=_c("yellow")),
+                    _divider(),
+                    # ── Tip ──────────────────────────────────────────────────
                     ft.Text(_tip, size=11, color=_c("text")),
-                    ft.Container(height=2),
-                    # Gadgets
+                    # ── Gadgets ──────────────────────────────────────────────
                     ft.Row([
                         ft.Icon(ft.Icons.BUILD, size=12, color=_c("sub")),
                         ft.Text(entry["gadgets"], size=10, color=_c("sub")),
