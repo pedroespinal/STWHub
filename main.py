@@ -3136,7 +3136,7 @@ async def main(page: ft.Page):
                 color=_c("text"),
                 bgcolor=_c("surface"),
             )
-            # World dropdown on its own line; sub-tabs always on one line below
+            # World dropdown on its own line; sub-tabs wrap if screen is narrow
             rows.append(_world_dd)
             rows.append(ft.Row([
                 _toggle_btn("📋 " + ("Activas"  if lang=="es" else "Active"),
@@ -3145,7 +3145,7 @@ async def main(page: ft.Page):
                             _ast == "favorites", set_ast("favorites")),
                 _toggle_btn("📅 " + ("Historial" if lang=="es" else "History"),
                             _ast == "history",   set_ast("history")),
-            ], spacing=6))
+            ], spacing=6, wrap=True))
 
             if state["using_cache"] and state["last_refresh"]:
                 rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
