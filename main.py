@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.8.2"
+APP_VERSION = "2.8.3"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -3099,7 +3099,7 @@ async def main(page: ft.Page):
                 ),
                 _btn(t("refresh"), do_refresh, icon=ft.Icons.REFRESH),
             ], spacing=8, wrap=True))
-            # ── World tabs with alert counts ──────────────────────────────────
+            # ── World dropdown + Sub-tabs (compact, single row area) ─────────
             _vb_f = state.get("vbucks_only", False)
             _world_counts = {
                 wk: sum(1 for a in state.get("alerts", [])
@@ -3112,18 +3112,6 @@ async def main(page: ft.Page):
                 n = _world_counts.get(wk, 0)
                 return f"{base} ({n})" if n > 0 else base
 
-            rows.append(ft.Row(
-                [_toggle_btn(_wtab_lbl(wk), _wf_key == wk, set_world(wk))
-                 for wk in _WORLD_ORDER],
-                spacing=6, wrap=True,
-            ))
-
-            if state["using_cache"] and state["last_refresh"]:
-                rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
-            elif state["last_refresh"]:
-                rows.append(_sub(f"{t('last_refresh')}: {state['last_refresh']}"))
-
-            # ── Sub-tabs: Activas | ⭐ Favoritos | 📅 Historial ─────────────────
             _ast = state.get("alert_subtab", "active")
             def set_ast(tab):
                 def _h(e):
@@ -3131,6 +3119,25 @@ async def main(page: ft.Page):
                     render()
                 return _h
 
+            def set_world_dd(e):
+                wk = e.control.value
+                state["world_filter"] = wk
+                prefs["world_filter"] = wk
+                _save_prefs(prefs)
+                render()
+
+            _world_dd = ft.Dropdown(
+                value=_wf_key,
+                options=[ft.dropdown.Option(key=wk, text=_wtab_lbl(wk))
+                         for wk in _WORLD_ORDER],
+                on_select=set_world_dd,
+                text_size=12,
+                border_color=_c("gold"),
+                color=_c("text"),
+                bgcolor=_c("surface"),
+            )
+            # World dropdown on its own line; sub-tabs always on one line below
+            rows.append(_world_dd)
             rows.append(ft.Row([
                 _toggle_btn("📋 " + ("Activas"  if lang=="es" else "Active"),
                             _ast == "active",    set_ast("active")),
@@ -3139,6 +3146,11 @@ async def main(page: ft.Page):
                 _toggle_btn("📅 " + ("Historial" if lang=="es" else "History"),
                             _ast == "history",   set_ast("history")),
             ], spacing=6))
+
+            if state["using_cache"] and state["last_refresh"]:
+                rows.append(_sub(f"({t('alerts_cached')} · {state['last_refresh']})"))
+            elif state["last_refresh"]:
+                rows.append(_sub(f"{t('last_refresh')}: {state['last_refresh']}"))
 
             # ────────────────────────────────────────────────────────────────────
             if _ast == "favorites":
@@ -3160,12 +3172,26 @@ async def main(page: ft.Page):
                         state["history_world"] = wk
                         render()
                     return _h
-                rows.append(ft.Row(
-                    [_toggle_btn(f"{_WORLD_TAB[wk]['icon']} {_WORLD_NAMES[wk][lang]}",
-                                 hw == wk, set_hw(wk))
-                     for wk in _WORLD_ORDER],
-                    spacing=6, wrap=True,
-                ))
+                def set_hw_dd(e):
+                    state["history_world"] = e.control.value
+                    render()
+
+                _hist_dd = ft.Dropdown(
+                    value=hw,
+                    options=[
+                        ft.dropdown.Option(
+                            key=wk,
+                            text=f"{_WORLD_TAB[wk]['icon']} {_WORLD_NAMES[wk][lang]}"
+                        )
+                        for wk in _WORLD_ORDER
+                    ],
+                    on_select=set_hw_dd,
+                    text_size=12,
+                    border_color=_c("border"),
+                    color=_c("text"),
+                    bgcolor=_c("surface"),
+                )
+                rows.append(ft.Row([_hist_dd], spacing=6))
                 hist = _db_get_history(hw)
                 if not hist:
                     rows.append(_card(_txt(t("history_empty"), color=_c("sub"))))
