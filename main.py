@@ -3211,33 +3211,42 @@ async def main(page: ft.Page):
 
             else:
                 # ── ACTIVE ALERTS TAB ────────────────────────────────────────────
-                # Mission type filter + compact toggle
+                # Mission type filter (dropdown) + compact toggle
                 _mf = state.get("mission_filter", "all")
-                def set_mf(mf):
-                    def _h(e):
-                        state["mission_filter"] = mf
-                        render()
-                    return _h
+                def set_mf_dd(e):
+                    state["mission_filter"] = e.control.value
+                    render()
                 def toggle_compact(e):
                     state["compact_mode"] = not state.get("compact_mode", False)
                     prefs["compact_mode"] = state["compact_mode"]
                     _save_prefs(prefs)
                     render()
 
-                _mf_chips = [("all", "🗺️ " + t("mission_all"))]
+                _mf_options = [ft.dropdown.Option(key="all", text="🗺️ " + t("mission_all"))]
                 for mk, (_, emoji, lbl_es, lbl_en) in _MISSION_TYPES.items():
-                    _mf_chips.append((mk, f"{emoji} {lbl_es if lang=='es' else lbl_en}"))
+                    _mf_options.append(ft.dropdown.Option(
+                        key=mk,
+                        text=f"{emoji} {lbl_es if lang=='es' else lbl_en}",
+                    ))
 
+                _mf_dd = ft.Dropdown(
+                    value=_mf,
+                    options=_mf_options,
+                    on_select=set_mf_dd,
+                    text_size=12,
+                    border_color=_c("border"),
+                    color=_c("text"),
+                    bgcolor=_c("surface"),
+                )
                 rows.append(ft.Row([
-                    *[_toggle_btn(lbl, _mf == mk, set_mf(mk))
-                      for mk, lbl in _mf_chips],
+                    _mf_dd,
                     ft.IconButton(
                         ft.Icons.VIEW_COMPACT if not state.get("compact_mode") else ft.Icons.VIEW_AGENDA,
                         on_click=toggle_compact,
                         icon_color=_c("cyan"), icon_size=18,
                         tooltip=t("compact_mode"),
                     ),
-                ], spacing=4, wrap=True))
+                ], spacing=4))
 
                 if state["loading"]:
                     rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
