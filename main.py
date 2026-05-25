@@ -2310,7 +2310,7 @@ async def main(page: ft.Page):
     except Exception:
         pass
 
-    # Background image applied inside render() via Stack — see render() below  # older Flet builds without decoration support — silent fallback
+    # Background: gradient applied in render() via Container decoration  # older Flet builds without decoration support — silent fallback
 
     # ── UI helpers ─────────────────────────────────────────────────────────────
     def _card(*children, padding=12, margin=4, border_color=None):
@@ -4601,6 +4601,7 @@ async def main(page: ft.Page):
             COPYRIGHT = (f"Creado por: {APP_AUTHOR}   ·   "
                          f"{APP_RIGHTS}   ©{APP_YEAR_NOW}")
 
+            # In dark mode the gradient Container handles background; page.bgcolor is fallback
             page.bgcolor = _c("bg")
             # Force Flutter theme mode so NavigationBar label text uses our sub color
             page.theme_mode = (ft.ThemeMode.DARK if THEME[0] == "dark"
@@ -4662,25 +4663,23 @@ async def main(page: ft.Page):
 
             page.appbar         = appbar
             page.navigation_bar = None if is_sub else _nav_bar()
+            # Dark mode: subtle gradient top→bottom (navy → deep blue-violet)
+            # Light mode: solid light background, no gradient
+            _is_dark = THEME[0] == "dark"
+
             page.controls.clear()
             page.add(
-                ft.Stack([
-                    # ── Layer 1: Atmospheric background (Twine Peaks original art) ──
-                    ft.Container(
-                        content=ft.Image(
-                            src="bg_twine.jpg",
-                            fit=ft.BoxFit.COVER,
-                            opacity=0.22,
-                        ),
-                        expand=True,
-                    ),
-                    # ── Layer 2: App content ──────────────────────────────────────
-                    ft.Container(
-                        content=content,
-                        padding=_pad_sym(horizontal=12, vertical=8),
-                        expand=True,
-                    ),
-                ], expand=True)
+                ft.Container(
+                    content=content,
+                    gradient=ft.LinearGradient(
+                        begin=ft.Alignment(0, -1),
+                        end=ft.Alignment(0, 1),
+                        colors=["#07071a", "#12103a"],
+                    ) if _is_dark else None,
+                    bgcolor=None if _is_dark else _c("bg"),
+                    padding=_pad_sym(horizontal=12, vertical=8),
+                    expand=True,
+                )
             )
             page.update()
         except Exception as _render_err:
