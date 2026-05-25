@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.8.1"
+APP_VERSION = "2.8.2"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -290,7 +290,7 @@ T = {
         "home": "Inicio", "news": "Noticias", "builds": "Builds",
         "guide": "Guia", "settings": "Config",
         "daily_alerts": "Alertas Diarias",
-        "refresh": "Actualizar", "vbucks_only": "Solo V-Bucks",
+        "refresh": "Actualizar", "vbucks_only": "🪙 Solo V-Bucks",
         "region": "Region", "loading": "Cargando...",
         "no_alerts": "Sin alertas disponibles.",
         "utc_reset": "Reset UTC en", "last_refresh": "Actualizado",
@@ -429,7 +429,7 @@ T = {
         "home": "Home", "news": "News", "builds": "Builds",
         "guide": "Guide", "settings": "Settings",
         "daily_alerts": "Daily Alerts",
-        "refresh": "Refresh", "vbucks_only": "V-Bucks Only",
+        "refresh": "Refresh", "vbucks_only": "🪙 V-Bucks Only",
         "region": "Region", "loading": "Loading...",
         "no_alerts": "No alerts available.",
         "utc_reset": "UTC reset in", "last_refresh": "Updated",
@@ -2106,7 +2106,7 @@ def _reward_label(item_type: str):
     category = parts[0].lower() if parts else ""
     # ── V-Bucks ──
     if "currency_mtxswap" in t_low:
-        return "💎", "V-Bucks"
+        return "🪙", "V-Bucks"   # ic_vbucks.png shown inline in alert cards
     # ── Supercharger (charge fragment — lets you level past 131) ──
     # Epic uses both "supercharg…" names AND "…XpMultiplierCard5" token names.
     if "supercharg" in t_low or "multipliercard" in t_low or "xpmultiplier" in t_low:
@@ -2954,9 +2954,13 @@ async def main(page: ft.Page):
             re_qty = rw["quantity"]
             if rw.get("vbucks"):
                 rw_lines.append(ft.Container(
-                    content=ft.Text(f"{re_emoji} {re_lbl} ×{re_qty}",
-                                    size=11, color="#000000",
-                                    weight=ft.FontWeight.BOLD),
+                    content=ft.Row([
+                        ft.Image(src="ic_vbucks.png", width=16, height=16,
+                                 fit=ft.BoxFit.CONTAIN),
+                        ft.Text(f"{re_lbl} ×{re_qty}", size=11, color="#000000",
+                                weight=ft.FontWeight.BOLD),
+                    ], spacing=4, tight=True,
+                       vertical_alignment=ft.CrossAxisAlignment.CENTER),
                     bgcolor=_c("gold"), border_radius=6,
                     padding=_pad_sym(horizontal=6, vertical=2),
                 ))
