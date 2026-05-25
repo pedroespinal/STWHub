@@ -3,7 +3,7 @@
 **Fortnite: Save The World** — Companion app para Android  
 Alertas diarias · Builds · Noticias · Guía · Tracker
 
-[![Version](https://img.shields.io/badge/version-2.9.2-orange)](https://github.com/pedroespinal/STWHub/releases/latest)
+[![Version](https://img.shields.io/badge/version-2.9.3-orange)](https://github.com/pedroespinal/STWHub/releases/latest)
 [![Android](https://img.shields.io/badge/Android-7.0%2B-green)](https://github.com/pedroespinal/STWHub/releases/latest)
 [![License](https://img.shields.io/badge/license-All%20rights%20reserved-red)](https://github.com/pedroespinal/STWHub)
 
@@ -11,7 +11,7 @@ Alertas diarias · Builds · Noticias · Guía · Tracker
 
 ## 📥 Descargar / Download
 
-> **[⬇ Descargar STWHub-2.9.2.apk](https://github.com/pedroespinal/STWHub/releases/latest)**
+> **[⬇ Descargar STWHub-2.9.3.apk](https://github.com/pedroespinal/STWHub/releases/latest)**
 
 Activa **"Instalar apps de fuentes desconocidas"** en Android antes de instalar.
 
@@ -73,6 +73,7 @@ Activa **"Instalar apps de fuentes desconocidas"** en Android antes de instalar.
 
 ### 📰 Noticias
 - Noticias oficiales STW desde fortnite-api.com
+- Botón **📋 Ver Patch Notes oficiales** — abre la página de parches de Epic Games directamente
 
 ---
 
@@ -140,7 +141,8 @@ Verificable en **Configuración → Acerca de** dentro de la app.
 
 | Versión | Build | Highlights |
 |---------|-------|------------|
-| **2.9.2** | 47 | Fix tags, Trap Loadouts, Checklist, comparar armas, notas favoritos |
+| **2.9.3** | 48 | Fix misión Dudebro, botón Patch Notes oficiales en Noticias |
+| 2.9.2 | 47 | Fix tags, Trap Loadouts, Checklist, comparar armas, notas favoritos |
 | 2.9.1 | 46 | Tracker materiales, share build imagen, builds héroes completas |
 | 2.9.0 | 45 | Guía héroes por misión, historial V-Bucks 7 días |
 | 2.8.4 | 44 | Contador V-Bucks, filtro PL, ordenar alertas |
