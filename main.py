@@ -2310,18 +2310,7 @@ async def main(page: ft.Page):
     except Exception:
         pass
 
-    # ── Background image (Twine Peaks atmospheric art — original, no copyright) ─
-    try:
-        page.decoration = ft.BoxDecoration(
-            image=ft.DecorationImage(
-                src="bg_twine.jpg",
-                fit=ft.BoxFit.COVER,
-                opacity=0.18,          # subtle — UI cards still readable
-            )
-        )
-        page.update()
-    except Exception:
-        pass  # older Flet builds without decoration support — silent fallback
+    # Background image applied inside render() via Stack — see render() below  # older Flet builds without decoration support — silent fallback
 
     # ── UI helpers ─────────────────────────────────────────────────────────────
     def _card(*children, padding=12, margin=4, border_color=None):
@@ -4675,12 +4664,23 @@ async def main(page: ft.Page):
             page.navigation_bar = None if is_sub else _nav_bar()
             page.controls.clear()
             page.add(
-                ft.Container(
-                    content=content,
-                    bgcolor=_c("bg"),
-                    padding=_pad_sym(horizontal=12, vertical=8),
-                    expand=True,
-                )
+                ft.Stack([
+                    # ── Layer 1: Atmospheric background (Twine Peaks original art) ──
+                    ft.Container(
+                        content=ft.Image(
+                            src="bg_twine.jpg",
+                            fit=ft.BoxFit.COVER,
+                            opacity=0.22,
+                        ),
+                        expand=True,
+                    ),
+                    # ── Layer 2: App content ──────────────────────────────────────
+                    ft.Container(
+                        content=content,
+                        padding=_pad_sym(horizontal=12, vertical=8),
+                        expand=True,
+                    ),
+                ], expand=True)
             )
             page.update()
         except Exception as _render_err:
