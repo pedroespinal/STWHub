@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.9.1"
+APP_VERSION = "2.9.2"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -489,6 +489,14 @@ T = {
         "tag_speed": "Rapido", "tag_endgame": "Endgame",
         "tag_beginner": "Principiante", "tag_expert": "Experto",
         "tag_team": "Equipo", "tag_dps": "DPS",
+        "tag_melee": "Cuerpo a Cuerpo", "tag_fire": "Fuego",
+        "tag_ninja": "Ninja", "tag_ranged": "A Distancia",
+        "tag_outlander": "Outlander", "tag_precision": "Precisión",
+        "tag_burst": "Ráfaga", "tag_close-range": "Corto Alcance",
+        "tag_sustained": "Sostenido", "tag_soldier": "Soldado",
+        "tag_constructor": "Constructor", "tag_aoe": "Área",
+        "tag_versatile": "Versátil", "tag_lightning": "Rayo",
+        "tag_rtd": "RTD", "tag_teddy": "TEDDY", "tag_farming": "Farmeo",
         "error_api": "Error al conectar con la API.",
         "world_filter": "Mundo",
         "world_tips": "Consejos",
@@ -590,6 +598,35 @@ T = {
         "share_img":            "Imagen",
         "share_img_saved":      "Imagen guardada en tu dispositivo",
         "share_img_error":      "Error al generar imagen",
+        # ── Batch 4 ──
+        "trap_tab":             "Trampas",
+        "trap_loadouts_title":  "Mis Trap Loadouts",
+        "trap_name_hint":       "Nombre del loadout",
+        "trap_world_lbl":       "Mundo",
+        "trap_tiles_hint":      "Trampas usadas (ej: Wall Dynamo · Floor Freeze...)",
+        "trap_notes_hint":      "Notas adicionales (opcional)",
+        "trap_empty":           "Sin trap loadouts. Toca + para crear uno.",
+        "trap_add":             "Nuevo Loadout",
+        "trap_saved":           "Loadout guardado",
+        "checklist_tab":        "Checklist",
+        "checklist_title":      "Checklist Diario STW",
+        "checklist_sub":        "Se reinicia cada día a medianoche UTC",
+        "checklist_reset":      "Reiniciar todo",
+        "task_done_lbl":        "completadas",
+        "fav_note_hint":        "Nota (opcional)",
+        "fav_note_lbl":         "Nota en favorito",
+        "fav_note_save":        "Guardar nota",
+        "compare_lbl":          "Comparar",
+        "compare_clear":        "Limpiar",
+        "compare_title":        "Comparando armas",
+        "compare_hint":         "Toca 🔀 en 2 armas para comparar",
+        "builds_sort_lbl":      "Ordenar",
+        "sort_name":            "Por nombre",
+        "sort_class":           "Por clase",
+        "sort_date":            "Por fecha",
+        "materials_progress":   "listos",
+        "mat_reset":            "Reset",
+        "mat_reset_confirm":    "¿Poner todos los materiales a 0?",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -657,6 +694,14 @@ T = {
         "tag_speed": "Speed", "tag_endgame": "Endgame",
         "tag_beginner": "Beginner", "tag_expert": "Expert",
         "tag_team": "Team", "tag_dps": "DPS",
+        "tag_melee": "Melee", "tag_fire": "Fire",
+        "tag_ninja": "Ninja", "tag_ranged": "Ranged",
+        "tag_outlander": "Outlander", "tag_precision": "Precision",
+        "tag_burst": "Burst", "tag_close-range": "Close Range",
+        "tag_sustained": "Sustained", "tag_soldier": "Soldier",
+        "tag_constructor": "Constructor", "tag_aoe": "AoE",
+        "tag_versatile": "Versatile", "tag_lightning": "Lightning",
+        "tag_rtd": "RTD", "tag_teddy": "TEDDY", "tag_farming": "Farming",
         "error_api": "Error connecting to the API.",
         "world_filter": "World",
         "world_tips": "Tips",
@@ -758,6 +803,35 @@ T = {
         "share_img":            "Image",
         "share_img_saved":      "Image saved to your device",
         "share_img_error":      "Error generating image",
+        # ── Batch 4 ──
+        "trap_tab":             "Traps",
+        "trap_loadouts_title":  "My Trap Loadouts",
+        "trap_name_hint":       "Loadout name",
+        "trap_world_lbl":       "World",
+        "trap_tiles_hint":      "Traps used (eg: Wall Dynamo · Floor Freeze...)",
+        "trap_notes_hint":      "Additional notes (optional)",
+        "trap_empty":           "No trap loadouts. Tap + to create one.",
+        "trap_add":             "New Loadout",
+        "trap_saved":           "Loadout saved",
+        "checklist_tab":        "Checklist",
+        "checklist_title":      "STW Daily Checklist",
+        "checklist_sub":        "Resets every day at midnight UTC",
+        "checklist_reset":      "Reset all",
+        "task_done_lbl":        "done",
+        "fav_note_hint":        "Note (optional)",
+        "fav_note_lbl":         "Favorite note",
+        "fav_note_save":        "Save note",
+        "compare_lbl":          "Compare",
+        "compare_clear":        "Clear",
+        "compare_title":        "Comparing weapons",
+        "compare_hint":         "Tap 🔀 on 2 weapons to compare",
+        "builds_sort_lbl":      "Sort",
+        "sort_name":            "By name",
+        "sort_class":           "By class",
+        "sort_date":            "By date",
+        "materials_progress":   "done",
+        "mat_reset":            "Reset",
+        "mat_reset_confirm":    "Reset all materials to 0?",
     },
 }
 
@@ -1180,14 +1254,58 @@ def _init_db():
                     current INTEGER NOT NULL DEFAULT 0
                 )
             """)
+            # Trap loadouts — user-defined trap configurations
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS trap_loadouts (
+                    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name    TEXT NOT NULL DEFAULT '',
+                    world   TEXT NOT NULL DEFAULT 'twine',
+                    tiles   TEXT NOT NULL DEFAULT '',
+                    notes   TEXT NOT NULL DEFAULT '',
+                    created TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            # Daily checklist tasks — pre-seeded, reset at UTC midnight
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS daily_tasks (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    label_es   TEXT NOT NULL DEFAULT '',
+                    label_en   TEXT NOT NULL DEFAULT '',
+                    done       INTEGER NOT NULL DEFAULT 0,
+                    last_reset TEXT NOT NULL DEFAULT ''
+                )
+            """)
+            # Seed default tasks if table is empty
+            _seeded = con.execute("SELECT COUNT(*) FROM daily_tasks").fetchone()[0]
+            if _seeded == 0:
+                _default_tasks = [
+                    ("Completar login diario",           "Complete daily login"),
+                    ("Hacer misión de alerta con V-Bucks","Do V-Bucks alert mission"),
+                    ("Completar misión de zona",         "Complete zone mission"),
+                    ("Recolectar recursos (madera/metal)","Collect resources (wood/metal)"),
+                    ("Revisar Supercargadores",          "Check Superchargers"),
+                    ("Completar misión Fight the Storm", "Complete Fight the Storm mission"),
+                    ("Revisar alertas del día",          "Check daily alerts"),
+                ]
+                for lbl_es, lbl_en in _default_tasks:
+                    con.execute(
+                        "INSERT INTO daily_tasks(label_es,label_en,done,last_reset) VALUES(?,?,0,'')",
+                        (lbl_es, lbl_en),
+                    )
             # Alert favorites — keyed by a stable "zone|name" identifier
             con.execute("""
                 CREATE TABLE IF NOT EXISTS alert_favorites (
                     fav_key TEXT PRIMARY KEY,
                     label   TEXT NOT NULL DEFAULT '',
-                    added   TEXT NOT NULL DEFAULT ''
+                    added   TEXT NOT NULL DEFAULT '',
+                    note    TEXT NOT NULL DEFAULT ''
                 )
             """)
+            # Migrate: add note column if missing (existing installs)
+            try:
+                con.execute("ALTER TABLE alert_favorites ADD COLUMN note TEXT NOT NULL DEFAULT ''")
+            except Exception:
+                pass
             # Alert history — one JSON snapshot per day, per world
             con.execute("""
                 CREATE TABLE IF NOT EXISTS alert_history (
@@ -1361,6 +1479,104 @@ def _db_delete_material(mid: int) -> None:
             con.commit()
     except Exception:
         pass
+
+def _db_reset_materials() -> None:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute("UPDATE material_list SET current=0")
+            con.commit()
+    except Exception:
+        pass
+
+# ── Trap loadouts helpers ──────────────────────────────────────────────────────
+def _db_get_trap_loadouts() -> list:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.row_factory = sqlite3.Row
+            return [dict(r) for r in
+                    con.execute("SELECT * FROM trap_loadouts ORDER BY id DESC").fetchall()]
+    except Exception:
+        return []
+
+def _db_save_trap_loadout(name: str, world: str, tiles: str, notes: str) -> None:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute(
+                "INSERT INTO trap_loadouts(name,world,tiles,notes,created) VALUES(?,?,?,?,?)",
+                (name, world, tiles, notes,
+                 datetime.now().strftime("%Y-%m-%d %H:%M")),
+            )
+            con.commit()
+    except Exception:
+        pass
+
+def _db_delete_trap_loadout(tid: int) -> None:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute("DELETE FROM trap_loadouts WHERE id=?", (tid,))
+            con.commit()
+    except Exception:
+        pass
+
+# ── Daily checklist helpers ────────────────────────────────────────────────────
+def _db_get_daily_tasks() -> list:
+    """Returns tasks, auto-resetting done=0 if last_reset < today UTC."""
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.row_factory = sqlite3.Row
+            rows = [dict(r) for r in
+                    con.execute("SELECT * FROM daily_tasks ORDER BY id ASC").fetchall()]
+            # Reset any task whose last_reset is not today
+            for r in rows:
+                if r.get("last_reset", "") != today and r.get("done", 0):
+                    con.execute("UPDATE daily_tasks SET done=0, last_reset=? WHERE id=?",
+                                (today, r["id"]))
+                    r["done"] = 0
+            con.commit()
+            return rows
+    except Exception:
+        return []
+
+def _db_toggle_task(tid: int, done: bool) -> None:
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute("UPDATE daily_tasks SET done=?, last_reset=? WHERE id=?",
+                        (1 if done else 0, today, tid))
+            con.commit()
+    except Exception:
+        pass
+
+def _db_reset_daily_tasks() -> None:
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute("UPDATE daily_tasks SET done=0, last_reset=?", (today,))
+            con.commit()
+    except Exception:
+        pass
+
+# ── Favorites note helpers ─────────────────────────────────────────────────────
+def _db_set_fav_note(fav_key: str, note: str) -> None:
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            con.execute("UPDATE alert_favorites SET note=? WHERE fav_key=?",
+                        (note, fav_key))
+            con.commit()
+    except Exception:
+        pass
+
+def _db_get_fav_notes() -> dict:
+    """Returns {fav_key: note} for all favorites."""
+    try:
+        with sqlite3.connect(str(DB_FILE)) as con:
+            rows = con.execute(
+                "SELECT fav_key, note FROM alert_favorites"
+            ).fetchall()
+            return {r[0]: r[1] for r in rows}
+    except Exception:
+        return {}
 
 def _db_all_builds() -> list:
     try:
@@ -2552,6 +2768,8 @@ async def main(page: ft.Page):
         "pl_min":           0,          # 0 | 40 | 70 | 100 | 124 | 140
         "alert_subtab":     "active",  # active | favorites | history
         "alert_favorites":  _db_get_favorites(),
+        "compare_weapons":  [],          # list of up to 2 weapon ids being compared
+        "builds_sort":      "date",      # date | name | cls
         "history_world":    prefs.get("world_filter", "twine")
                             if prefs.get("world_filter", "twine") in _WORLD_ORDER else "twine",
         "meta_imgs":            {},
@@ -2674,15 +2892,25 @@ async def main(page: ft.Page):
 
     def _tag_chip(tag_key: str):
         colors = {
-            "vbucks": _c("vbucks"), "endgame": _c("red"),
-            "dps":    _c("cyan"),   "team":    _c("purple"),
-            "speed":  _c("green"),  "farm":    _c("yellow"),
-            "afk":    _c("sub"),    "beginner":_c("green"),
-            "expert": _c("orange"),
+            "vbucks":      _c("vbucks"), "endgame":     _c("red"),
+            "dps":         _c("cyan"),   "team":        _c("purple"),
+            "speed":       _c("green"),  "farm":        _c("yellow"),
+            "afk":         _c("sub"),    "beginner":    _c("green"),
+            "expert":      _c("orange"),
+            "melee":       _c("cyan"),   "fire":        _c("red"),
+            "ninja":       _c("orange"), "ranged":      _c("sub"),
+            "outlander":   _c("purple"), "aoe":         _c("red"),
+            "soldier":     _c("cyan"),   "constructor": _c("orange"),
+            "versatile":   _c("green"),  "teddy":       _c("yellow"),
+            "farming":     _c("green"),  "burst":       _c("purple"),
+            "lightning":   _c("cyan"),   "rtd":         _c("sub"),
+            "sustained":   _c("sub"),    "precision":   _c("cyan"),
+            "close-range": _c("orange"),
         }
         color = colors.get(tag_key, _c("sub"))
+        label = t(f"tag_{tag_key}")
         return ft.Container(
-            content=ft.Text(t(f"tag_{tag_key}"), size=10,
+            content=ft.Text(label, size=10,
                             color=_btn_text_color(color)),
             bgcolor=color, border_radius=10,
             padding=_pad_sym(horizontal=8, vertical=3),
@@ -3430,6 +3658,8 @@ async def main(page: ft.Page):
                             _ast == "favorites", set_ast("favorites")),
                 _toggle_btn("📅 " + ("Historial" if lang=="es" else "History"),
                             _ast == "history",   set_ast("history")),
+                _toggle_btn("✅ " + t("checklist_tab"),
+                            _ast == "checklist", set_ast("checklist")),
             ], spacing=6, wrap=True))
 
             if state["using_cache"] and state["last_refresh"]:
@@ -3440,14 +3670,83 @@ async def main(page: ft.Page):
             # ────────────────────────────────────────────────────────────────────
             if _ast == "favorites":
                 # ── FAVORITES TAB ────────────────────────────────────────────────
-                favs = state.get("alert_favorites", set())
+                favs      = state.get("alert_favorites", set())
+                fav_notes = _db_get_fav_notes()
                 fav_alerts = [a for a in state.get("alerts", [])
                               if _fav_key(a) in favs]
                 if not fav_alerts:
                     rows.append(_card(_txt(t("no_favorites"), color=_c("sub"))))
                 else:
                     for a in fav_alerts:
+                        fk   = _fav_key(a)
+                        note = fav_notes.get(fk, "")
+
+                        def make_note_handler(fk=fk, note=note):
+                            note_tf = ft.TextField(
+                                value=note, hint_text=t("fav_note_hint"),
+                                text_size=12, border_color=_c("border"),
+                                color=_c("text"),
+                                label_style=ft.TextStyle(color=_c("sub")),
+                            )
+                            def _h(e):
+                                _dlg = ft.AlertDialog(
+                                    title=ft.Text(t("fav_note_lbl"), color=_c("orange")),
+                                    content=note_tf, modal=True,
+                                )
+                                def _save_note(e, d=_dlg, tf=note_tf, key=fk):
+                                    _db_set_fav_note(key, tf.value or "")
+                                    d.open = False
+                                    page.update()
+                                    render()
+                                def _cancel_note(e, d=_dlg):
+                                    d.open = False
+                                    page.update()
+                                _dlg.actions = [
+                                    ft.FilledButton(
+                                        content=ft.Text(t("fav_note_save"), color="#ffffff"),
+                                        on_click=_save_note, bgcolor=_c("orange"),
+                                        style=ft.ButtonStyle(
+                                            shape=ft.RoundedRectangleBorder(radius=8))),
+                                    ft.FilledButton(
+                                        content=ft.Text(t("cancel"), color=_c("sub")),
+                                        on_click=_cancel_note, bgcolor=_c("surface"),
+                                        style=ft.ButtonStyle(
+                                            shape=ft.RoundedRectangleBorder(radius=8))),
+                                ]
+                                page.show_dialog(_dlg)
+                            return _h
+
                         rows.append(_alert_card(a, lang, is_fav=True))
+                        if note:
+                            rows.append(ft.Container(
+                                content=ft.Row([
+                                    ft.Icon(ft.Icons.STICKY_NOTE_2, size=12,
+                                            color=_c("yellow")),
+                                    ft.Text(note, size=11, color=_c("yellow"),
+                                            expand=True),
+                                    ft.IconButton(ft.Icons.EDIT, icon_size=14,
+                                                  icon_color=_c("sub"),
+                                                  on_click=make_note_handler()),
+                                ], spacing=6),
+                                padding=_pad_sym(horizontal=12, vertical=4),
+                                bgcolor=_c("card"),
+                                border=_border_all(1, _c("border")),
+                                border_radius=8,
+                            ))
+                        else:
+                            rows.append(ft.Container(
+                                content=ft.Row([
+                                    ft.Icon(ft.Icons.ADD_COMMENT, size=12,
+                                            color=_c("sub")),
+                                    ft.Text(t("fav_note_hint"), size=10,
+                                            color=_c("sub"), expand=True),
+                                    ft.IconButton(ft.Icons.EDIT, icon_size=14,
+                                                  icon_color=_c("sub"),
+                                                  on_click=make_note_handler()),
+                                ], spacing=6),
+                                padding=_pad_sym(horizontal=12, vertical=4),
+                                border_radius=8,
+                            ))
 
             elif _ast == "history":
                 # ── HISTORY TAB ───────────────────────────────────────────────────
@@ -3524,6 +3823,58 @@ async def main(page: ft.Page):
                         else:
                             for a in entry["data"][:10]:
                                 rows.append(_alert_card(a, lang, compact=True))
+
+            elif _ast == "checklist":
+                # ── DAILY CHECKLIST TAB ────────────────────────────────────────
+                tasks = _db_get_daily_tasks()
+                _done_n = sum(1 for tk in tasks if tk.get("done"))
+                _total_n = len(tasks)
+
+                def do_reset_checklist(e):
+                    _db_reset_daily_tasks()
+                    render()
+
+                rows.append(ft.Row([
+                    _hdr(t("checklist_title"), size=13),
+                    ft.Text(f"{_done_n}/{_total_n}", size=11,
+                            color=_c("green") if _done_n == _total_n and _total_n > 0
+                            else _c("sub")),
+                    ft.IconButton(ft.Icons.RESTART_ALT, icon_color=_c("sub"),
+                                  icon_size=16, tooltip=t("checklist_reset"),
+                                  on_click=do_reset_checklist),
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+                rows.append(_sub(t("checklist_sub"), size=10))
+
+                for tk in tasks:
+                    tid   = tk["id"]
+                    label = tk.get(f"label_{lang}", tk.get("label_es",""))
+                    done  = bool(tk.get("done", 0))
+
+                    def toggle_task(tid=tid, done=done):
+                        def _h(e):
+                            _db_toggle_task(tid, not done)
+                            render()
+                        return _h
+
+                    rows.append(ft.Container(
+                        content=ft.Row([
+                            ft.Checkbox(
+                                value=done,
+                                on_change=toggle_task(),
+                                fill_color=_c("orange") if done else _c("border"),
+                                check_color="#ffffff",
+                            ),
+                            ft.Text(
+                                label, size=13,
+                                color=_c("sub") if done else _c("text"),
+                                weight=ft.FontWeight.NORMAL,
+                            ),
+                        ], spacing=8),
+                        bgcolor=_c("card"),
+                        border=_border_all(1, _c("green") if done else _c("border")),
+                        border_radius=10,
+                        padding=_pad_sym(horizontal=12, vertical=8),
+                    ))
 
             else:
                 # ── ACTIVE ALERTS TAB ────────────────────────────────────────────
@@ -3862,15 +4213,25 @@ async def main(page: ft.Page):
                 render()
             return _h
 
+        _my_count   = len(_db_all_builds())
+        _com_count  = len(state.get("community_builds", []))
+        _mat_count  = len(_db_get_materials())
+        _trap_count = len(_db_get_trap_loadouts())
+        _my_lbl   = t("my_builds")    + (f" ({_my_count})"   if _my_count  > 0 else "")
+        _com_lbl  = t("community_builds") + (f" ({_com_count})" if _com_count > 0 else "")
+        _mat_lbl  = "📦 " + t("materials_tab") + (f" ({_mat_count})" if _mat_count > 0 else "")
+        _trap_lbl = "🪤 " + t("trap_tab")      + (f" ({_trap_count})" if _trap_count > 0 else "")
         rows.append(ft.Row([
-            _toggle_btn(t("meta_builds"),       state["builds_tab"] == "meta",
+            _toggle_btn(t("meta_builds"),  state["builds_tab"] == "meta",
                         set_tab("meta")),
-            _toggle_btn(t("my_builds"),         state["builds_tab"] == "my",
+            _toggle_btn(_my_lbl,           state["builds_tab"] == "my",
                         set_tab("my")),
-            _toggle_btn(t("community_builds"),  state["builds_tab"] == "community",
+            _toggle_btn(_com_lbl,          state["builds_tab"] == "community",
                         set_tab("community")),
-            _toggle_btn("📦 " + t("materials_tab"), state["builds_tab"] == "materials",
+            _toggle_btn(_mat_lbl,          state["builds_tab"] == "materials",
                         set_tab("materials")),
+            _toggle_btn(_trap_lbl,         state["builds_tab"] == "traps",
+                        set_tab("traps")),
         ], spacing=8, wrap=True))
         rows.append(_divider())
 
@@ -3880,11 +4241,113 @@ async def main(page: ft.Page):
             rows.extend(_builds_community())
         elif state["builds_tab"] == "materials":
             rows.extend(_builds_materials())
+        elif state["builds_tab"] == "traps":
+            rows.extend(_builds_traps())
         else:
             rows.extend(_builds_my())
 
         rows.append(_footer())
         return ft.Column(rows, spacing=8, scroll=ft.ScrollMode.AUTO, expand=True)
+
+    def _builds_traps():
+        rows    = []
+        lang    = LANG[0]
+        loadouts = _db_get_trap_loadouts()
+
+        def go_create_trap(e):
+            name_tf  = ft.TextField(label=t("trap_name_hint"),
+                                    border_color=_c("border"), color=_c("text"),
+                                    label_style=ft.TextStyle(color=_c("sub")))
+            world_dd = ft.Dropdown(
+                value="twine",
+                options=[ft.dropdown.Option(key=wk,
+                         text=f"{_WORLD_TAB[wk]['icon']} {_WORLD_NAMES[wk][lang]}")
+                         for wk in _WORLD_ORDER],
+                on_select=lambda e: None,
+                text_size=12, border_color=_c("border"),
+                color=_c("text"), bgcolor=_c("surface"),
+            )
+            tiles_tf = ft.TextField(label=t("trap_tiles_hint"), multiline=True,
+                                    min_lines=3, border_color=_c("border"),
+                                    color=_c("text"),
+                                    label_style=ft.TextStyle(color=_c("sub")))
+            notes_tf = ft.TextField(label=t("trap_notes_hint"), multiline=True,
+                                    min_lines=2, border_color=_c("border"),
+                                    color=_c("text"),
+                                    label_style=ft.TextStyle(color=_c("sub")))
+            _dlg = ft.AlertDialog(
+                title=ft.Text(t("trap_add"), color=_c("orange")),
+                content=ft.Column([name_tf, world_dd, tiles_tf, notes_tf],
+                                  spacing=10, tight=True,
+                                  scroll=ft.ScrollMode.AUTO),
+                modal=True,
+            )
+            def _save(e, d=_dlg):
+                nm = (name_tf.value or "").strip()
+                if not nm:
+                    return
+                _db_save_trap_loadout(nm, world_dd.value or "twine",
+                                      tiles_tf.value or "",
+                                      notes_tf.value or "")
+                d.open = False
+                page.show_dialog(ft.SnackBar(
+                    content=ft.Text(t("trap_saved"), color="#ffffff"),
+                    bgcolor=_c("green")))
+                render()
+            def _cancel(e, d=_dlg):
+                d.open = False
+                page.update()
+            _dlg.actions = [
+                ft.FilledButton(content=ft.Text(t("save"), color="#ffffff"),
+                                on_click=_save, bgcolor=_c("green"),
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8))),
+                ft.FilledButton(content=ft.Text(t("cancel"), color=_c("sub")),
+                                on_click=_cancel, bgcolor=_c("surface"),
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8))),
+            ]
+            page.show_dialog(_dlg)
+
+        rows.append(ft.Row([
+            _hdr(t("trap_loadouts_title")),
+            _btn(t("trap_add"), go_create_trap, icon=ft.Icons.ADD),
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
+
+        if not loadouts:
+            rows.append(_card(_txt(t("trap_empty"), color=_c("sub"))))
+            return rows
+
+        for lo in loadouts:
+            tid   = lo["id"]
+            wname = _WORLD_NAMES.get(lo.get("world","twine"),{}).get(lang, lo.get("world",""))
+            wico  = _WORLD_TAB.get(lo.get("world","twine"),{}).get("icon","❄️")
+
+            def do_delete_trap(tid=tid):
+                def _h(e):
+                    _db_delete_trap_loadout(tid)
+                    render()
+                return _h
+
+            rows.append(_card(
+                ft.Row([
+                    ft.Column([
+                        _hdr(lo.get("name",""), size=13),
+                        ft.Text(f"{wico} {wname}  ·  {lo.get('created','')}",
+                                size=10, color=_c("sub")),
+                    ], expand=True, spacing=2),
+                    ft.IconButton(ft.Icons.DELETE, on_click=do_delete_trap(),
+                                  icon_color=_c("red"), icon_size=18),
+                ], spacing=10, vertical_alignment=ft.CrossAxisAlignment.START),
+                _divider() if lo.get("tiles") else ft.Text(""),
+                ft.Row([
+                    ft.Icon(ft.Icons.GRID_VIEW, size=13, color=_c("cyan")),
+                    _txt(lo.get("tiles",""), size=12),
+                ], spacing=6) if lo.get("tiles") else ft.Text(""),
+                _txt(lo.get("notes",""), size=11, color=_c("sub"))
+                    if lo.get("notes") else ft.Text(""),
+            ))
+        return rows
 
     def _builds_meta():
         rows = []
@@ -4038,6 +4501,30 @@ async def main(page: ft.Page):
         if not builds:
             rows.append(_card(_txt(t("no_my_builds"), color=_c("sub"))))
             return rows
+
+        # Sort builds
+        _sort = state.get("builds_sort", "date")
+        def _set_sort(sv):
+            def _h(e):
+                state["builds_sort"] = sv
+                render()
+            return _h
+        rows.append(ft.Dropdown(
+            value=_sort,
+            options=[
+                ft.dropdown.Option(key="date", text=t("sort_date")),
+                ft.dropdown.Option(key="name", text=t("sort_name")),
+                ft.dropdown.Option(key="cls",  text=t("sort_class")),
+            ],
+            on_select=lambda e: [state.update({"builds_sort": e.control.value}), render()],
+            text_size=11, border_color=_c("border"),
+            color=_c("text"), bgcolor=_c("surface"),
+        ))
+        if _sort == "name":
+            builds = sorted(builds, key=lambda b: b.get("name","").lower())
+        elif _sort == "cls":
+            builds = sorted(builds, key=lambda b: b.get("cls",""))
+        # "date" = default DESC order from DB
 
         for b in builds:
             bid = b["id"]
@@ -4288,9 +4775,46 @@ async def main(page: ft.Page):
         lang   = LANG[0]
         mats   = _db_get_materials()
 
+        # Progress summary + reset button
+        _done_count  = sum(1 for m in mats if m.get("current",0) >= max(1, m.get("target",1)))
+        _total_count = len(mats)
+        _progress_lbl = (f"{_done_count}/{_total_count} {t('materials_progress')} ✓"
+                         if _total_count > 0 else "")
+
+        def do_reset_mats(e):
+            _dlg = ft.AlertDialog(
+                title=ft.Text(t("mat_reset"), color=_c("orange")),
+                content=ft.Text(t("mat_reset_confirm"), color=_c("text")),
+                modal=True,
+            )
+            def _confirm(e, d=_dlg):
+                d.open = False
+                _db_reset_materials()
+                page.update()
+                render()
+            def _cancel(e, d=_dlg):
+                d.open = False
+                page.update()
+            _dlg.actions = [
+                ft.FilledButton(content=ft.Text("OK", color="#ffffff"),
+                                on_click=_confirm, bgcolor=_c("red"),
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8))),
+                ft.FilledButton(content=ft.Text(t("cancel"), color=_c("sub")),
+                                on_click=_cancel, bgcolor=_c("surface"),
+                                style=ft.ButtonStyle(
+                                    shape=ft.RoundedRectangleBorder(radius=8))),
+            ]
+            page.show_dialog(_dlg)
+
         rows.append(ft.Row([
             _hdr(t("materials_title")),
-        ]))
+            ft.Text(_progress_lbl, size=11, color=_c("green"),
+                    weight=ft.FontWeight.W_500) if _progress_lbl else ft.Text(""),
+            ft.IconButton(ft.Icons.RESTART_ALT, icon_color=_c("sub"),
+                          icon_size=18, tooltip=t("mat_reset"),
+                          on_click=do_reset_mats) if mats else ft.Text(""),
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN))
 
         # ── Preset quick-add buttons ─────────────────────────────────────────
         _PRESETS = [
@@ -4904,6 +5428,75 @@ async def main(page: ft.Page):
                     "Rare":      "#3b82f6",
                     "Uncommon":  "#22c55e",
                 }
+
+                # ── Compare weapons panel ─────────────────────────────────────
+                _cmp = state.get("compare_weapons", [])
+                def _toggle_compare(wid):
+                    def _h(e):
+                        c = state.get("compare_weapons", [])
+                        if wid in c:
+                            c.remove(wid)
+                        elif len(c) < 2:
+                            c.append(wid)
+                        state["compare_weapons"] = c
+                        render()
+                    return _h
+                def _clear_compare(e):
+                    state["compare_weapons"] = []
+                    render()
+
+                if len(_cmp) == 2:
+                    _ca = next((w for w in weapons if w.get("id") == _cmp[0]), None)
+                    _cb = next((w for w in weapons if w.get("id") == _cmp[1]), None)
+                    if _ca and _cb:
+                        def _cmp_stat(label, va, vb, higher_is_better=True):
+                            _col_a = _c("green") if (va > vb) == higher_is_better else _c("sub")
+                            _col_b = _c("green") if (vb > va) == higher_is_better else _c("sub")
+                            if va == vb:
+                                _col_a = _col_b = _c("text")
+                            return ft.Row([
+                                ft.Text(str(va), size=12, color=_col_a,
+                                        weight=ft.FontWeight.BOLD, expand=True,
+                                        text_align=ft.TextAlign.RIGHT),
+                                ft.Text(f"  {label}  ", size=11, color=_c("sub")),
+                                ft.Text(str(vb), size=12, color=_col_b,
+                                        weight=ft.FontWeight.BOLD, expand=True),
+                            ], spacing=2)
+                        rows.append(_card(
+                            ft.Row([
+                                ft.Text(t("compare_title"), size=13, color=_c("cyan"),
+                                        weight=ft.FontWeight.BOLD, expand=True),
+                                ft.IconButton(ft.Icons.CLOSE, icon_color=_c("sub"),
+                                              icon_size=16, on_click=_clear_compare),
+                            ], spacing=4),
+                            ft.Row([
+                                ft.Text(f"{_ca.get('emoji','⚔️')} {_ca['name']}",
+                                        size=12, color=_c("orange"),
+                                        weight=ft.FontWeight.BOLD, expand=True,
+                                        text_align=ft.TextAlign.RIGHT),
+                                ft.Text("  vs  ", size=11, color=_c("sub")),
+                                ft.Text(f"{_cb.get('emoji','⚔️')} {_cb['name']}",
+                                        size=12, color=_c("orange"),
+                                        weight=ft.FontWeight.BOLD, expand=True),
+                            ], spacing=2),
+                            _divider(),
+                            _cmp_stat("DPS", _ca.get("dps",0), _cb.get("dps",0)),
+                            _cmp_stat("Mag", _ca.get("mag",0), _cb.get("mag",0)),
+                            _cmp_stat("RoF", _ca.get("rof",0), _cb.get("rof",0)),
+                        ))
+                elif len(_cmp) == 1:
+                    _w1 = next((w for w in weapons if w.get("id") == _cmp[0]), None)
+                    _nm = _w1["name"] if _w1 else "?"
+                    rows.append(ft.Container(
+                        content=ft.Text(
+                            f"🔀 {_nm}  ·  " + ("Selecciona 1 más" if lang=="es" else "Select 1 more"),
+                            size=11, color=_c("cyan"),
+                        ),
+                        padding=_pad_sym(horizontal=10, vertical=6),
+                    ))
+                else:
+                    rows.append(ft.Text(t("compare_hint"), size=11, color=_c("sub")))
+
                 for w in filtered:
                     tier_key = w.get("tier", "")
                     tier_col = _tier_color.get(tier_key, _c("sub"))
@@ -4911,6 +5504,8 @@ async def main(page: ft.Page):
                     elem_key = w.get("element", "")
                     elem_str = _elem_lbl.get(elem_key, {}).get(lang, elem_key)
                     type_str = w.get(f"type_{lang}", w.get("type_en", ""))
+                    wid      = w.get("id", w["name"])
+                    _in_cmp  = wid in _cmp
                     rows.append(_card(
                         ft.Row([
                             ft.Text(w.get("emoji","⚔️"), size=24),
@@ -4937,11 +5532,17 @@ async def main(page: ft.Page):
                                      if w.get("mag") else []),
                                 spacing=4),
                             ], expand=True, spacing=2),
+                            ft.IconButton(
+                                ft.Icons.COMPARE_ARROWS if not _in_cmp else ft.Icons.CHECK_CIRCLE,
+                                icon_color=_c("cyan") if _in_cmp else _c("sub"),
+                                icon_size=18,
+                                tooltip=t("compare_lbl"),
+                                on_click=_toggle_compare(wid),
+                            ),
                         ], spacing=10,
                            vertical_alignment=ft.CrossAxisAlignment.CENTER),
                         _sub(w.get(f"desc_{lang}", w.get("desc_en","")), size=11),
-                        ft.Row([_tag_chip(_tag_lbl.get(tg,{}).get(lang, tg.capitalize()))
-                                for tg in w.get("tags",[])],
+                        ft.Row([_tag_chip(tg) for tg in w.get("tags", [])],
                                wrap=True, spacing=4),
                     ))
 
