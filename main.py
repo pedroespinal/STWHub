@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.9.2"
+APP_VERSION = "2.9.3"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -433,6 +433,7 @@ T = {
         "utc_reset": "Reset UTC en", "last_refresh": "Actualizado",
         "alerts_cached": "Cache offline", "power": "Poder",
         "news_title": "Noticias STW", "no_news": "Sin noticias disponibles.",
+        "patch_notes_btn": "📋 Ver Patch Notes oficiales",
         "meta_builds": "Meta Builds", "my_builds": "Mis Builds",
         "community_builds": "Comunidad",
         "heroes": "Heroes", "all_classes": "Todas",
@@ -638,6 +639,7 @@ T = {
         "utc_reset": "UTC reset in", "last_refresh": "Updated",
         "alerts_cached": "Offline cache", "power": "Power",
         "news_title": "STW News", "no_news": "No news available.",
+        "patch_notes_btn": "📋 Official Patch Notes",
         "meta_builds": "Meta Builds", "my_builds": "My Builds",
         "community_builds": "Community",
         "heroes": "Heroes", "all_classes": "All",
@@ -2266,6 +2268,8 @@ def _sync_fetch_alerts() -> tuple:
                     if gen_direct:
                         m_name = _parse_generator(gen_direct)
                 mtype = m_name or _parse_mission_type(alert.get("name", "Mission"))
+                if mtype.lower() in _SKIP_MISSION_NAMES:
+                    continue
                 alerts.append({
                     "name":    mtype,
                     "zone":    zone,
@@ -4157,6 +4161,13 @@ async def main(page: ft.Page):
             ft.IconButton(ft.Icons.REFRESH, on_click=do_refresh,
                           icon_color=_c("cyan"), icon_size=20),
         ], alignment=ft.MainAxisAlignment.END))
+
+        # Patch notes button — opens Epic's official STW news page in browser
+        rows.append(_btn(
+            t("patch_notes_btn"),
+            url="https://www.epicgames.com/fortnite/en-US/news?category=save-the-world",
+            color=_c("surface"),
+        ))
 
         if state["news_loading"]:
             rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
