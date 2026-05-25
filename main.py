@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.8.3"
+APP_VERSION = "2.8.4"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -424,6 +424,15 @@ T = {
         "pl_research":          "Investigacion",
         "pl_result":            "Tu Nivel de Poder estimado",
         "calculate":            "Calcular",
+        # ── Batch 1 — sort + PL filter + vbucks counter ──
+        "sort_default":         "Por defecto",
+        "sort_pl_asc":          "PL ↑ (menor primero)",
+        "sort_pl_desc":         "PL ↓ (mayor primero)",
+        "sort_vbucks":          "V-Bucks primero",
+        "sort_label":           "Ordenar",
+        "pl_min_all":           "Todo PL",
+        "vb_in_world":          "V-Bucks en",
+        "vb_total_today":       "total hoy",
     },
     "en": {
         "home": "Home", "news": "News", "builds": "Builds",
@@ -563,6 +572,15 @@ T = {
         "pl_research":          "Research",
         "pl_result":            "Your estimated Power Level",
         "calculate":            "Calculate",
+        # ── Batch 1 — sort + PL filter + vbucks counter ──
+        "sort_default":         "Default",
+        "sort_pl_asc":          "PL ↑ (lowest first)",
+        "sort_pl_desc":         "PL ↓ (highest first)",
+        "sort_vbucks":          "V-Bucks first",
+        "sort_label":           "Sort",
+        "pl_min_all":           "All PL",
+        "vb_in_world":          "V-Bucks in",
+        "vb_total_today":       "total today",
     },
 }
 
@@ -2279,6 +2297,8 @@ async def main(page: ft.Page):
         "builds_cls":       "all",
         "compact_mode":     prefs.get("compact_mode", False),
         "mission_filter":   "all",   # all | survive | retrieve | rescue | defend | encampment
+        "sort_order":       "default",  # default | pl_asc | pl_desc | vbucks
+        "pl_min":           0,          # 0 | 40 | 70 | 100 | 124 | 140
         "alert_subtab":     "active",  # active | favorites | history
         "alert_favorites":  _db_get_favorites(),
         "history_world":    prefs.get("world_filter", "twine")
@@ -3127,6 +3147,31 @@ async def main(page: ft.Page):
             )
             # World dropdown on its own line; sub-tabs wrap if screen is narrow
             rows.append(_world_dd)
+
+            # ── V-Bucks counter (world + global) ─────────────────────────────
+            if state.get("alerts") and not state["loading"]:
+                _wf_kw = _WORLD_KEYS.get(_wf_key, "")
+                _vb_world_amt = sum(
+                    rw.get("quantity", 0)
+                    for a in state["alerts"]
+                    if a.get("vbucks") and _wf_kw in a.get("zone_en", "").lower()
+                    for rw in a.get("rewards", []) if rw.get("vbucks")
+                )
+                _vb_all_amt = sum(
+                    rw.get("quantity", 0)
+                    for a in state["alerts"] if a.get("vbucks")
+                    for rw in a.get("rewards", []) if rw.get("vbucks")
+                )
+                if _vb_all_amt > 0:
+                    _wname = _WORLD_NAMES[_wf_key][lang]
+                    _vb_line = f"💰 {_vb_world_amt} {t('vb_in_world')} {_wname}"
+                    if _vb_all_amt != _vb_world_amt:
+                        _vb_line += f"  ·  {_vb_all_amt} {t('vb_total_today')}"
+                    rows.append(ft.Text(
+                        _vb_line, size=11,
+                        color=_c("vbucks"), weight=ft.FontWeight.W_500,
+                    ))
+
             rows.append(ft.Row([
                 _toggle_btn("📋 " + ("Activas"  if lang=="es" else "Active"),
                             _ast == "active",    set_ast("active")),
@@ -3237,6 +3282,62 @@ async def main(page: ft.Page):
                     ),
                 ], spacing=4))
 
+                # ── PL min filter + sort order ────────────────────────────────
+                _pl_min = state.get("pl_min", 0)
+                def set_pl_dd(e):
+                    state["pl_min"] = int(e.control.value)
+                    render()
+
+                _PL_OPTS = [
+                    (0,   "🗺️ " + t("pl_min_all")),
+                    (40,  "PL 40+"),
+                    (70,  "PL 70+"),
+                    (100, "PL 100+"),
+                    (124, "PL 124+"),
+                    (140, "PL 140+"),
+                ]
+                _pl_dd = ft.Dropdown(
+                    value=str(_pl_min),
+                    options=[ft.dropdown.Option(key=str(pl), text=lbl)
+                             for pl, lbl in _PL_OPTS],
+                    on_select=set_pl_dd,
+                    text_size=12,
+                    border_color=_c("border") if _pl_min == 0 else _c("cyan"),
+                    color=_c("text"),
+                    bgcolor=_c("surface"),
+                )
+
+                _so = state.get("sort_order", "default")
+                _SORT_CYCLE = ["default", "pl_asc", "pl_desc", "vbucks"]
+                _SORT_ICONS = {
+                    "default": ft.Icons.SORT,
+                    "pl_asc":  ft.Icons.ARROW_UPWARD,
+                    "pl_desc": ft.Icons.ARROW_DOWNWARD,
+                    "vbucks":  ft.Icons.MONETIZATION_ON,
+                }
+                def cycle_sort(e):
+                    cur     = state.get("sort_order", "default")
+                    nxt_idx = (_SORT_CYCLE.index(cur) + 1) % len(_SORT_CYCLE)
+                    state["sort_order"] = _SORT_CYCLE[nxt_idx]
+                    render()
+
+                _sort_tip = {
+                    "default": t("sort_default"),
+                    "pl_asc":  t("sort_pl_asc"),
+                    "pl_desc": t("sort_pl_desc"),
+                    "vbucks":  t("sort_vbucks"),
+                }.get(_so, "")
+                rows.append(ft.Row([
+                    _pl_dd,
+                    ft.IconButton(
+                        _SORT_ICONS.get(_so, ft.Icons.SORT),
+                        on_click=cycle_sort,
+                        icon_color=_c("cyan") if _so != "default" else _c("sub"),
+                        icon_size=18,
+                        tooltip=f"{t('sort_label')}: {_sort_tip}",
+                    ),
+                ], spacing=4))
+
                 if state["loading"]:
                     rows.append(ft.ProgressRing(width=36, height=36, stroke_width=3,
                                                 color=_c("orange")))
@@ -3245,10 +3346,21 @@ async def main(page: ft.Page):
                 else:
                     wf      = state["world_filter"]
                     wf_key  = _WORLD_KEYS.get(wf, "")
+                    _pl_min_f = state.get("pl_min", 0)
                     shown   = [a for a in state["alerts"]
                                if (not state["vbucks_only"] or a.get("vbucks"))
                                and wf_key in a.get("zone_en", "").lower()
-                               and (_mf == "all" or _mission_type_key(a.get("name","")) == _mf)]
+                               and (_mf == "all" or _mission_type_key(a.get("name","")) == _mf)
+                               and a.get("pl", 0) >= _pl_min_f]
+                    # Sort order
+                    _so_f = state.get("sort_order", "default")
+                    if _so_f == "pl_asc":
+                        shown.sort(key=lambda a: a.get("pl", 0))
+                    elif _so_f == "pl_desc":
+                        shown.sort(key=lambda a: a.get("pl", 0), reverse=True)
+                    elif _so_f == "vbucks":
+                        shown.sort(key=lambda a: (0 if a.get("vbucks") else 1,
+                                                  -a.get("pl", 0)))
                     # Favorites pinned at top
                     favs   = state.get("alert_favorites", set())
                     pinned = [a for a in shown if _fav_key(a) in favs]
