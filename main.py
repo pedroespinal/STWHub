@@ -42,7 +42,7 @@ _ALIGN_CENTER = ft.Alignment(0, 0)
 
 # ── App identity ───────────────────────────────────────────────────────────────
 APP_NAME    = "STW Hub"
-APP_VERSION = "2.8.0"
+APP_VERSION = "2.8.1"
 APP_AUTHOR  = "Pedro Espinal"
 APP_RIGHTS  = "Todos los derechos reservados"
 APP_YEAR    = str(date.today().year)
@@ -2309,6 +2309,19 @@ async def main(page: ft.Page):
         page.window.height = 820
     except Exception:
         pass
+
+    # ── Background image (Twine Peaks atmospheric art — original, no copyright) ─
+    try:
+        page.decoration = ft.BoxDecoration(
+            image=ft.DecorationImage(
+                src="bg_twine.jpg",
+                fit=ft.BoxFit.COVER,
+                opacity=0.18,          # subtle — UI cards still readable
+            )
+        )
+        page.update()
+    except Exception:
+        pass  # older Flet builds without decoration support — silent fallback
 
     # ── UI helpers ─────────────────────────────────────────────────────────────
     def _card(*children, padding=12, margin=4, border_color=None):
