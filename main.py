@@ -4162,10 +4162,10 @@ async def main(page: ft.Page):
                           icon_color=_c("cyan"), icon_size=20),
         ], alignment=ft.MainAxisAlignment.END))
 
-        # Patch notes button — opens Epic's official STW news page in browser
+        # Patch notes button — opens official STW news/patch notes (STW tag only, no BR)
         rows.append(_btn(
             t("patch_notes_btn"),
-            url="https://www.epicgames.com/fortnite/en-US/news?category=save-the-world",
+            url="https://www.fortnite.com/news/tag/save-the-world",
             color=_c("surface"),
         ))
 
